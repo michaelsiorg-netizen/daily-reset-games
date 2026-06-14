@@ -211,15 +211,24 @@
     item.style.top = y + "px";
 
     item.onclick = () => {
-      if (isCalm) {
-        score += 1;
-      } else {
-        score = Math.max(0, score - 2);
-      }
+  if (isCalm) {
+    score += 1;
 
-      scoreEl.textContent = score;
-      item.remove();
-    };
+    if (navigator.vibrate) {
+      navigator.vibrate([20]);
+    }
+
+  } else {
+    score = Math.max(0, score - 2);
+
+    if (navigator.vibrate) {
+      navigator.vibrate([80, 50, 80]);
+    }
+  }
+
+  scoreEl.textContent = score;
+  item.remove();
+};
 
     game.appendChild(item);
 
