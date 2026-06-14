@@ -180,7 +180,7 @@
     startScreen.classList.add("hidden");
     endScreen.classList.add("hidden");
 
-    spawnInterval = setInterval(spawnItem, 900);
+    spawnInterval = setInterval(spawnItem, 1400);
     timerInterval = setInterval(() => {
       time--;
       timeEl.textContent = time;
@@ -225,7 +225,7 @@
 
     setTimeout(() => {
       item.remove();
-    }, 2700);
+    }, 4000);
   }
 
   function endGame() {
