@@ -1,30 +1,243 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Daily Reset Games</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>
-        body {
-            font-family: Arial;
-            text-align: center;
-            padding-top: 100px;
-            background: #F7F9FB;
-        }
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<title>Calm Catch</title>
+<style>
+  * { box-sizing: border-box; }
 
-        h1 {
-            color: #4A6FA5;
-        }
+  body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #F7F9FB;
+    color: #2E2E2E;
+    overflow: hidden;
+    touch-action: manipulation;
+  }
 
-        p {
-            color: #2E2E2E;
-        }
-    </style>
+  #game {
+    width: 100vw;
+    height: 100vh;
+    position: relative;
+    background: linear-gradient(#F7F9FB, #EAF4F1);
+    overflow: hidden;
+  }
+
+  .header {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    right: 16px;
+    z-index: 10;
+    background: white;
+    border-radius: 20px;
+    padding: 14px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    text-align: center;
+  }
+
+  h1 {
+    margin: 0;
+    color: #4A6FA5;
+    font-size: 28px;
+  }
+
+  .sub {
+    margin-top: 4px;
+    font-size: 15px;
+  }
+
+  .stats {
+    display: flex;
+    justify-content: space-around;
+    margin-top: 10px;
+    font-weight: bold;
+  }
+
+  .item {
+    position: absolute;
+    font-size: 46px;
+    width: 64px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: white;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.12);
+    user-select: none;
+    z-index: 5;
+  }
+
+  #startScreen, #endScreen {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    background: #F7F9FB;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    text-align: center;
+  }
+
+  .card {
+    background: white;
+    border-radius: 26px;
+    padding: 28px;
+    max-width: 420px;
+    box-shadow: 0 6px 22px rgba(0,0,0,0.10);
+  }
+
+  .card h2 {
+    color: #4A6FA5;
+    font-size: 32px;
+    margin-top: 0;
+  }
+
+  button {
+    background: #4A6FA5;
+    color: white;
+    border: none;
+    border-radius: 18px;
+    padding: 14px 24px;
+    font-size: 18px;
+    font-weight: bold;
+    margin-top: 16px;
+  }
+
+  .calm {
+    color: #4A6FA5;
+  }
+
+  .hidden {
+    display: none !important;
+  }
+</style>
 </head>
+
 <body>
+<div id="game">
 
-<h1>Daily Reset Games</h1>
+  <div class="header">
+    <h1>Calm Catch</h1>
+    <div class="sub">Tap calming objects. Avoid stress objects.</div>
+    <div class="stats">
+      <div>Score: <span id="score">0</span></div>
+      <div>Time: <span id="time">30</span></div>
+    </div>
+  </div>
 
-<p>If you can see this page, GitHub Pages is working.</p>
+  <div id="startScreen">
+    <div class="card">
+      <h2>Calm Catch</h2>
+      <p>Focus your attention by tapping calming objects as they appear.</p>
+      <p class="calm">Catch: 🌳 ☁️ 🌊 🌻 🦋</p>
+      <p>Avoid: ⏰ ⚠️ 😠 🔥</p>
+      <button onclick="startGame()">Start</button>
+    </div>
+  </div>
 
+  <div id="endScreen" class="hidden">
+    <div class="card">
+      <h2>Great Work</h2>
+      <p id="finalScore"></p>
+      <p>You spent a few moments shifting your attention from reacting to observing.</p>
+      <button onclick="startGame()">Play Again</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const game = document.getElementById("game");
+  const scoreEl = document.getElementById("score");
+  const timeEl = document.getElementById("time");
+  const startScreen = document.getElementById("startScreen");
+  const endScreen = document.getElementById("endScreen");
+  const finalScore = document.getElementById("finalScore");
+
+  const calmItems = ["🌳", "☁️", "🌊", "🌻", "🦋", "🌙", "⭐", "🍃"];
+  const stressItems = ["⏰", "⚠️", "😠", "🔥", "💢"];
+
+  let score = 0;
+  let time = 30;
+  let gameRunning = false;
+  let spawnInterval;
+  let timerInterval;
+
+  function startGame() {
+    document.querySelectorAll(".item").forEach(item => item.remove());
+
+    score = 0;
+    time = 30;
+    gameRunning = true;
+
+    scoreEl.textContent = score;
+    timeEl.textContent = time;
+
+    startScreen.classList.add("hidden");
+    endScreen.classList.add("hidden");
+
+    spawnInterval = setInterval(spawnItem, 650);
+    timerInterval = setInterval(() => {
+      time--;
+      timeEl.textContent = time;
+
+      if (time <= 0) {
+        endGame();
+      }
+    }, 1000);
+  }
+
+  function spawnItem() {
+    if (!gameRunning) return;
+
+    const item = document.createElement("div");
+    item.className = "item";
+
+    const isCalm = Math.random() > 0.32;
+    const emoji = isCalm
+      ? calmItems[Math.floor(Math.random() * calmItems.length)]
+      : stressItems[Math.floor(Math.random() * stressItems.length)];
+
+    item.textContent = emoji;
+
+    const x = Math.random() * (window.innerWidth - 80);
+    const y = 145 + Math.random() * (window.innerHeight - 230);
+
+    item.style.left = x + "px";
+    item.style.top = y + "px";
+
+    item.onclick = () => {
+      if (isCalm) {
+        score += 1;
+      } else {
+        score = Math.max(0, score - 2);
+      }
+
+      scoreEl.textContent = score;
+      item.remove();
+    };
+
+    game.appendChild(item);
+
+    setTimeout(() => {
+      item.remove();
+    }, 1700);
+  }
+
+  function endGame() {
+    gameRunning = false;
+    clearInterval(spawnInterval);
+    clearInterval(timerInterval);
+
+    document.querySelectorAll(".item").forEach(item => item.remove());
+
+    finalScore.textContent = "Final Score: " + score;
+    endScreen.classList.remove("hidden");
+  }
+</script>
 </body>
 </html>
