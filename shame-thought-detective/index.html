@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<title>Thought Detective</title>
+
+<style>
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #EEF4F8;
+  color: #2E2E2E;
+  touch-action: none;
+  overflow: hidden;
+}
+
+#game {
+  width: 100vw;
+  height: 100vh;
+  background: linear-gradient(#EEF4F8, #DCEBE7);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.card {
+  background: white;
+  border-radius: 28px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.10);
+  text-align: center;
+}
+
+#headerCard {
+  padding: 20px 16px;
+}
+
+h1 {
+  margin: 0;
+  color: #4A6FA5;
+  font-size: 34px;
+}
+
+p {
+  font-size: 18px;
+  line-height: 1.35;
+  margin: 12px 0;
+}
+
+.stats {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 10px;
+  font-size: 22px;
+  font-weight: bold;
+}
+
+#thoughtCard {
+  padding: 28px 18px;
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
+  z-index: 5;
+}
+
+#thoughtText {
+  font-size: 25px;
+  font-weight: bold;
+  line-height: 1.25;
+}
+
+#feedbackText {
+  text-align: center;
+  font-size: 22px;
+  font-weight: bold;
+  min-height: 30px;
+}
+
+.correct {
+  color: #2E7D5B;
+}
+
+.incorrect {
+  color: #A94442;
+}
+
+#spacer {
+  flex: 1;
+  min-height: 12px;
+}
+
+.drop-area {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.drop-zone {
+  flex: 1;
+  min-height: 115px;
+  border-radius: 24px;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 14px;
+  font-size: 26px;
+  font-weight: bold;
+  box-shadow: 0 5px 16px rgba(0,0,0,0.12);
+}
+
+.drop-zone small {
+  display: block;
+  font-size: 16px;
+  font-weight: normal;
+  margin-top: 6px;
+}
+
+#factZone {
+  background: #4A6FA5;
+}
+
+#storyZone {
+  background: #8E99A8;
+}
+
+button {
+  background: #4A6FA5;
+  color: white;
+  border: none;
+  border-radius: 18px;
+  padding: 14px 24px;
+  font-size: 20px;
+  font-weight: bold;
+  margin-top: 12px;
+}
+
+#startScreen, #endScreen {
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(#EEF4F8, #DCEBE7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 20;
+}
+
+.modalCard {
+  max-width: 420px;
+  padding: 30px 24px;
+}
+
+.hidden {
+  display: none !important;
+}
+</style>
+</head>
+
+<body>
+<div id="game">
+
+  <div id="headerCard" class="card">
+    <h1>Thought Detective</h1>
+    <p>Drag each thought into Fact or Story.</p>
+    <div class="stats">
+      <div>Score: <span id="score">0</span></div>
+      <div>Round: <span id="round">1</span>/10</div>
+    </div>
+  </div>
+
+  <div id="thoughtCard" class="card">
+    <div id="thoughtText">Loading...</div>
+  </div>
+
+  <div id="feedbackText"></div>
+
+  <div id="spacer"></div>
+
+  <div class="drop-area">
+    <div id="factZone" class="drop-zone">
+      <div>Fact<small>Drag here</small></div>
+    </div>
+
+    <div id="storyZone" class="drop-zone">
+      <div>Story<small>Drag here</small></div>
+    </div>
+  </div>
+
+  <div id="startScreen">
+    <div class="card modalCard">
+      <h1>Thought Detective</h1>
+      <p>Shame can make stories feel like facts.</p>
+      <p>Practice checking the evidence before believing the thought.</p>
+      <button onclick="startGame()">Start</button>
+    </div>
+  </div>
+
+  <div id="endScreen" class="hidden">
+    <div class="card modalCard">
+      <h1>Great Work</h1>
+      <p id="finalScore"></p>
+      <p>You practiced separating facts from stories.</p>
+      <button onclick="startGame()">Play Again</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const thoughtCard = document.getElementById("thoughtCard");
+const thoughtText = document.getElementById("thoughtText");
+const feedbackText = document.getElementById("feedbackText");
+const scoreEl = document.getElementById("score");
+const roundEl = document.getElementById("round");
+const startScreen = document.getElementById("startScreen");
+const endScreen = document.getElementById("endScreen");
+const finalScore = document.getElementById("finalScore");
+const factZone = document.getElementById("factZone");
+const storyZone = document.getElementById("storyZone");
+
+const thoughts = [
+  { text: "I made a mistake.", type: "fact" },
+  { text: "I am a failure.", type: "story" },
+  { text: "Someone criticized me.", type: "fact" },
+  { text: "Everyone thinks I am not good enough.", type: "story" },
+  { text: "I felt embarrassed.", type: "fact" },
+  { text: "I should have everything figured out by now.", type: "story" },
+  { text: "I forgot to do something.", type: "fact" },
+  { text: "This proves I am not capable.", type: "story" },
+  { text: "Someone did not respond to my message.", type: "fact" },
+  { text: "They must be upset with me.", type: "story" },
+  { text: "I felt self-conscious.", type: "fact" },
+  { text: "Nobody likes me.", type: "story" },
+  { text: "I can learn from what happened.", type: "fact" },
+  { text: "I always ruin everything.", type: "story" },
+  { text: "I noticed shame showing up.", type: "fact" },
+  { text: "Feeling shame means something is wrong with me.", type: "story" },
+  { text: "I can choose my next step.", type: "fact" },
+  { text: "I will never get better.", type: "story" },
+  { text: "I had a hard moment.", type: "fact" },
+  { text: "One mistake defines who I am.", type: "story" }
+];
+
+let gameThoughts = [];
+let currentThought = null;
+let score = 0;
+let round = 1;
+let dragging = false;
+let startX = 0;
+let startY = 0;
+let acceptingInput = true;
+
+function startGame() {
+  score = 0;
+  round = 1;
+  acceptingInput = true;
+
+  scoreEl.textContent = score;
+  roundEl.textContent = round;
+  feedbackText.textContent = "";
+  feedbackText.className = "";
+
+  startScreen.classList.add("hidden");
+  endScreen.classList.add("hidden");
+
+  gameThoughts = shuffle([...thoughts]).slice(0, 10);
+  showThought();
+}
+
+function showThought() {
+  acceptingInput = true;
+  currentThought = gameThoughts[round - 1];
+  thoughtText.textContent = currentThought.text;
+  roundEl.textContent = round;
+  feedbackText.textContent = "";
+  feedbackText.className = "";
+  resetCard();
+}
+
+function resetCard() {
+  thoughtCard.style.transform = "translate(0px, 0px)";
+  thoughtCard.style.opacity = "1";
+}
+
+thoughtCard.addEventListener("pointerdown", function(e) {
+  if (!acceptingInput) return;
+  dragging = true;
+  startX = e.clientX;
+  startY = e.clientY;
+  thoughtCard.setPointerCapture(e.pointerId);
+});
+
+thoughtCard.addEventListener("pointermove", function(e) {
+  if (!dragging || !acceptingInput) return;
+  const moveX = e.clientX - startX;
+  const moveY = e.clientY - startY;
+  thoughtCard.style.transform = `translate(${moveX}px, ${moveY}px)`;
+});
+
+thoughtCard.addEventListener("pointerup", function(e) {
+  if (!dragging || !acceptingInput) return;
+  dragging = false;
+
+  const cardRect = thoughtCard.getBoundingClientRect();
+  const centerX = cardRect.left + cardRect.width / 2;
+  const centerY = cardRect.top + cardRect.height / 2;
+
+  const factRect = factZone.getBoundingClientRect();
+  const storyRect = storyZone.getBoundingClientRect();
+
+  if (isInside(centerX, centerY, factRect)) {
+    chooseAnswer("fact");
+  } else if (isInside(centerX, centerY, storyRect)) {
+    chooseAnswer("story");
+  } else {
+    resetCard();
+  }
+});
+
+function chooseAnswer(choice) {
+  acceptingInput = false;
+
+  if (choice === currentThought.type) {
+    score += 1;
+    scoreEl.textContent = score;
+    feedbackText.textContent = "Good noticing.";
+    feedbackText.className = "correct";
+  } else {
+    feedbackText.textContent = "Pause and check the evidence.";
+    feedbackText.className = "incorrect";
+  }
+
+  thoughtCard.style.opacity = "0";
+
+  setTimeout(() => {
+    if (round >= 10) {
+      endGame();
+    } else {
+      round += 1;
+      showThought();
+    }
+  }, 900);
+}
+
+function endGame() {
+  finalScore.textContent = "Final Score: " + score + " / 10";
+  endScreen.classList.remove("hidden");
+}
+
+function isInside(x, y, rect) {
+  return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+}
+
+function shuffle(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+</script>
+</body>
+</html>
