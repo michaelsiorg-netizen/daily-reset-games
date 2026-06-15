@@ -73,7 +73,23 @@
     font-weight: bold;
     line-height: 1.25;
   }
+ 
+#feedbackText {
+  text-align: center;
+  font-size: 22px;
+  font-weight: bold;
+  min-height: 30px;
+  margin-top: 4px;
+  margin-bottom: 4px;
+}
 
+.correct {
+  color: #2E7D5B;
+}
+
+.incorrect {
+  color: #A94442;
+}
   #spacer {
     flex: 1;
     min-height: 20px;
@@ -172,7 +188,12 @@
   <div id="thoughtCard" class="card">
     <div id="thoughtText">Loading...</div>
   </div>
-
+  <div id="thoughtCard" class="card">
+  <div id="thoughtText">Loading...</div>
+</div>
+ <div id="thoughtCard" class="card">
+  <div id="thoughtText">Loading...</div>
+</div>
   <div id="spacer"></div>
 
   <div class="drop-area">
@@ -215,7 +236,8 @@
   const finalScore = document.getElementById("finalScore");
   const helpfulZone = document.getElementById("helpfulZone");
   const unhelpfulZone = document.getElementById("unhelpfulZone");
-
+  const feedbackText = document.getElementById("feedbackText");
+ 
   const thoughts = [
     { text: "What if everything goes wrong?", type: "unhelpful" },
     { text: "I can pause before reacting.", type: "helpful" },
@@ -268,6 +290,8 @@
     currentThought = gameThoughts[round - 1];
     thoughtText.textContent = currentThought.text;
     roundEl.textContent = round;
+   feedbackText.textContent = "";
+feedbackText.className = "";
     resetCard();
   }
 
@@ -322,7 +346,15 @@
       score += 1;
       scoreEl.textContent = score;
     }
-
+     if (choice === currentThought.type) {
+  score += 1;
+  scoreEl.textContent = score;
+  feedbackText.textContent = "Nice noticing.";
+  feedbackText.className = "correct";
+} else {
+  feedbackText.textContent = "Pause and check the thought.";
+  feedbackText.className = "incorrect";
+}
     thoughtCard.style.opacity = "0";
 
     setTimeout(() => {
