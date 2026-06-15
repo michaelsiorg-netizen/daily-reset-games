@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<title>Thought Sort</title>
+
+<style>
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #F7F9FB;
+    color: #2E2E2E;
+    overflow: hidden;
+    touch-action: manipulation;
+  }
+
+  #game {
+    width: 100vw;
+    height: 100vh;
+    position: relative;
+    background: linear-gradient(#EEF4F8, #DCEBE7);
+    overflow: hidden;
+    padding: 16px;
+  }
+
+  .card {
+    background: white;
+    border-radius: 26px;
+    padding: 24px;
+    box-shadow: 0 6px 22px rgba(0,0,0,0.10);
+    text-align: center;
+  }
+
+  h1 {
+    margin: 0;
+    color: #4A6FA5;
+    font-size: 34px;
+  }
+
+  h2 {
+    color: #4A6FA5;
+    font-size: 30px;
+    margin-top: 0;
+  }
+
+  p {
+    font-size: 20px;
+    line-height: 1.35;
+  }
+
+  button {
+    background: #4A6FA5;
+    color: white;
+    border: none;
+    border-radius: 18px;
+    padding: 14px 22px;
+    font-size: 18px;
+    font-weight: bold;
+    margin: 8px;
+  }
+
+  .secondary-button {
+    background: #7FD1B9;
+    color: #1F3A3A;
+  }
+
+  #startScreen, #endScreen {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    background: linear-gradient(#EEF4F8, #DCEBE7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    text-align: center;
+  }
+
+  .hidden {
+    display: none !important;
+  }
+
+  .header {
+    margin-top: 18px;
+    margin-bottom: 18px;
+  }
+
+  .stats {
+    display: flex;
+    justify-content: space-around;
+    margin-top: 14px;
+    font-weight: bold;
+    font-size: 20px;
+  }
+
+  #thoughtCard {
+    margin-top: 44px;
+    min-height: 220px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  #thoughtText {
+    font-size: 28px;
+    font-weight: bold;
+    line-height: 1.25;
+  }
+
+  .choice-area {
+    position: absolute;
+    left: 16px;
+    right: 16px;
+    bottom: 24px;
+    display: flex;
+    gap: 12px;
+  }
+
+  .choice {
+    flex: 1;
+    min-height: 120px;
+    border-radius: 24px;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 18px;
+    font-size: 22px;
+    font-weight: bold;
+    box-shadow: 0 5px 16px rgba(0,0,0,0.12);
+  }
+
+  #unhelpfulBtn {
+    background: #6F7D8C;
+  }
+
+  #helpfulBtn {
+    background: #4A6FA5;
+  }
+
+  #feedback {
+    margin-top: 18px;
+    font-size: 21px;
+    font-weight: bold;
+    min-height: 28px;
+  }
+
+  .correct {
+    color: #2E7D5B;
+  }
+
+  .incorrect {
+    color: #A94442;
+  }
+
+  .small {
+    font-size: 16px;
+    color: #555;
+  }
+</style>
+</head>
+
+<body>
+<div id="game">
+
+  <div class="header card">
+    <h1>Thought Sort</h1>
+    <p class="small">Notice the thought. Then choose where it fits.</p>
+    <div class="stats">
+      <div>Score: <span id="score">0</span></div>
+      <div>Round: <span id="round">1</span>/10</div>
+    </div>
+  </div>
+
+  <div id="thoughtCard" class="card">
+    <div id="thoughtText">Loading...</div>
+    <div id="feedback"></div>
+  </div>
+
+  <div class="choice-area">
+    <div id="unhelpfulBtn" class="choice" onclick="chooseAnswer('unhelpful')">
+      Unhelpful Thought
+    </div>
+    <div id="helpfulBtn" class="choice" onclick="chooseAnswer('helpful')">
+      Helpful Thought
+    </div>
+  </div>
+
+  <div id="startScreen">
+    <div class="card">
+      <h2>Thought Sort</h2>
+      <p>Anxiety can make thoughts feel like facts.</p>
+      <p>This quick game helps you pause, notice the thought, and sort it.</p>
+      <button onclick="startGame()">Start</button>
+    </div>
+  </div>
+
+  <div id="endScreen" class="hidden">
+    <div class="card">
+      <h2>Great Work</h2>
+      <p id="finalScore"></p>
+      <p>You practiced noticing thoughts instead of automatically believing them.</p>
+      <button onclick="startGame()">Play Again</button>
+      <button class="secondary-button" onclick="showExitMessage()">Return to Daily Reset</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const thoughtText = document.getElementById("thoughtText");
+  const feedback = document.getElementById("feedback");
+  const scoreEl = document.getElementById("score");
+  const roundEl = document.getElementById("round");
+  const startScreen = document.getElementById("startScreen");
+  const endScreen = document.getElementById("endScreen");
+  const finalScore = document.getElementById("finalScore");
+
+  const thoughts = [
+    { text: "What if everything goes wrong?", type: "unhelpful" },
+    { text: "I can pause before reacting.", type: "helpful" },
+    { text: "A thought is not the same as a fact.", type: "helpful" },
+    { text: "I need to figure this out right now.", type: "unhelpful" },
+    { text: "I can take one small step.", type: "helpful" },
+    { text: "Everyone probably thinks I failed.", type: "unhelpful" },
+    { text: "I can return to the present moment.", type: "helpful" },
+    { text: "I always mess things up.", type: "unhelpful" },
+    { text: "This feeling is uncomfortable, but it can pass.", type: "helpful" },
+    { text: "If I feel anxious, something must be wrong.", type: "unhelpful" },
+    { text: "I can notice my body and breathe slowly.", type: "helpful" },
+    { text: "I have to be certain before I move forward.", type: "unhelpful" },
+    { text: "I can handle this one moment at a time.", type: "helpful" },
+    { text: "My mind is predicting danger, not proving danger.", type: "helpful" },
+    { text: "If they do not respond, they must be upset with me.", type: "unhelpful" },
+    { text: "I can check the evidence before assuming.", type: "helpful" },
+    { text: "This anxiety means I cannot cope.", type: "unhelpful" },
+    { text: "I do not have to solve every thought.", type: "helpful" },
+    { text: "Something bad is definitely going to happen.", type: "unhelpful" },
+    { text: "I can slow down and choose my next step.", type: "helpful" }
+  ];
+
+  let gameThoughts = [];
+  let currentThought = null;
+  let score = 0;
+  let round = 1;
+  let acceptingAnswers = true;
+
+  function startGame() {
+    score = 0;
+    round = 1;
+    acceptingAnswers = true;
+
+    scoreEl.textContent = score;
+    roundEl.textContent = round;
+    feedback.textContent = "";
+    feedback.className = "";
+
+    startScreen.classList.add("hidden");
+    endScreen.classList.add("hidden");
+
+    gameThoughts = shuffle([...thoughts]).slice(0, 10);
+    showThought();
+  }
+
+  function showThought() {
+    acceptingAnswers = true;
+    feedback.textContent = "";
+    feedback.className = "";
+
+    currentThought = gameThoughts[round - 1];
+    thoughtText.textContent = currentThought.text;
+    roundEl.textContent = round;
+  }
+
+  function chooseAnswer(choice) {
+    if (!acceptingAnswers) return;
+
+    acceptingAnswers = false;
+
+    if (choice === currentThought.type) {
+      score += 1;
+      scoreEl.textContent = score;
+      feedback.textContent = "Nice noticing.";
+      feedback.className = "correct";
+    } else {
+      feedback.textContent = "Pause and check the thought.";
+      feedback.className = "incorrect";
+    }
+
+    setTimeout(() => {
+      if (round >= 10) {
+        endGame();
+      } else {
+        round += 1;
+        showThought();
+      }
+    }, 1100);
+  }
+
+  function endGame() {
+    finalScore.textContent = "Final Score: " + score + " / 10";
+    endScreen.classList.remove("hidden");
+  }
+
+  function showExitMessage() {
+    alert("Tap the back arrow in the upper-left corner to return to Daily Reset.");
+  }
+
+  function shuffle(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+  }
+</script>
+</body>
+</html>
