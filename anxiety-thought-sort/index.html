@@ -6,81 +6,81 @@
 <title>Thought Sort</title>
 
 <style>
-  * { box-sizing: border-box; }
+* { box-sizing: border-box; }
 
-  body {
-    margin: 0;
-    font-family: Arial, sans-serif;
-    background: #EEF4F8;
-    color: #2E2E2E;
-    touch-action: none;
-    overflow: hidden;
-  }
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #EEF4F8;
+  color: #2E2E2E;
+  touch-action: none;
+  overflow: hidden;
+}
 
-  #game {
-    width: 100vw;
-    height: 100vh;
-    background: linear-gradient(#EEF4F8, #DCEBE7);
-    padding: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 18px;
-  }
+#game {
+  width: 100vw;
+  height: 100vh;
+  background: linear-gradient(#EEF4F8, #DCEBE7);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
 
-  .card {
-    background: white;
-    border-radius: 28px;
-    box-shadow: 0 6px 20px rgba(0,0,0,0.10);
-    text-align: center;
-  }
+.card {
+  background: white;
+  border-radius: 28px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.10);
+  text-align: center;
+}
 
-  #headerCard {
-    padding: 20px 16px;
-  }
+#headerCard {
+  padding: 20px 16px;
+}
 
-  h1 {
-    margin: 0;
-    color: #4A6FA5;
-    font-size: 34px;
-  }
+h1 {
+  margin: 0;
+  color: #4A6FA5;
+  font-size: 34px;
+}
 
-  p {
-    font-size: 18px;
-    line-height: 1.35;
-    margin: 12px 0;
-  }
+p {
+  font-size: 18px;
+  line-height: 1.35;
+  margin: 12px 0;
+}
 
-  .stats {
-    display: flex;
-    justify-content: space-around;
-    margin-top: 10px;
-    font-size: 22px;
-    font-weight: bold;
-  }
+.stats {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 10px;
+  font-size: 22px;
+  font-weight: bold;
+}
 
-  #thoughtCard {
-    padding: 28px 18px;
-    min-height: 120px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    touch-action: none;
-    z-index: 5;
-  }
+#thoughtCard {
+  padding: 28px 18px;
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
+  z-index: 5;
+}
 
-  #thoughtText {
-    font-size: 25px;
-    font-weight: bold;
-    line-height: 1.25;
-  }
- 
+#thoughtText {
+  font-size: 25px;
+  font-weight: bold;
+  line-height: 1.25;
+}
+
 #feedbackText {
   text-align: center;
   font-size: 22px;
   font-weight: bold;
   min-height: 30px;
-  margin-top: 4px;
-  margin-bottom: 4px;
+  margin-top: -4px;
+  margin-bottom: -4px;
 }
 
 .correct {
@@ -90,86 +90,78 @@
 .incorrect {
   color: #A94442;
 }
-  #spacer {
-    flex: 1;
-    min-height: 20px;
-  }
 
-  .drop-area {
-    display: flex;
-    gap: 12px;
-    margin-bottom: 12px;
-  }
+#spacer {
+  flex: 1;
+  min-height: 20px;
+}
 
-  .drop-zone {
-    flex: 1;
-    min-height: 115px;
-    border-radius: 24px;
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    padding: 14px;
-    font-size: 24px;
-    font-weight: bold;
-    box-shadow: 0 5px 16px rgba(0,0,0,0.12);
-  }
+.drop-area {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
 
-  .drop-zone small {
-    display: block;
-    font-size: 16px;
-    font-weight: normal;
-    margin-top: 6px;
-  }
+.drop-zone {
+  flex: 1;
+  min-height: 115px;
+  border-radius: 24px;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 14px;
+  font-size: 24px;
+  font-weight: bold;
+  box-shadow: 0 5px 16px rgba(0,0,0,0.12);
+}
 
-  #unhelpfulZone {
-    background: #8E99A8;
-  }
+.drop-zone small {
+  display: block;
+  font-size: 16px;
+  font-weight: normal;
+  margin-top: 6px;
+}
 
-  #helpfulZone {
-    background: #4A6FA5;
-  }
+#unhelpfulZone {
+  background: #8E99A8;
+}
 
-  button {
-    background: #4A6FA5;
-    color: white;
-    border: none;
-    border-radius: 18px;
-    padding: 14px 24px;
-    font-size: 20px;
-    font-weight: bold;
-    margin-top: 12px;
-  }
+#helpfulZone {
+  background: #4A6FA5;
+}
 
-  #startScreen, #endScreen {
-    position: fixed;
-    inset: 0;
-    background: linear-gradient(#EEF4F8, #DCEBE7);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 24px;
-    z-index: 20;
-  }
+button {
+  background: #4A6FA5;
+  color: white;
+  border: none;
+  border-radius: 18px;
+  padding: 14px 24px;
+  font-size: 20px;
+  font-weight: bold;
+  margin-top: 12px;
+}
 
-  .modalCard {
-    max-width: 420px;
-    padding: 30px 24px;
-  }
+#startScreen, #endScreen {
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(#EEF4F8, #DCEBE7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 20;
+}
 
-  .hidden {
-    display: none !important;
-  }
+.modalCard {
+  max-width: 420px;
+  padding: 30px 24px;
+}
 
-  @media (max-height: 700px) {
-    h1 { font-size: 28px; }
-    p { font-size: 16px; }
-    .stats { font-size: 19px; }
-    #thoughtText { font-size: 22px; }
-    #thoughtCard { min-height: 100px; padding: 22px 14px; }
-    .drop-zone { min-height: 95px; font-size: 21px; }
-  }
+.hidden {
+  display: none !important;
+}
 </style>
 </head>
 
@@ -188,12 +180,9 @@
   <div id="thoughtCard" class="card">
     <div id="thoughtText">Loading...</div>
   </div>
-  <div id="thoughtCard" class="card">
-  <div id="thoughtText">Loading...</div>
-</div>
- <div id="thoughtCard" class="card">
-  <div id="thoughtText">Loading...</div>
-</div>
+
+  <div id="feedbackText"></div>
+
   <div id="spacer"></div>
 
   <div class="drop-area">
@@ -227,162 +216,157 @@
 </div>
 
 <script>
-  const thoughtCard = document.getElementById("thoughtCard");
-  const thoughtText = document.getElementById("thoughtText");
-  const scoreEl = document.getElementById("score");
-  const roundEl = document.getElementById("round");
-  const startScreen = document.getElementById("startScreen");
-  const endScreen = document.getElementById("endScreen");
-  const finalScore = document.getElementById("finalScore");
-  const helpfulZone = document.getElementById("helpfulZone");
-  const unhelpfulZone = document.getElementById("unhelpfulZone");
-  const feedbackText = document.getElementById("feedbackText");
- 
-  const thoughts = [
-    { text: "What if everything goes wrong?", type: "unhelpful" },
-    { text: "I can pause before reacting.", type: "helpful" },
-    { text: "A thought is not the same as a fact.", type: "helpful" },
-    { text: "I need to figure this out right now.", type: "unhelpful" },
-    { text: "I can take one small step.", type: "helpful" },
-    { text: "Everyone probably thinks I failed.", type: "unhelpful" },
-    { text: "I can return to the present moment.", type: "helpful" },
-    { text: "I always mess things up.", type: "unhelpful" },
-    { text: "This feeling is uncomfortable, but it can pass.", type: "helpful" },
-    { text: "If I feel anxious, something must be wrong.", type: "unhelpful" },
-    { text: "I can notice my body and breathe slowly.", type: "helpful" },
-    { text: "I have to be certain before I move forward.", type: "unhelpful" },
-    { text: "I can handle this one moment at a time.", type: "helpful" },
-    { text: "My mind is predicting danger, not proving danger.", type: "helpful" },
-    { text: "If they do not respond, they must be upset with me.", type: "unhelpful" },
-    { text: "I can check the evidence before assuming.", type: "helpful" },
-    { text: "This anxiety means I cannot cope.", type: "unhelpful" },
-    { text: "I do not have to solve every thought.", type: "helpful" },
-    { text: "Something bad is definitely going to happen.", type: "unhelpful" },
-    { text: "I can slow down and choose my next step.", type: "helpful" }
-  ];
+const thoughtCard = document.getElementById("thoughtCard");
+const thoughtText = document.getElementById("thoughtText");
+const feedbackText = document.getElementById("feedbackText");
+const scoreEl = document.getElementById("score");
+const roundEl = document.getElementById("round");
+const startScreen = document.getElementById("startScreen");
+const endScreen = document.getElementById("endScreen");
+const finalScore = document.getElementById("finalScore");
+const helpfulZone = document.getElementById("helpfulZone");
+const unhelpfulZone = document.getElementById("unhelpfulZone");
 
-  let gameThoughts = [];
-  let currentThought = null;
-  let score = 0;
-  let round = 1;
-  let dragging = false;
-  let startX = 0;
-  let startY = 0;
-  let acceptingInput = true;
+const thoughts = [
+  { text: "What if everything goes wrong?", type: "unhelpful" },
+  { text: "I can pause before reacting.", type: "helpful" },
+  { text: "A thought is not the same as a fact.", type: "helpful" },
+  { text: "I need to figure this out right now.", type: "unhelpful" },
+  { text: "I can take one small step.", type: "helpful" },
+  { text: "Everyone probably thinks I failed.", type: "unhelpful" },
+  { text: "I can return to the present moment.", type: "helpful" },
+  { text: "I always mess things up.", type: "unhelpful" },
+  { text: "This feeling is uncomfortable, but it can pass.", type: "helpful" },
+  { text: "If I feel anxious, something must be wrong.", type: "unhelpful" },
+  { text: "I can notice my body and breathe slowly.", type: "helpful" },
+  { text: "I have to be certain before I move forward.", type: "unhelpful" },
+  { text: "I can handle this one moment at a time.", type: "helpful" },
+  { text: "My mind is predicting danger, not proving danger.", type: "helpful" },
+  { text: "If they do not respond, they must be upset with me.", type: "unhelpful" },
+  { text: "I can check the evidence before assuming.", type: "helpful" },
+  { text: "This anxiety means I cannot cope.", type: "unhelpful" },
+  { text: "I do not have to solve every thought.", type: "helpful" },
+  { text: "Something bad is definitely going to happen.", type: "unhelpful" },
+  { text: "I can slow down and choose my next step.", type: "helpful" }
+];
 
-  function startGame() {
-    score = 0;
-    round = 1;
-    acceptingInput = true;
+let gameThoughts = [];
+let currentThought = null;
+let score = 0;
+let round = 1;
+let dragging = false;
+let startX = 0;
+let startY = 0;
+let acceptingInput = true;
 
-    scoreEl.textContent = score;
-    roundEl.textContent = round;
+function startGame() {
+  score = 0;
+  round = 1;
+  acceptingInput = true;
 
-    startScreen.classList.add("hidden");
-    endScreen.classList.add("hidden");
+  scoreEl.textContent = score;
+  roundEl.textContent = round;
+  feedbackText.textContent = "";
+  feedbackText.className = "";
 
-    gameThoughts = shuffle([...thoughts]).slice(0, 10);
-    showThought();
-  }
+  startScreen.classList.add("hidden");
+  endScreen.classList.add("hidden");
 
-  function showThought() {
-    acceptingInput = true;
-    currentThought = gameThoughts[round - 1];
-    thoughtText.textContent = currentThought.text;
-    roundEl.textContent = round;
-   feedbackText.textContent = "";
-feedbackText.className = "";
+  gameThoughts = shuffle([...thoughts]).slice(0, 10);
+  showThought();
+}
+
+function showThought() {
+  acceptingInput = true;
+  currentThought = gameThoughts[round - 1];
+  thoughtText.textContent = currentThought.text;
+  roundEl.textContent = round;
+  feedbackText.textContent = "";
+  feedbackText.className = "";
+  resetCard();
+}
+
+function resetCard() {
+  thoughtCard.style.transform = "translate(0px, 0px)";
+  thoughtCard.style.opacity = "1";
+}
+
+thoughtCard.addEventListener("pointerdown", function(e) {
+  if (!acceptingInput) return;
+  dragging = true;
+  startX = e.clientX;
+  startY = e.clientY;
+  thoughtCard.setPointerCapture(e.pointerId);
+});
+
+thoughtCard.addEventListener("pointermove", function(e) {
+  if (!dragging || !acceptingInput) return;
+  const moveX = e.clientX - startX;
+  const moveY = e.clientY - startY;
+  thoughtCard.style.transform = `translate(${moveX}px, ${moveY}px)`;
+});
+
+thoughtCard.addEventListener("pointerup", function(e) {
+  if (!dragging || !acceptingInput) return;
+  dragging = false;
+
+  const cardRect = thoughtCard.getBoundingClientRect();
+  const centerX = cardRect.left + cardRect.width / 2;
+  const centerY = cardRect.top + cardRect.height / 2;
+
+  const helpfulRect = helpfulZone.getBoundingClientRect();
+  const unhelpfulRect = unhelpfulZone.getBoundingClientRect();
+
+  if (isInside(centerX, centerY, helpfulRect)) {
+    chooseAnswer("helpful");
+  } else if (isInside(centerX, centerY, unhelpfulRect)) {
+    chooseAnswer("unhelpful");
+  } else {
     resetCard();
   }
+});
 
-  function resetCard() {
-    thoughtCard.style.transform = "translate(0px, 0px)";
-    thoughtCard.style.opacity = "1";
+function chooseAnswer(choice) {
+  acceptingInput = false;
+
+  if (choice === currentThought.type) {
+    score += 1;
+    scoreEl.textContent = score;
+    feedbackText.textContent = "Nice noticing.";
+    feedbackText.className = "correct";
+  } else {
+    feedbackText.textContent = "Pause and check the thought.";
+    feedbackText.className = "incorrect";
   }
 
-  thoughtCard.addEventListener("pointerdown", function(e) {
-    if (!acceptingInput) return;
+  thoughtCard.style.opacity = "0";
 
-    dragging = true;
-    startX = e.clientX;
-    startY = e.clientY;
-    thoughtCard.setPointerCapture(e.pointerId);
-  });
-
-  thoughtCard.addEventListener("pointermove", function(e) {
-    if (!dragging || !acceptingInput) return;
-
-    const moveX = e.clientX - startX;
-    const moveY = e.clientY - startY;
-
-    thoughtCard.style.transform = `translate(${moveX}px, ${moveY}px)`;
-  });
-
-  thoughtCard.addEventListener("pointerup", function(e) {
-    if (!dragging || !acceptingInput) return;
-
-    dragging = false;
-
-    const cardRect = thoughtCard.getBoundingClientRect();
-    const centerX = cardRect.left + cardRect.width / 2;
-    const centerY = cardRect.top + cardRect.height / 2;
-
-    const helpfulRect = helpfulZone.getBoundingClientRect();
-    const unhelpfulRect = unhelpfulZone.getBoundingClientRect();
-
-    if (isInside(centerX, centerY, helpfulRect)) {
-      chooseAnswer("helpful");
-    } else if (isInside(centerX, centerY, unhelpfulRect)) {
-      chooseAnswer("unhelpful");
+  setTimeout(() => {
+    if (round >= 10) {
+      endGame();
     } else {
-      resetCard();
+      round += 1;
+      showThought();
     }
-  });
-
-  function chooseAnswer(choice) {
-    acceptingInput = false;
-
-    if (choice === currentThought.type) {
-      score += 1;
-      scoreEl.textContent = score;
-    }
-     if (choice === currentThought.type) {
-  score += 1;
-  scoreEl.textContent = score;
-  feedbackText.textContent = "Nice noticing.";
-  feedbackText.className = "correct";
-} else {
-  feedbackText.textContent = "Pause and check the thought.";
-  feedbackText.className = "incorrect";
+  }, 900);
 }
-    thoughtCard.style.opacity = "0";
 
-    setTimeout(() => {
-      if (round >= 10) {
-        endGame();
-      } else {
-        round += 1;
-        showThought();
-      }
-    }, 500);
-  }
+function endGame() {
+  finalScore.textContent = "Final Score: " + score + " / 10";
+  endScreen.classList.remove("hidden");
+}
 
-  function endGame() {
-    finalScore.textContent = "Final Score: " + score + " / 10";
-    endScreen.classList.remove("hidden");
-  }
+function isInside(x, y, rect) {
+  return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+}
 
-  function isInside(x, y, rect) {
-    return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+function shuffle(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
   }
-
-  function shuffle(array) {
-    for (let i = array.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [array[i], array[j]] = [array[j], array[i]];
-    }
-    return array;
-  }
+  return array;
+}
 </script>
 </body>
 </html>
