@@ -14,22 +14,22 @@
     background: #F7F9FB;
     color: #2E2E2E;
     overflow: hidden;
-    touch-action: manipulation;
+    touch-action: none;
   }
 
   #game {
     width: 100vw;
     height: 100vh;
     position: relative;
-    background: linear-gradient(#F7F9FB, #EAF4F1);
+    background: linear-gradient(#EEF4F8, #DCEBE7);
     overflow: hidden;
     padding: 16px;
   }
 
   .card {
     background: white;
-    border-radius: 26px;
-    padding: 24px;
+    border-radius: 30px;
+    padding: 22px;
     box-shadow: 0 6px 22px rgba(0,0,0,0.10);
     text-align: center;
   }
@@ -37,7 +37,7 @@
   h1 {
     margin: 0;
     color: #4A6FA5;
-    font-size: 34px;
+    font-size: 32px;
   }
 
   h2 {
@@ -47,7 +47,7 @@
   }
 
   p {
-    font-size: 20px;
+    font-size: 19px;
     line-height: 1.35;
   }
 
@@ -59,19 +59,14 @@
     padding: 14px 22px;
     font-size: 18px;
     font-weight: bold;
-    margin: 8px;
-  }
-
-  .secondary-button {
-    background: #7FD1B9;
-    color: #1F3A3A;
+    margin-top: 12px;
   }
 
   #startScreen, #endScreen {
     position: absolute;
     inset: 0;
     z-index: 20;
-    background: linear-gradient(#F7F9FB, #EAF4F1);
+    background: linear-gradient(#EEF4F8, #DCEBE7);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -84,69 +79,53 @@
   }
 
   .header {
-    margin-top: 18px;
-    margin-bottom: 18px;
+    margin-top: 14px;
+    margin-bottom: 14px;
+  }
+
+  .small {
+    font-size: 16px;
+    color: #555;
+    margin-bottom: 0;
   }
 
   .stats {
     display: flex;
     justify-content: space-around;
-    margin-top: 14px;
+    margin-top: 12px;
     font-weight: bold;
-    font-size: 20px;
+    font-size: 19px;
   }
 
   #thoughtCard {
-    margin-top: 44px;
-    min-height: 220px;
+    position: absolute;
+    left: 28px;
+    right: 28px;
+    top: 210px;
+    min-height: 190px;
     display: flex;
-    flex-direction: column;
+    align-items: center;
     justify-content: center;
+    touch-action: none;
+    z-index: 8;
+    transition: transform 0.2s ease, opacity 0.2s ease;
   }
 
   #thoughtText {
-    font-size: 28px;
+    font-size: 26px;
     font-weight: bold;
     line-height: 1.25;
   }
 
-  .choice-area {
-    position: absolute;
-    left: 16px;
-    right: 16px;
-    bottom: 24px;
-    display: flex;
-    gap: 12px;
-  }
-
-  .choice {
-    flex: 1;
-    min-height: 120px;
-    border-radius: 24px;
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    padding: 18px;
-    font-size: 22px;
-    font-weight: bold;
-    box-shadow: 0 5px 16px rgba(0,0,0,0.12);
-  }
-
-  #unhelpfulBtn {
-    background: #8E99A8;
-  }
-
-  #helpfulBtn {
-    background: #4A6FA5;
-  }
-
   #feedback {
-    margin-top: 18px;
+    position: absolute;
+    left: 20px;
+    right: 20px;
+    top: 430px;
+    text-align: center;
     font-size: 21px;
     font-weight: bold;
-    min-height: 28px;
+    min-height: 30px;
   }
 
   .correct {
@@ -157,9 +136,43 @@
     color: #A94442;
   }
 
-  .small {
-    font-size: 16px;
-    color: #555;
+  .drop-area {
+    position: absolute;
+    left: 16px;
+    right: 16px;
+    bottom: 24px;
+    display: flex;
+    gap: 12px;
+  }
+
+  .drop-zone {
+    flex: 1;
+    min-height: 130px;
+    border-radius: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 18px;
+    font-size: 22px;
+    font-weight: bold;
+    color: white;
+    box-shadow: 0 5px 16px rgba(0,0,0,0.12);
+  }
+
+  #unhelpfulZone {
+    background: #8E99A8;
+  }
+
+  #helpfulZone {
+    background: #4A6FA5;
+  }
+
+  .dragHint {
+    font-size: 15px;
+    font-weight: normal;
+    margin-top: 6px;
+    opacity: 0.9;
   }
 </style>
 </head>
@@ -169,7 +182,7 @@
 
   <div class="header card">
     <h1>Thought Sort</h1>
-    <p class="small">Notice the thought. Then choose where it fits.</p>
+    <p class="small">Drag each thought into the category that fits best.</p>
     <div class="stats">
       <div>Score: <span id="score">0</span></div>
       <div>Round: <span id="round">1</span>/10</div>
@@ -178,15 +191,23 @@
 
   <div id="thoughtCard" class="card">
     <div id="thoughtText">Loading...</div>
-    <div id="feedback"></div>
   </div>
 
-  <div class="choice-area">
-    <div id="unhelpfulBtn" class="choice" onclick="chooseAnswer('unhelpful')">
-      Unhelpful Thought
+  <div id="feedback"></div>
+
+  <div class="drop-area">
+    <div id="unhelpfulZone" class="drop-zone">
+      <div>
+        Unhelpful Thought
+        <div class="dragHint">Drag here</div>
+      </div>
     </div>
-    <div id="helpfulBtn" class="choice" onclick="chooseAnswer('helpful')">
-      Helpful Thought
+
+    <div id="helpfulZone" class="drop-zone">
+      <div>
+        Helpful Thought
+        <div class="dragHint">Drag here</div>
+      </div>
     </div>
   </div>
 
@@ -194,7 +215,7 @@
     <div class="card">
       <h2>Thought Sort</h2>
       <p>Anxiety can make thoughts feel like facts.</p>
-      <p>This quick game helps you pause, notice the thought, and sort it.</p>
+      <p>Drag each thought into the category that fits best.</p>
       <button onclick="startGame()">Start</button>
     </div>
   </div>
@@ -211,6 +232,7 @@
 </div>
 
 <script>
+  const thoughtCard = document.getElementById("thoughtCard");
   const thoughtText = document.getElementById("thoughtText");
   const feedback = document.getElementById("feedback");
   const scoreEl = document.getElementById("score");
@@ -218,6 +240,8 @@
   const startScreen = document.getElementById("startScreen");
   const endScreen = document.getElementById("endScreen");
   const finalScore = document.getElementById("finalScore");
+  const helpfulZone = document.getElementById("helpfulZone");
+  const unhelpfulZone = document.getElementById("unhelpfulZone");
 
   const thoughts = [
     { text: "What if everything goes wrong?", type: "unhelpful" },
@@ -246,12 +270,17 @@
   let currentThought = null;
   let score = 0;
   let round = 1;
-  let acceptingAnswers = true;
+  let dragging = false;
+  let startX = 0;
+  let startY = 0;
+  let currentX = 0;
+  let currentY = 0;
+  let acceptingInput = true;
 
   function startGame() {
     score = 0;
     round = 1;
-    acceptingAnswers = true;
+    acceptingInput = true;
 
     scoreEl.textContent = score;
     roundEl.textContent = round;
@@ -262,23 +291,72 @@
     endScreen.classList.add("hidden");
 
     gameThoughts = shuffle([...thoughts]).slice(0, 10);
+    resetCardPosition();
     showThought();
   }
 
   function showThought() {
-    acceptingAnswers = true;
+    acceptingInput = true;
     feedback.textContent = "";
     feedback.className = "";
 
     currentThought = gameThoughts[round - 1];
     thoughtText.textContent = currentThought.text;
     roundEl.textContent = round;
+    resetCardPosition();
+  }
+
+  function resetCardPosition() {
+    currentX = 0;
+    currentY = 0;
+    thoughtCard.style.transform = "translate(0px, 0px)";
+    thoughtCard.style.opacity = "1";
+  }
+
+  thoughtCard.addEventListener("pointerdown", function(e) {
+    if (!acceptingInput) return;
+
+    dragging = true;
+    startX = e.clientX;
+    startY = e.clientY;
+    thoughtCard.setPointerCapture(e.pointerId);
+  });
+
+  thoughtCard.addEventListener("pointermove", function(e) {
+    if (!dragging || !acceptingInput) return;
+
+    currentX = e.clientX - startX;
+    currentY = e.clientY - startY;
+    thoughtCard.style.transform = `translate(${currentX}px, ${currentY}px)`;
+  });
+
+  thoughtCard.addEventListener("pointerup", function(e) {
+    if (!dragging || !acceptingInput) return;
+
+    dragging = false;
+
+    const cardRect = thoughtCard.getBoundingClientRect();
+    const cardCenterX = cardRect.left + cardRect.width / 2;
+    const cardCenterY = cardRect.top + cardRect.height / 2;
+
+    const helpfulRect = helpfulZone.getBoundingClientRect();
+    const unhelpfulRect = unhelpfulZone.getBoundingClientRect();
+
+    if (isInside(cardCenterX, cardCenterY, helpfulRect)) {
+      chooseAnswer("helpful");
+    } else if (isInside(cardCenterX, cardCenterY, unhelpfulRect)) {
+      chooseAnswer("unhelpful");
+    } else {
+      resetCardPosition();
+    }
+  });
+
+  function isInside(x, y, rect) {
+    return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
   }
 
   function chooseAnswer(choice) {
-    if (!acceptingAnswers) return;
-
-    acceptingAnswers = false;
+    acceptingInput = false;
 
     if (choice === currentThought.type) {
       score += 1;
@@ -290,6 +368,8 @@
       feedback.className = "incorrect";
     }
 
+    thoughtCard.style.opacity = "0.3";
+
     setTimeout(() => {
       if (round >= 10) {
         endGame();
@@ -300,8 +380,9 @@
     }, 1100);
   }
 
-  function showExitMessage() {
-    alert("Tap the back arrow in the upper-left corner to return to Daily Reset.");
+  function endGame() {
+    finalScore.textContent = "Final Score: " + score + " / 10";
+    endScreen.classList.remove("hidden");
   }
 
   function shuffle(array) {
