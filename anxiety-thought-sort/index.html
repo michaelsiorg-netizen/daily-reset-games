@@ -21,7 +21,7 @@
     width: 100vw;
     height: 100vh;
     position: relative;
-    background: linear-gradient(#EEF4F8, #DCEBE7);
+    background: linear-gradient(#F7F9FB, #EAF4F1);
     overflow: hidden;
     padding: 16px;
   }
@@ -71,7 +71,7 @@
     position: absolute;
     inset: 0;
     z-index: 20;
-    background: linear-gradient(#EEF4F8, #DCEBE7);
+    background: linear-gradient(#F7F9FB, #EAF4F1);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -135,7 +135,7 @@
   }
 
   #unhelpfulBtn {
-    background: #6F7D8C;
+    background: #8E99A8;
   }
 
   #helpfulBtn {
@@ -205,7 +205,6 @@
       <p id="finalScore"></p>
       <p>You practiced noticing thoughts instead of automatically believing them.</p>
       <button onclick="startGame()">Play Again</button>
-      <button class="secondary-button" onclick="showExitMessage()">Return to Daily Reset</button>
     </div>
   </div>
 
@@ -299,11 +298,6 @@
         showThought();
       }
     }, 1100);
-  }
-
-  function endGame() {
-    finalScore.textContent = "Final Score: " + score + " / 10";
-    endScreen.classList.remove("hidden");
   }
 
   function showExitMessage() {
