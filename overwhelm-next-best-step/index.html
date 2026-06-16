@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<title>Next Best Step</title>
+
+<style>
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #EEF4F8;
+  color: #2E2E2E;
+  overflow: hidden;
+  touch-action: manipulation;
+}
+
+#game {
+  width: 100vw;
+  height: 100vh;
+  background: linear-gradient(#EEF4F8, #DCEBE7);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.card {
+  background: white;
+  border-radius: 26px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.10);
+  text-align: center;
+}
+
+#headerCard {
+  padding: 14px 12px;
+}
+
+h1 {
+  margin: 0;
+  color: #4A6FA5;
+  font-size: 31px;
+}
+
+p {
+  font-size: 17px;
+  line-height: 1.32;
+  margin: 8px 0;
+}
+
+.stats {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 8px;
+  font-size: 20px;
+  font-weight: bold;
+}
+
+#scenarioCard {
+  padding: 18px 14px;
+  min-height: 92px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#scenarioText {
+  font-size: 22px;
+  font-weight: bold;
+  line-height: 1.25;
+}
+
+#questionText {
+  text-align: center;
+  font-size: 18px;
+  font-weight: bold;
+  color: #4A6FA5;
+  min-height: 24px;
+}
+
+#choices {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.choiceButton {
+  width: 100%;
+  min-height: 58px;
+  border: none;
+  border-radius: 20px;
+  background: white;
+  color: #2E2E2E;
+  font-size: 17px;
+  font-weight: bold;
+  line-height: 1.2;
+  padding: 10px 12px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.10);
+}
+
+.choiceButton:disabled {
+  opacity: 0.9;
+}
+
+.choiceCorrect {
+  background: #4A6FA5 !important;
+  color: white !important;
+}
+
+.choiceIncorrect {
+  background: #8E99A8 !important;
+  color: white !important;
+}
+
+#feedbackText {
+  text-align: center;
+  font-size: 18px;
+  font-weight: bold;
+  min-height: 42px;
+  line-height: 1.25;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.correct {
+  color: #2E7D5B;
+}
+
+.incorrect {
+  color: #A94442;
+}
+
+#startScreen, #endScreen {
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(#EEF4F8, #DCEBE7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 20;
+}
+
+.modalCard {
+  max-width: 420px;
+  padding: 30px 24px;
+}
+
+.startButton {
+  background: #4A6FA5;
+  color: white;
+  border: none;
+  border-radius: 18px;
+  padding: 14px 24px;
+  font-size: 20px;
+  font-weight: bold;
+  margin-top: 12px;
+}
+
+.hidden {
+  display: none !important;
+}
+
+@media (max-height: 700px) {
+  #game { gap: 7px; padding: 10px; }
+  h1 { font-size: 27px; }
+  p { font-size: 15px; }
+  .stats { font-size: 18px; }
+  #scenarioCard { min-height: 78px; padding: 14px 10px; }
+  #scenarioText { font-size: 19px; }
+  #questionText { font-size: 16px; }
+  .choiceButton { min-height: 50px; font-size: 15px; padding: 8px 10px; }
+  #feedbackText { font-size: 16px; min-height: 34px; }
+}
+</style>
+</head>
+
+<body>
+<div id="game">
+
+  <div id="headerCard" class="card">
+    <h1>Next Best Step</h1>
+    <p>When everything feels too big, choose one healthy next step.</p>
+    <div class="stats">
+      <div>Score: <span id="score">0</span></div>
+      <div>Round: <span id="round">1</span>/10</div>
+    </div>
+  </div>
+
+  <div id="scenarioCard" class="card">
+    <div id="scenarioText">Loading...</div>
+  </div>
+
+  <div id="questionText">What is the healthiest next step?</div>
+
+  <div id="choices">
+    <button class="choiceButton" onclick="chooseAnswer(0)" id="choice0">Loading...</button>
+    <button class="choiceButton" onclick="chooseAnswer(1)" id="choice1">Loading...</button>
+    <button class="choiceButton" onclick="chooseAnswer(2)" id="choice2">Loading...</button>
+    <button class="choiceButton" onclick="chooseAnswer(3)" id="choice3">Loading...</button>
+  </div>
+
+  <div id="feedbackText"></div>
+
+  <div id="startScreen">
+    <div class="card modalCard">
+      <h1>Next Best Step</h1>
+      <p>Overwhelm can make everything feel urgent.</p>
+      <p>Practice choosing the smallest healthy next step.</p>
+      <button class="startButton" onclick="startGame()">Start</button>
+    </div>
+  </div>
+
+  <div id="endScreen" class="hidden">
+    <div class="card modalCard">
+      <h1>Great Work</h1>
+      <p id="finalScore"></p>
+      <p>You practiced slowing down and choosing one workable step.</p>
+      <button class="startButton" onclick="startGame()">Play Again</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const scenarioText = document.getElementById("scenarioText");
+const feedbackText = document.getElementById("feedbackText");
+const scoreEl = document.getElementById("score");
+const roundEl = document.getElementById("round");
+const startScreen = document.getElementById("startScreen");
+const endScreen = document.getElementById("endScreen");
+const finalScore = document.getElementById("finalScore");
+
+const choiceButtons = [
+  document.getElementById("choice0"),
+  document.getElementById("choice1"),
+  document.getElementById("choice2"),
+  document.getElementById("choice3")
+];
+
+const rounds = [
+  {
+    scenario: "I have so much to do that I do not know where to start.",
+    choices: [
+      "Try to finish everything today.",
+      "Wait until I feel motivated.",
+      "Pick one task and work on it for 10 minutes.",
+      "Make a perfect plan for the whole month."
+    ],
+    correct: 2,
+    feedback: "One small step reduces overwhelm."
+  },
+  {
+    scenario: "My space is messy and I feel stuck.",
+    choices: [
+      "Clean the entire place right now.",
+      "Organize one small area.",
+      "Ignore it until it gets worse.",
+      "Tell myself I am lazy."
+    ],
+    correct: 1,
+    feedback: "Small actions create momentum."
+  },
+  {
+    scenario: "I am exhausted and have not had a break all day.",
+    choices: [
+      "Push harder and ignore my body.",
+      "Quit everything immediately.",
+      "Take a 10-minute reset break.",
+      "Wait until I burn out completely."
+    ],
+    correct: 2,
+    feedback: "Rest supports effectiveness."
+  },
+  {
+    scenario: "I have a long list of messages to answer.",
+    choices: [
+      "Reply to one important message.",
+      "Answer every message perfectly.",
+      "Avoid my phone all week.",
+      "Assume everyone is upset."
+    ],
+    correct: 0,
+    feedback: "Start with one reachable action."
+  },
+  {
+    scenario: "I have not exercised in a long time.",
+    choices: [
+      "Run five miles today.",
+      "Take a 5-minute walk.",
+      "Buy a full workout program.",
+      "Wait until next Monday."
+    ],
+    correct: 1,
+    feedback: "Consistency begins with manageable steps."
+  },
+  {
+    scenario: "I feel behind on everything.",
+    choices: [
+      "Shame myself into catching up.",
+      "Pick the next most important task.",
+      "Give up on the whole day.",
+      "Try to fix my entire life tonight."
+    ],
+    correct: 1,
+    feedback: "Prioritizing helps reduce mental clutter."
+  },
+  {
+    scenario: "I am overwhelmed by a work project.",
+    choices: [
+      "Break it into the first small step.",
+      "Do the hardest part immediately.",
+      "Wait until pressure forces me.",
+      "Tell myself I cannot handle it."
+    ],
+    correct: 0,
+    feedback: "Breaking it down makes action possible."
+  },
+  {
+    scenario: "I feel emotionally drained.",
+    choices: [
+      "Scroll for hours without noticing.",
+      "Pause and check what I need.",
+      "Pretend I am fine.",
+      "Take on another responsibility."
+    ],
+    correct: 1,
+    feedback: "Checking in helps you respond instead of react."
+  },
+  {
+    scenario: "I keep thinking about everything I need to fix.",
+    choices: [
+      "Solve every problem at once.",
+      "Choose one thing I can do today.",
+      "Keep replaying the whole list.",
+      "Decide nothing will ever improve."
+    ],
+    correct: 1,
+    feedback: "One doable action is better than mental spiraling."
+  },
+  {
+    scenario: "I feel guilty for resting.",
+    choices: [
+      "Keep working until I crash.",
+      "Remind myself rest is part of care.",
+      "Only rest after everything is done.",
+      "Call myself unproductive."
+    ],
+    correct: 1,
+    feedback: "Rest is not failure. It is maintenance."
+  },
+  {
+    scenario: "I missed something important.",
+    choices: [
+      "Attack myself for messing up.",
+      "Notice it and choose the next repair step.",
+      "Avoid thinking about it forever.",
+      "Assume I ruin everything."
+    ],
+    correct: 1,
+    feedback: "Repair starts with the next healthy step."
+  },
+  {
+    scenario: "My routine fell apart this week.",
+    choices: [
+      "Start again with one small habit.",
+      "Wait for a perfect week.",
+      "Change my entire routine overnight.",
+      "Decide I have no discipline."
+    ],
+    correct: 0,
+    feedback: "Restarting small helps rebuild trust."
+  },
+  {
+    scenario: "I feel too overwhelmed to make a decision.",
+    choices: [
+      "Make every decision immediately.",
+      "Avoid all decisions completely.",
+      "Choose the next smallest decision.",
+      "Assume I cannot trust myself."
+    ],
+    correct: 2,
+    feedback: "Small decisions can restore a sense of control."
+  },
+  {
+    scenario: "I am multitasking and getting irritated.",
+    choices: [
+      "Keep switching tasks faster.",
+      "Do one thing mindfully for a few minutes.",
+      "Blame myself for being overwhelmed.",
+      "Add another task."
+    ],
+    correct: 1,
+    feedback: "One mindfully can calm the system."
+  }
+];
+
+let gameRounds = [];
+let currentRound = null;
+let score = 0;
+let round = 1;
+let acceptingInput = true;
+
+function startGame() {
+  score = 0;
+  round = 1;
+  acceptingInput = true;
+
+  scoreEl.textContent = score;
+  roundEl.textContent = round;
+  feedbackText.textContent = "";
+  feedbackText.className = "";
+
+  startScreen.classList.add("hidden");
+  endScreen.classList.add("hidden");
+
+  gameRounds = shuffle([...rounds]).slice(0, 10);
+  showRound();
+}
+
+function showRound() {
+  acceptingInput = true;
+  currentRound = gameRounds[round - 1];
+
+  scenarioText.textContent = currentRound.scenario;
+  roundEl.textContent = round;
+  feedbackText.textContent = "";
+  feedbackText.className = "";
+
+  const shuffledChoices = currentRound.choices.map((text, index) => ({
+    text,
+    originalIndex: index
+  }));
+
+  shuffle(shuffledChoices);
+
+  choiceButtons.forEach((button, index) => {
+    button.textContent = shuffledChoices[index].text;
+    button.dataset.originalIndex = shuffledChoices[index].originalIndex;
+    button.disabled = false;
+    button.className = "choiceButton";
+  });
+}
+
+function chooseAnswer(buttonIndex) {
+  if (!acceptingInput) return;
+
+  acceptingInput = false;
+
+  const selectedButton = choiceButtons[buttonIndex];
+  const selectedOriginalIndex = Number(selectedButton.dataset.originalIndex);
+
+  choiceButtons.forEach(button => {
+    button.disabled = true;
+  });
+
+  if (selectedOriginalIndex === currentRound.correct) {
+    score += 1;
+    scoreEl.textContent = score;
+    selectedButton.classList.add("choiceCorrect");
+    feedbackText.textContent = currentRound.feedback;
+    feedbackText.className = "correct";
+  } else {
+    selectedButton.classList.add("choiceIncorrect");
+    feedbackText.textContent = "When overwhelmed, look for the smallest healthy next step.";
+    feedbackText.className = "incorrect";
+
+    choiceButtons.forEach(button => {
+      if (Number(button.dataset.originalIndex) === currentRound.correct) {
+        button.classList.add("choiceCorrect");
+      }
+    });
+  }
+
+  setTimeout(() => {
+    if (round >= 10) {
+      endGame();
+    } else {
+      round += 1;
+      showRound();
+    }
+  }, 1400);
+}
+
+function endGame() {
+  finalScore.textContent = "Final Score: " + score + " / 10";
+  endScreen.classList.remove("hidden");
+}
+
+function shuffle(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+</script>
+</body>
+</html>
