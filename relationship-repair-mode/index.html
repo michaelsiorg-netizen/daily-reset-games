@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<title>Repair Mode</title>
+
+<style>
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #EEF4F8;
+  color: #2E2E2E;
+  overflow: hidden;
+  touch-action: manipulation;
+}
+
+#game {
+  width: 100vw;
+  height: 100vh;
+  background: linear-gradient(#EEF4F8, #DCEBE7);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.card {
+  background: white;
+  border-radius: 26px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.10);
+  text-align: center;
+}
+
+#headerCard {
+  padding: 14px 12px;
+}
+
+h1 {
+  margin: 0;
+  color: #4A6FA5;
+  font-size: 31px;
+}
+
+p {
+  font-size: 17px;
+  line-height: 1.32;
+  margin: 8px 0;
+}
+
+.stats {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 8px;
+  font-size: 20px;
+  font-weight: bold;
+}
+
+#scenarioCard {
+  padding: 16px 14px;
+  min-height: 86px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#scenarioText {
+  font-size: 20px;
+  font-weight: bold;
+  line-height: 1.25;
+}
+
+#questionText {
+  text-align: center;
+  font-size: 17px;
+  font-weight: bold;
+  color: #4A6FA5;
+  min-height: 22px;
+}
+
+#choices {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.choiceButton {
+  width: 100%;
+  min-height: 56px;
+  border: none;
+  border-radius: 20px;
+  background: white;
+  color: #2E2E2E;
+  font-size: 16px;
+  font-weight: bold;
+  line-height: 1.2;
+  padding: 9px 12px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.10);
+}
+
+.choiceButton:disabled {
+  opacity: 0.95;
+}
+
+.choiceCorrect {
+  background: #4A6FA5 !important;
+  color: white !important;
+}
+
+.choiceIncorrect {
+  background: #8E99A8 !important;
+  color: white !important;
+}
+
+#feedbackText {
+  text-align: center;
+  font-size: 18px;
+  font-weight: bold;
+  min-height: 42px;
+  line-height: 1.25;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.correct {
+  color: #2E7D5B;
+}
+
+.incorrect {
+  color: #A94442;
+}
+
+#startScreen, #endScreen {
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(#EEF4F8, #DCEBE7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 20;
+}
+
+.modalCard {
+  max-width: 420px;
+  padding: 30px 24px;
+}
+
+.startButton {
+  background: #4A6FA5;
+  color: white;
+  border: none;
+  border-radius: 18px;
+  padding: 14px 24px;
+  font-size: 20px;
+  font-weight: bold;
+  margin-top: 12px;
+}
+
+.hidden {
+  display: none !important;
+}
+
+@media (max-height: 700px) {
+  #game { gap: 7px; padding: 10px; }
+  h1 { font-size: 27px; }
+  p { font-size: 15px; }
+  .stats { font-size: 18px; }
+  #scenarioCard { min-height: 74px; padding: 12px 10px; }
+  #scenarioText { font-size: 18px; }
+  #questionText { font-size: 15px; }
+  .choiceButton { min-height: 48px; font-size: 14px; padding: 7px 10px; }
+  #feedbackText { font-size: 16px; min-height: 34px; }
+}
+</style>
+</head>
+
+<body>
+<div id="game">
+
+  <div id="headerCard" class="card">
+    <h1>Repair Mode</h1>
+    <p>When conflict gets tense, choose the repair attempt.</p>
+    <div class="stats">
+      <div>Score: <span id="score">0</span></div>
+      <div>Round: <span id="round">1</span>/10</div>
+    </div>
+  </div>
+
+  <div id="scenarioCard" class="card">
+    <div id="scenarioText">Loading...</div>
+  </div>
+
+  <div id="questionText">Which response helps repair the conversation?</div>
+
+  <div id="choices">
+    <button class="choiceButton" onclick="chooseAnswer(0)" id="choice0">Loading...</button>
+    <button class="choiceButton" onclick="chooseAnswer(1)" id="choice1">Loading...</button>
+    <button class="choiceButton" onclick="chooseAnswer(2)" id="choice2">Loading...</button>
+    <button class="choiceButton" onclick="chooseAnswer(3)" id="choice3">Loading...</button>
+  </div>
+
+  <div id="feedbackText"></div>
+
+  <div id="startScreen">
+    <div class="card modalCard">
+      <h1>Repair Mode</h1>
+      <p>Relationship stress can make defensiveness feel automatic.</p>
+      <p>Practice choosing responses that slow things down and support connection.</p>
+      <button class="startButton" onclick="startGame()">Start</button>
+    </div>
+  </div>
+
+  <div id="endScreen" class="hidden">
+    <div class="card modalCard">
+      <h1>Great Work</h1>
+      <p id="finalScore"></p>
+      <p>You practiced repair attempts that help conversations recover.</p>
+      <button class="startButton" onclick="startGame()">Play Again</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const scenarioText = document.getElementById("scenarioText");
+const feedbackText = document.getElementById("feedbackText");
+const scoreEl = document.getElementById("score");
+const roundEl = document.getElementById("round");
+const startScreen = document.getElementById("startScreen");
+const endScreen = document.getElementById("endScreen");
+const finalScore = document.getElementById("finalScore");
+
+const choiceButtons = [
+  document.getElementById("choice0"),
+  document.getElementById("choice1"),
+  document.getElementById("choice2"),
+  document.getElementById("choice3")
+];
+
+const rounds = [
+  {
+    scenario: "Your partner says, “I do not feel like you have been listening to me.”",
+    choices: [
+      "That is not true.",
+      "You are too sensitive.",
+      "Help me understand what I have been missing.",
+      "Well, you do not listen either."
+    ],
+    correct: 2,
+    feedback: "Repair starts with curiosity instead of defense."
+  },
+  {
+    scenario: "A conversation is getting heated.",
+    choices: [
+      "Can we slow this down for a minute?",
+      "You always do this.",
+      "Forget it. I am done.",
+      "I guess I am just the problem then."
+    ],
+    correct: 0,
+    feedback: "Slowing down helps protect the conversation."
+  },
+  {
+    scenario: "You realize your tone came out sharper than you intended.",
+    choices: [
+      "Ignore it and keep going.",
+      "That came out harsher than I meant. Let me try again.",
+      "You made me say it that way.",
+      "If you were listening, I would not have to repeat myself."
+    ],
+    correct: 1,
+    feedback: "Owning your tone is a powerful repair."
+  },
+  {
+    scenario: "They say, “You hurt my feelings.”",
+    choices: [
+      "I did not mean to, so you should not be hurt.",
+      "That is your problem.",
+      "I can see that hurt you. I want to understand.",
+      "You are making this bigger than it is."
+    ],
+    correct: 2,
+    feedback: "Validation does not require agreement. It shows you are listening."
+  },
+  {
+    scenario: "You feel defensive during a difficult conversation.",
+    choices: [
+      "Interrupt and explain why they are wrong.",
+      "Take a breath and listen for the main concern.",
+      "Bring up something they did last week.",
+      "Shut down completely."
+    ],
+    correct: 1,
+    feedback: "Listening before defending creates room for repair."
+  },
+  {
+    scenario: "You both keep repeating the same argument.",
+    choices: [
+      "Can we pause and come back to what we both need?",
+      "This is pointless.",
+      "You never change.",
+      "I am going to prove my point."
+    ],
+    correct: 0,
+    feedback: "Repair redirects the conversation toward needs."
+  },
+  {
+    scenario: "They misunderstand what you meant.",
+    choices: [
+      "That is not what I said, obviously.",
+      "I can clarify what I meant.",
+      "You never understand me.",
+      "Maybe if you paid attention."
+    ],
+    correct: 1,
+    feedback: "Clarifying is often better than escalating."
+  },
+  {
+    scenario: "You need space because you are too upset to talk well.",
+    choices: [
+      "Walk away without saying anything.",
+      "I need 10 minutes to calm down, and I will come back.",
+      "Fine, whatever.",
+      "Do not talk to me."
+    ],
+    correct: 1,
+    feedback: "Taking space works best when you also promise to return."
+  },
+  {
+    scenario: "You notice you are trying to win instead of understand.",
+    choices: [
+      "Keep pushing until they admit you are right.",
+      "Let me understand your side before I respond.",
+      "List every reason they are wrong.",
+      "Use sarcasm to make your point."
+    ],
+    correct: 1,
+    feedback: "Understanding lowers defensiveness."
+  },
+  {
+    scenario: "They bring up a concern at a bad time.",
+    choices: [
+      "This is a bad time. Can we talk tonight?",
+      "You always ruin my day.",
+      "I cannot deal with you right now.",
+      "Roll your eyes and walk away."
+    ],
+    correct: 0,
+    feedback: "A respectful delay is still a repair."
+  },
+  {
+    scenario: "You said something unfair.",
+    choices: [
+      "Double down so you do not look weak.",
+      "I was unfair. I am sorry.",
+      "They deserved it.",
+      "Pretend it did not happen."
+    ],
+    correct: 1,
+    feedback: "A direct apology can reopen connection."
+  },
+  {
+    scenario: "Your partner seems upset but has not explained why.",
+    choices: [
+      "What are you feeling right now?",
+      "Here we go again.",
+      "I guess I cannot do anything right.",
+      "Ignore them until they stop."
+    ],
+    correct: 0,
+    feedback: "A gentle question can reduce distance."
+  },
+  {
+    scenario: "They share something vulnerable.",
+    choices: [
+      "Immediately explain your side.",
+      "Thank you for telling me.",
+      "Make a joke to avoid it.",
+      "Tell them they are overreacting."
+    ],
+    correct: 1,
+    feedback: "Receiving vulnerability gently builds trust."
+  },
+  {
+    scenario: "You disagree but want to stay respectful.",
+    choices: [
+      "I see it differently, but I want to understand you.",
+      "That makes no sense.",
+      "You are wrong.",
+      "I cannot believe you think that."
+    ],
+    correct: 0,
+    feedback: "Respectful disagreement keeps connection possible."
+  }
+];
+
+let gameRounds = [];
+let currentRound = null;
+let score = 0;
+let round = 1;
+let acceptingInput = true;
+
+function startGame() {
+  score = 0;
+  round = 1;
+  acceptingInput = true;
+
+  scoreEl.textContent = score;
+  roundEl.textContent = round;
+  feedbackText.textContent = "";
+  feedbackText.className = "";
+
+  startScreen.classList.add("hidden");
+  endScreen.classList.add("hidden");
+
+  gameRounds = shuffle([...rounds]).slice(0, 10);
+  showRound();
+}
+
+function showRound() {
+  acceptingInput = true;
+  currentRound = gameRounds[round - 1];
+
+  scenarioText.textContent = currentRound.scenario;
+  roundEl.textContent = round;
+  feedbackText.textContent = "";
+  feedbackText.className = "";
+
+  const shuffledChoices = currentRound.choices.map((text, index) => ({
+    text,
+    originalIndex: index
+  }));
+
+  shuffle(shuffledChoices);
+
+  choiceButtons.forEach((button, index) => {
+    button.textContent = shuffledChoices[index].text;
+    button.dataset.originalIndex = shuffledChoices[index].originalIndex;
+    button.disabled = false;
+    button.className = "choiceButton";
+  });
+}
+
+function chooseAnswer(buttonIndex) {
+  if (!acceptingInput) return;
+
+  acceptingInput = false;
+
+  const selectedButton = choiceButtons[buttonIndex];
+  const selectedOriginalIndex = Number(selectedButton.dataset.originalIndex);
+
+  choiceButtons.forEach(button => {
+    button.disabled = true;
+  });
+
+  if (selectedOriginalIndex === currentRound.correct) {
+    score += 1;
+    scoreEl.textContent = score;
+    selectedButton.classList.add("choiceCorrect");
+    feedbackText.textContent = currentRound.feedback;
+    feedbackText.className = "correct";
+  } else {
+    selectedButton.classList.add("choiceIncorrect");
+    feedbackText.textContent = "Try choosing the response that slows things down and keeps connection open.";
+    feedbackText.className = "incorrect";
+
+    choiceButtons.forEach(button => {
+      if (Number(button.dataset.originalIndex) === currentRound.correct) {
+        button.classList.add("choiceCorrect");
+      }
+    });
+  }
+
+  setTimeout(() => {
+    if (round >= 10) {
+      endGame();
+    } else {
+      round += 1;
+      showRound();
+    }
+  }, 1500);
+}
+
+function endGame() {
+  finalScore.textContent = "Final Score: " + score + " / 10";
+  endScreen.classList.remove("hidden");
+}
+
+function shuffle(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+</script>
+</body>
+</html>
