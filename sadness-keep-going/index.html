@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<title>Keep Going</title>
+
+<style>
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #EEF4F8;
+  color: #2E2E2E;
+  overflow: hidden;
+  touch-action: manipulation;
+}
+
+#game {
+  width: 100vw;
+  height: 100vh;
+  background: linear-gradient(#EEF4F8, #DCEBE7);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.card {
+  background: white;
+  border-radius: 26px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.10);
+  text-align: center;
+}
+
+#headerCard {
+  padding: 14px 12px;
+}
+
+h1 {
+  margin: 0;
+  color: #4A6FA5;
+  font-size: 31px;
+}
+
+p {
+  font-size: 17px;
+  line-height: 1.32;
+  margin: 8px 0;
+}
+
+.stats {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 8px;
+  font-size: 20px;
+  font-weight: bold;
+}
+
+#scenarioCard {
+  padding: 18px 14px;
+  min-height: 92px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#scenarioText {
+  font-size: 22px;
+  font-weight: bold;
+  line-height: 1.25;
+}
+
+#questionText {
+  text-align: center;
+  font-size: 18px;
+  font-weight: bold;
+  color: #4A6FA5;
+  min-height: 24px;
+}
+
+#choices {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.choiceButton {
+  width: 100%;
+  min-height: 58px;
+  border: none;
+  border-radius: 20px;
+  background: white;
+  color: #2E2E2E;
+  font-size: 17px;
+  font-weight: bold;
+  line-height: 1.2;
+  padding: 10px 12px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.10);
+}
+
+.choiceButton:disabled {
+  opacity: 0.95;
+}
+
+.choiceCorrect {
+  background: #4A6FA5 !important;
+  color: white !important;
+}
+
+.choiceIncorrect {
+  background: #8E99A8 !important;
+  color: white !important;
+}
+
+#feedbackText {
+  text-align: center;
+  font-size: 18px;
+  font-weight: bold;
+  min-height: 42px;
+  line-height: 1.25;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.correct {
+  color: #2E7D5B;
+}
+
+.incorrect {
+  color: #A94442;
+}
+
+#startScreen, #endScreen {
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(#EEF4F8, #DCEBE7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 20;
+}
+
+.modalCard {
+  max-width: 420px;
+  padding: 30px 24px;
+}
+
+.startButton {
+  background: #4A6FA5;
+  color: white;
+  border: none;
+  border-radius: 18px;
+  padding: 14px 24px;
+  font-size: 20px;
+  font-weight: bold;
+  margin-top: 12px;
+}
+
+.hidden {
+  display: none !important;
+}
+
+@media (max-height: 700px) {
+  #game { gap: 7px; padding: 10px; }
+  h1 { font-size: 27px; }
+  p { font-size: 15px; }
+  .stats { font-size: 18px; }
+  #scenarioCard { min-height: 78px; padding: 14px 10px; }
+  #scenarioText { font-size: 19px; }
+  #questionText { font-size: 16px; }
+  .choiceButton { min-height: 50px; font-size: 15px; padding: 8px 10px; }
+  #feedbackText { font-size: 16px; min-height: 34px; }
+}
+</style>
+</head>
+
+<body>
+<div id="game">
+
+  <div id="headerCard" class="card">
+    <h1>Keep Going</h1>
+    <p>When sadness pulls you inward, choose one step toward life.</p>
+    <div class="stats">
+      <div>Score: <span id="score">0</span></div>
+      <div>Round: <span id="round">1</span>/10</div>
+    </div>
+  </div>
+
+  <div id="scenarioCard" class="card">
+    <div id="scenarioText">Loading...</div>
+  </div>
+
+  <div id="questionText">What is the healthiest next step?</div>
+
+  <div id="choices">
+    <button class="choiceButton" onclick="chooseAnswer(0)" id="choice0">Loading...</button>
+    <button class="choiceButton" onclick="chooseAnswer(1)" id="choice1">Loading...</button>
+    <button class="choiceButton" onclick="chooseAnswer(2)" id="choice2">Loading...</button>
+    <button class="choiceButton" onclick="chooseAnswer(3)" id="choice3">Loading...</button>
+  </div>
+
+  <div id="feedbackText"></div>
+
+  <div id="startScreen">
+    <div class="card modalCard">
+      <h1>Keep Going</h1>
+      <p>Sadness and loneliness can make life feel smaller.</p>
+      <p>Practice choosing one small step toward connection, gratitude, or movement.</p>
+      <button class="startButton" onclick="startGame()">Start</button>
+    </div>
+  </div>
+
+  <div id="endScreen" class="hidden">
+    <div class="card modalCard">
+      <h1>Great Work</h1>
+      <p id="finalScore"></p>
+      <p>You practiced moving toward life, one small step at a time.</p>
+      <button class="startButton" onclick="startGame()">Play Again</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const scenarioText = document.getElementById("scenarioText");
+const feedbackText = document.getElementById("feedbackText");
+const scoreEl = document.getElementById("score");
+const roundEl = document.getElementById("round");
+const startScreen = document.getElementById("startScreen");
+const endScreen = document.getElementById("endScreen");
+const finalScore = document.getElementById("finalScore");
+
+const choiceButtons = [
+  document.getElementById("choice0"),
+  document.getElementById("choice1"),
+  document.getElementById("choice2"),
+  document.getElementById("choice3")
+];
+
+const rounds = [
+  {
+    scenario: "You feel lonely and want to stay in bed all day.",
+    choices: [
+      "Stay under the blanket and scroll for hours.",
+      "Text one safe person and take a short walk.",
+      "Tell yourself nobody cares.",
+      "Cancel everything automatically."
+    ],
+    correct: 1,
+    feedback: "Connection often starts with one small reach."
+  },
+  {
+    scenario: "Today felt heavy and disappointing.",
+    choices: [
+      "Write down one thing that was still okay.",
+      "Decide the whole day was worthless.",
+      "Replay every difficult moment.",
+      "Ignore how you feel completely."
+    ],
+    correct: 0,
+    feedback: "Gratitude does not erase pain. It helps you notice what is still here."
+  },
+  {
+    scenario: "You miss someone and feel disconnected.",
+    choices: [
+      "Wait until someone reaches out first.",
+      "Send a simple message: “Thinking of you.”",
+      "Assume you are a burden.",
+      "Isolate for the rest of the day."
+    ],
+    correct: 1,
+    feedback: "Meaningful connection can begin with a simple message."
+  },
+  {
+    scenario: "You feel sad and have no motivation.",
+    choices: [
+      "Wait until motivation appears.",
+      "Take one small action before you feel ready.",
+      "Tell yourself you are failing.",
+      "Stay completely still all day."
+    ],
+    correct: 1,
+    feedback: "Action often comes before motivation."
+  },
+  {
+    scenario: "You are comparing your life to everyone else’s.",
+    choices: [
+      "Keep scrolling until you feel worse.",
+      "Notice one thing you appreciate about your own life.",
+      "Decide everyone is ahead of you.",
+      "Give up on your own progress."
+    ],
+    correct: 1,
+    feedback: "Gratitude brings attention back to your life."
+  },
+  {
+    scenario: "You feel like pulling away from people.",
+    choices: [
+      "Disappear without telling anyone.",
+      "Choose one low-pressure connection.",
+      "Assume nobody wants to hear from you.",
+      "Wait until you feel completely better."
+    ],
+    correct: 1,
+    feedback: "Low-pressure connection still counts."
+  },
+  {
+    scenario: "You had a hard morning.",
+    choices: [
+      "Call the whole day ruined.",
+      "Choose one caring thing for the next hour.",
+      "Punish yourself for struggling.",
+      "Ignore your needs."
+    ],
+    correct: 1,
+    feedback: "A hard start does not have to decide the whole day."
+  },
+  {
+    scenario: "You feel stuck in sadness.",
+    choices: [
+      "Do one small thing your future self may appreciate.",
+      "Wait for the sadness to fully leave first.",
+      "Decide nothing will help.",
+      "Stay trapped in the same loop."
+    ],
+    correct: 0,
+    feedback: "Small actions can create movement."
+  },
+  {
+    scenario: "You feel invisible.",
+    choices: [
+      "Tell yourself you do not matter.",
+      "Reach out to one person or supportive space.",
+      "Hide your feelings from everyone.",
+      "Assume people should just know."
+    ],
+    correct: 1,
+    feedback: "Being seen often starts with letting someone know where you are."
+  },
+  {
+    scenario: "You feel discouraged about your progress.",
+    choices: [
+      "Focus only on what is still missing.",
+      "Notice one thing you have improved.",
+      "Compare yourself to someone else.",
+      "Decide progress does not count."
+    ],
+    correct: 1,
+    feedback: "Progress becomes easier to see when you stop ignoring it."
+  },
+  {
+    scenario: "You feel like giving up on the day.",
+    choices: [
+      "Do one small meaningful thing.",
+      "Decide the day is over.",
+      "Shame yourself into trying harder.",
+      "Avoid everything until tomorrow."
+    ],
+    correct: 0,
+    feedback: "Keep going does not mean doing everything. It means taking the next step."
+  },
+  {
+    scenario: "You feel sad and physically heavy.",
+    choices: [
+      "Stay frozen and criticize yourself.",
+      "Stand up, stretch, or step outside briefly.",
+      "Wait until you feel energetic.",
+      "Tell yourself you are lazy."
+    ],
+    correct: 1,
+    feedback: "Gentle movement can support your mood."
+  },
+  {
+    scenario: "You notice one kind thing someone did.",
+    choices: [
+      "Dismiss it as nothing.",
+      "Pause and let yourself receive it.",
+      "Focus only on what went wrong.",
+      "Assume it does not count."
+    ],
+    correct: 1,
+    feedback: "Letting good moments count is part of gratitude."
+  },
+  {
+    scenario: "You feel alone, but you have one person you trust.",
+    choices: [
+      "Send a short honest message.",
+      "Tell yourself you should not need anyone.",
+      "Pretend everything is fine.",
+      "Wait until they magically know."
+    ],
+    correct: 0,
+    feedback: "Connection can be small, honest, and simple."
+  }
+];
+
+let gameRounds = [];
+let currentRound = null;
+let score = 0;
+let round = 1;
+let acceptingInput = true;
+
+function startGame() {
+  score = 0;
+  round = 1;
+  acceptingInput = true;
+
+  scoreEl.textContent = score;
+  roundEl.textContent = round;
+  feedbackText.textContent = "";
+  feedbackText.className = "";
+
+  startScreen.classList.add("hidden");
+  endScreen.classList.add("hidden");
+
+  gameRounds = shuffle([...rounds]).slice(0, 10);
+  showRound();
+}
+
+function showRound() {
+  acceptingInput = true;
+  currentRound = gameRounds[round - 1];
+
+  scenarioText.textContent = currentRound.scenario;
+  roundEl.textContent = round;
+  feedbackText.textContent = "";
+  feedbackText.className = "";
+
+  const shuffledChoices = currentRound.choices.map((text, index) => ({
+    text,
+    originalIndex: index
+  }));
+
+  shuffle(shuffledChoices);
+
+  choiceButtons.forEach((button, index) => {
+    button.textContent = shuffledChoices[index].text;
+    button.dataset.originalIndex = shuffledChoices[index].originalIndex;
+    button.disabled = false;
+    button.className = "choiceButton";
+  });
+}
+
+function chooseAnswer(buttonIndex) {
+  if (!acceptingInput) return;
+
+  acceptingInput = false;
+
+  const selectedButton = choiceButtons[buttonIndex];
+  const selectedOriginalIndex = Number(selectedButton.dataset.originalIndex);
+
+  choiceButtons.forEach(button => {
+    button.disabled = true;
+  });
+
+  if (selectedOriginalIndex === currentRound.correct) {
+    score += 1;
+    scoreEl.textContent = score;
+    selectedButton.classList.add("choiceCorrect");
+    feedbackText.textContent = currentRound.feedback;
+    feedbackText.className = "correct";
+  } else {
+    selectedButton.classList.add("choiceIncorrect");
+    feedbackText.textContent = "When sadness pulls inward, look for one small step toward life.";
+    feedbackText.className = "incorrect";
+
+    choiceButtons.forEach(button => {
+      if (Number(button.dataset.originalIndex) === currentRound.correct) {
+        button.classList.add("choiceCorrect");
+      }
+    });
+  }
+
+  setTimeout(() => {
+    if (round >= 10) {
+      endGame();
+    } else {
+      round += 1;
+      showRound();
+    }
+  }, 1400);
+}
+
+function endGame() {
+  finalScore.textContent = "Final Score: " + score + " / 10";
+  endScreen.classList.remove("hidden");
+}
+
+function shuffle(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+</script>
+</body>
+</html>
