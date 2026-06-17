@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<title>Red Light / Green Light</title>
+
+<style>
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #EEF4F8;
+  color: #2E2E2E;
+  overflow: hidden;
+  touch-action: manipulation;
+}
+
+#game {
+  width: 100vw;
+  height: 100vh;
+  background: linear-gradient(#EEF4F8, #DCEBE7);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.card {
+  background: white;
+  border-radius: 26px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.10);
+  text-align: center;
+}
+
+#headerCard {
+  padding: 14px 12px;
+}
+
+h1 {
+  margin: 0;
+  color: #4A6FA5;
+  font-size: 30px;
+}
+
+p {
+  font-size: 17px;
+  line-height: 1.32;
+  margin: 8px 0;
+}
+
+.stats {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 8px;
+  font-size: 20px;
+  font-weight: bold;
+}
+
+#scenarioCard {
+  padding: 18px 14px;
+  min-height: 90px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#scenarioText {
+  font-size: 22px;
+  font-weight: bold;
+  line-height: 1.25;
+}
+
+#questionText {
+  text-align: center;
+  font-size: 18px;
+  font-weight: bold;
+  color: #4A6FA5;
+  min-height: 24px;
+}
+
+#choices {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.choiceButton {
+  width: 100%;
+  min-height: 56px;
+  border: none;
+  border-radius: 20px;
+  background: white;
+  color: #2E2E2E;
+  font-size: 16px;
+  font-weight: bold;
+  line-height: 1.2;
+  padding: 9px 12px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.10);
+}
+
+.choiceButton:disabled {
+  opacity: 0.95;
+}
+
+.choiceGreen {
+  background: #4A6FA5 !important;
+  color: white !important;
+}
+
+.choiceRed {
+  background: #8E99A8 !important;
+  color: white !important;
+}
+
+#feedbackText {
+  text-align: center;
+  font-size: 18px;
+  font-weight: bold;
+  min-height: 44px;
+  line-height: 1.25;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.greenFeedback {
+  color: #2E7D5B;
+}
+
+.redFeedback {
+  color: #A94442;
+}
+
+#startScreen, #endScreen {
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(#EEF4F8, #DCEBE7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 20;
+}
+
+.modalCard {
+  max-width: 420px;
+  padding: 30px 24px;
+}
+
+.startButton {
+  background: #4A6FA5;
+  color: white;
+  border: none;
+  border-radius: 18px;
+  padding: 14px 24px;
+  font-size: 20px;
+  font-weight: bold;
+  margin-top: 12px;
+}
+
+.hidden {
+  display: none !important;
+}
+
+@media (max-height: 700px) {
+  #game { gap: 7px; padding: 10px; }
+  h1 { font-size: 26px; }
+  p { font-size: 15px; }
+  .stats { font-size: 18px; }
+  #scenarioCard { min-height: 76px; padding: 13px 10px; }
+  #scenarioText { font-size: 19px; }
+  #questionText { font-size: 16px; }
+  .choiceButton { min-height: 48px; font-size: 14px; padding: 7px 10px; }
+  #feedbackText { font-size: 16px; min-height: 34px; }
+}
+</style>
+</head>
+
+<body>
+<div id="game">
+
+  <div id="headerCard" class="card">
+    <h1>Red Light / Green Light</h1>
+    <p>Anger wants speed. Practice pausing before you react.</p>
+    <div class="stats">
+      <div>Score: <span id="score">0</span></div>
+      <div>Round: <span id="round">1</span>/10</div>
+    </div>
+  </div>
+
+  <div id="scenarioCard" class="card">
+    <div id="scenarioText">Loading...</div>
+  </div>
+
+  <div id="questionText">Which response gets the green light?</div>
+
+  <div id="choices">
+    <button class="choiceButton" onclick="chooseAnswer(0)" id="choice0">Loading...</button>
+    <button class="choiceButton" onclick="chooseAnswer(1)" id="choice1">Loading...</button>
+    <button class="choiceButton" onclick="chooseAnswer(2)" id="choice2">Loading...</button>
+    <button class="choiceButton" onclick="chooseAnswer(3)" id="choice3">Loading...</button>
+  </div>
+
+  <div id="feedbackText"></div>
+
+  <div id="startScreen">
+    <div class="card modalCard">
+      <h1>Red Light / Green Light</h1>
+      <p>Strong emotions can make reacting feel urgent.</p>
+      <p>Choose the response that creates a pause and moves things forward.</p>
+      <button class="startButton" onclick="startGame()">Start</button>
+    </div>
+  </div>
+
+  <div id="endScreen" class="hidden">
+    <div class="card modalCard">
+      <h1>Great Work</h1>
+      <p id="finalScore"></p>
+      <p>You practiced creating space between anger and action.</p>
+      <button class="startButton" onclick="startGame()">Play Again</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const scenarioText = document.getElementById("scenarioText");
+const feedbackText = document.getElementById("feedbackText");
+const scoreEl = document.getElementById("score");
+const roundEl = document.getElementById("round");
+const startScreen = document.getElementById("startScreen");
+const endScreen = document.getElementById("endScreen");
+const finalScore = document.getElementById("finalScore");
+
+const choiceButtons = [
+  document.getElementById("choice0"),
+  document.getElementById("choice1"),
+  document.getElementById("choice2"),
+  document.getElementById("choice3")
+];
+
+const rounds = [
+  {
+    scenario: "You receive a text that feels rude.",
+    choices: [
+      "Reply immediately while angry.",
+      "Put the phone down and take a breath.",
+      "Send a long paragraph you might regret.",
+      "Screenshot it and complain to everyone."
+    ],
+    correct: 1,
+    feedback: "Green light. A pause helps you respond instead of react."
+  },
+  {
+    scenario: "Someone cuts you off in traffic.",
+    choices: [
+      "Chase them and honk.",
+      "Call them names out loud.",
+      "Take a breath and keep driving.",
+      "Replay it angrily for the next hour."
+    ],
+    correct: 2,
+    feedback: "Green light. Letting go protects your peace."
+  },
+  {
+    scenario: "Your partner says, “We need to talk.”",
+    choices: [
+      "Assume the worst immediately.",
+      "Ask when they want to talk and stay curious.",
+      "Send several anxious or angry texts.",
+      "Shut down and ignore them."
+    ],
+    correct: 1,
+    feedback: "Green light. Curiosity gives you more information."
+  },
+  {
+    scenario: "A coworker criticizes your work.",
+    choices: [
+      "Defend yourself before they finish.",
+      "Send a passive-aggressive email.",
+      "Ask a clarifying question.",
+      "Decide they are attacking you."
+    ],
+    correct: 2,
+    feedback: "Green light. Questions slow down reactivity."
+  },
+  {
+    scenario: "You feel yourself getting heated during an argument.",
+    choices: [
+      "Talk louder so they understand.",
+      "Take a short break before continuing.",
+      "Bring up everything they have ever done.",
+      "Say something hurtful to win."
+    ],
+    correct: 1,
+    feedback: "Green light. Taking space can protect the relationship."
+  },
+  {
+    scenario: "Someone disagrees with you online.",
+    choices: [
+      "Write an insulting reply.",
+      "Keep arguing until they admit you are right.",
+      "Pause and decide if responding is worth it.",
+      "Take it personally and spiral."
+    ],
+    correct: 2,
+    feedback: "Green light. Not every trigger needs a response."
+  },
+  {
+    scenario: "You feel disrespected in a conversation.",
+    choices: [
+      "Make a threat.",
+      "Interrupt and attack their character.",
+      "Say, “I need a minute before I respond.”",
+      "Walk away without saying anything and slam the door."
+    ],
+    correct: 2,
+    feedback: "Green light. Naming the pause is a skill."
+  },
+  {
+    scenario: "A friend cancels plans last minute.",
+    choices: [
+      "Send an angry guilt-trip text.",
+      "Assume they do not care about you.",
+      "Notice the disappointment before responding.",
+      "Cut them off immediately."
+    ],
+    correct: 2,
+    feedback: "Green light. Feelings deserve attention before action."
+  },
+  {
+    scenario: "You made a mistake and feel frustrated with yourself.",
+    choices: [
+      "Call yourself stupid.",
+      "Throw the whole task away.",
+      "Pause and choose the next repair step.",
+      "Work faster while angry."
+    ],
+    correct: 2,
+    feedback: "Green light. Repair works better than self-attack."
+  },
+  {
+    scenario: "Someone says something that feels unfair.",
+    choices: [
+      "React instantly.",
+      "Ask, “Can you explain what you mean?”",
+      "Assume they meant to hurt you.",
+      "Bring up unrelated problems."
+    ],
+    correct: 1,
+    feedback: "Green light. Clarifying can prevent escalation."
+  },
+  {
+    scenario: "You are irritated and your body feels tense.",
+    choices: [
+      "Keep pushing through it.",
+      "Take one slow breath and relax your shoulders.",
+      "Use the tension as proof you are right.",
+      "Pick a fight to release it."
+    ],
+    correct: 1,
+    feedback: "Green light. Your body often needs the pause first."
+  },
+  {
+    scenario: "You want to send a message to prove your point.",
+    choices: [
+      "Send it while your heart is racing.",
+      "Wait 10 minutes and reread it first.",
+      "Add a few sharper comments.",
+      "Send multiple messages quickly."
+    ],
+    correct: 1,
+    feedback: "Green light. Delay gives wisdom time to catch up."
+  },
+  {
+    scenario: "Someone interrupts you.",
+    choices: [
+      "Snap at them immediately.",
+      "Say, “I want to finish my thought.”",
+      "Stop listening completely.",
+      "Interrupt them back louder."
+    ],
+    correct: 1,
+    feedback: "Green light. Assertive is different from aggressive."
+  },
+  {
+    scenario: "You feel blamed for something.",
+    choices: [
+      "Blame them back.",
+      "Take a breath and ask what they need from you.",
+      "Deny everything automatically.",
+      "Attack their tone."
+    ],
+    correct: 1,
+    feedback: "Green light. A pause helps you stay grounded."
+  }
+];
+
+let gameRounds = [];
+let currentRound = null;
+let score = 0;
+let round = 1;
+let acceptingInput = true;
+
+function startGame() {
+  score = 0;
+  round = 1;
+  acceptingInput = true;
+
+  scoreEl.textContent = score;
+  roundEl.textContent = round;
+  feedbackText.textContent = "";
+  feedbackText.className = "";
+
+  startScreen.classList.add("hidden");
+  endScreen.classList.add("hidden");
+
+  gameRounds = shuffle([...rounds]).slice(0, 10);
+  showRound();
+}
+
+function showRound() {
+  acceptingInput = true;
+  currentRound = gameRounds[round - 1];
+
+  scenarioText.textContent = currentRound.scenario;
+  roundEl.textContent = round;
+  feedbackText.textContent = "";
+  feedbackText.className = "";
+
+  const shuffledChoices = currentRound.choices.map((text, index) => ({
+    text,
+    originalIndex: index
+  }));
+
+  shuffle(shuffledChoices);
+
+  choiceButtons.forEach((button, index) => {
+    button.textContent = shuffledChoices[index].text;
+    button.dataset.originalIndex = shuffledChoices[index].originalIndex;
+    button.disabled = false;
+    button.className = "choiceButton";
+  });
+}
+
+function chooseAnswer(buttonIndex) {
+  if (!acceptingInput) return;
+
+  acceptingInput = false;
+
+  const selectedButton = choiceButtons[buttonIndex];
+  const selectedOriginalIndex = Number(selectedButton.dataset.originalIndex);
+
+  choiceButtons.forEach(button => {
+    button.disabled = true;
+  });
+
+  if (selectedOriginalIndex === currentRound.correct) {
+    score += 1;
+    scoreEl.textContent = score;
+    selectedButton.classList.add("choiceGreen");
+    feedbackText.textContent = currentRound.feedback;
+    feedbackText.className = "greenFeedback";
+  } else {
+    selectedButton.classList.add("choiceRed");
+    feedbackText.textContent = "Red light. Anger often wants speed. Try creating a pause.";
+    feedbackText.className = "redFeedback";
+
+    choiceButtons.forEach(button => {
+      if (Number(button.dataset.originalIndex) === currentRound.correct) {
+        button.classList.add("choiceGreen");
+      }
+    });
+  }
+
+  setTimeout(() => {
+    if (round >= 10) {
+      endGame();
+    } else {
+      round += 1;
+      showRound();
+    }
+  }, 1400);
+}
+
+function endGame() {
+  finalScore.textContent = "Final Score: " + score + " / 10";
+  endScreen.classList.remove("hidden");
+}
+
+function shuffle(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+</script>
+</body>
+</html>
