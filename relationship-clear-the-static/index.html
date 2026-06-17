@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<title>Clear the Static</title>
+
+<style>
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #EEF4F8;
+  color: #2E2E2E;
+  overflow: hidden;
+  touch-action: manipulation;
+}
+
+#game {
+  width: 100vw;
+  height: 100vh;
+  background: linear-gradient(#EEF4F8, #DCEBE7);
+  position: relative;
+  overflow: hidden;
+}
+
+#headerCard {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  right: 16px;
+  background: white;
+  border-radius: 26px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.10);
+  text-align: center;
+  padding: 16px 12px;
+  z-index: 10;
+}
+
+h1 {
+  margin: 0;
+  color: #4A6FA5;
+  font-size: 31px;
+}
+
+p {
+  font-size: 16px;
+  line-height: 1.3;
+  margin: 8px 0;
+}
+
+.stats {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 8px;
+  font-size: 19px;
+  font-weight: bold;
+}
+
+#feedbackText {
+  position: absolute;
+  top: 168px;
+  left: 18px;
+  right: 18px;
+  min-height: 34px;
+  text-align: center;
+  font-size: 18px;
+  font-weight: bold;
+  z-index: 10;
+}
+
+.helpfulFeedback {
+  color: #2E7D5B;
+}
+
+.staticFeedback {
+  color: #A94442;
+}
+
+.item {
+  position: absolute;
+  min-width: 94px;
+  min-height: 64px;
+  padding: 10px 12px;
+  border-radius: 24px;
+  background: white;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.14);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 18px;
+  font-weight: bold;
+  user-select: none;
+  z-index: 5;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.item.helpful {
+  color: #4A6FA5;
+}
+
+.item.static {
+  color: #8E99A8;
+}
+
+.item:active {
+  transform: scale(0.94);
+}
+
+#legend {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 16px;
+  background: rgba(255,255,255,0.92);
+  border-radius: 22px;
+  box-shadow: 0 5px 16px rgba(0,0,0,0.10);
+  padding: 12px;
+  text-align: center;
+  font-size: 15px;
+  z-index: 10;
+}
+
+#legend strong {
+  color: #4A6FA5;
+}
+
+button {
+  background: #4A6FA5;
+  color: white;
+  border: none;
+  border-radius: 18px;
+  padding: 14px 24px;
+  font-size: 20px;
+  font-weight: bold;
+  margin-top: 12px;
+}
+
+#startScreen, #endScreen {
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(#EEF4F8, #DCEBE7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 20;
+}
+
+.modalCard {
+  background: white;
+  border-radius: 28px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.10);
+  text-align: center;
+  max-width: 420px;
+  padding: 30px 24px;
+}
+
+.hidden {
+  display: none !important;
+}
+
+@media (max-height: 700px) {
+  #headerCard { padding: 12px 10px; }
+  h1 { font-size: 27px; }
+  p { font-size: 14px; }
+  .stats { font-size: 17px; }
+  #feedbackText { top: 145px; font-size: 16px; }
+  .item {
+    min-width: 86px;
+    min-height: 56px;
+    font-size: 16px;
+  }
+  #legend {
+    font-size: 13px;
+    padding: 10px;
+  }
+}
+</style>
+</head>
+
+<body>
+<div id="game">
+
+  <div id="headerCard">
+    <h1>Clear the Static</h1>
+    <p>Tap helpful communication. Avoid relationship static.</p>
+    <div class="stats">
+      <div>Score: <span id="score">0</span></div>
+      <div>Time: <span id="time">30</span></div>
+    </div>
+  </div>
+
+  <div id="feedbackText"></div>
+
+  <div id="legend">
+    <strong>Tap:</strong> Pause • Listen • Clarify • Validate • Repair<br>
+    <strong>Avoid:</strong> Blame • Attack • Assume • Interrupt • Defend
+  </div>
+
+  <div id="startScreen">
+    <div class="modalCard">
+      <h1>Clear the Static</h1>
+      <p>Relationship stress can make communication noisy.</p>
+      <p>Tap the skills that create clarity. Avoid reactions that add static.</p>
+      <button onclick="startGame()">Start</button>
+    </div>
+  </div>
+
+  <div id="endScreen" class="hidden">
+    <div class="modalCard">
+      <h1>Great Work</h1>
+      <p id="finalScore"></p>
+      <p>You practiced choosing clarity before reacting.</p>
+      <button onclick="startGame()">Play Again</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const game = document.getElementById("game");
+const scoreEl = document.getElementById("score");
+const timeEl = document.getElementById("time");
+const feedbackText = document.getElementById("feedbackText");
+const startScreen = document.getElementById("startScreen");
+const endScreen = document.getElementById("endScreen");
+const finalScore = document.getElementById("finalScore");
+
+const helpfulItems = [
+  "Pause",
+  "Listen",
+  "Clarify",
+  "Validate",
+  "Breathe",
+  "Repair",
+  "Ask",
+  "Respect",
+  "Slow Down",
+  "Stay Curious",
+  "Use I Statements",
+  "Take Space"
+];
+
+const staticItems = [
+  "Blame",
+  "Attack",
+  "Assume",
+  "Interrupt",
+  "Defend",
+  "Escalate",
+  "Shutdown",
+  "Threaten",
+  "Mind Read",
+  "Keep Score",
+  "Mock",
+  "Stonewall"
+];
+
+const helpfulFeedback = [
+  "That clears the static.",
+  "Good communication starts with a pause.",
+  "Clarity grows when you slow down.",
+  "That response protects connection.",
+  "Repair keeps the conversation open."
+];
+
+const staticFeedback = [
+  "That reaction may add static.",
+  "Pause before this becomes louder.",
+  "That can make connection harder.",
+  "Try slowing the moment down.",
+  "Static grows when reactivity takes over."
+];
+
+let score = 0;
+let time = 30;
+let gameRunning = false;
+let spawnInterval = null;
+let timerInterval = null;
+
+function startGame() {
+  score = 0;
+  time = 30;
+  gameRunning = true;
+
+  scoreEl.textContent = score;
+  timeEl.textContent = time;
+  feedbackText.textContent = "";
+  feedbackText.className = "";
+
+  document.querySelectorAll(".item").forEach(item => item.remove());
+
+  startScreen.classList.add("hidden");
+  endScreen.classList.add("hidden");
+
+  spawnInterval = setInterval(spawnItem, 1300);
+
+  timerInterval = setInterval(() => {
+    time--;
+    timeEl.textContent = time;
+
+    if (time <= 0) {
+      endGame();
+    }
+  }, 1000);
+}
+
+function spawnItem() {
+  if (!gameRunning) return;
+
+  const item = document.createElement("div");
+  item.className = "item";
+
+  const isHelpful = Math.random() > 0.38;
+  const text = isHelpful
+    ? helpfulItems[Math.floor(Math.random() * helpfulItems.length)]
+    : staticItems[Math.floor(Math.random() * staticItems.length)];
+
+  item.textContent = text;
+  item.dataset.type = isHelpful ? "helpful" : "static";
+  item.classList.add(isHelpful ? "helpful" : "static");
+
+  const maxX = window.innerWidth - 120;
+  const minY = 210;
+  const maxY = window.innerHeight - 160;
+
+  const x = Math.max(12, Math.random() * maxX);
+  const y = minY + Math.random() * Math.max(80, maxY - minY);
+
+  item.style.left = x + "px";
+  item.style.top = y + "px";
+
+  item.onclick = () => handleTap(item);
+
+  game.appendChild(item);
+
+  setTimeout(() => {
+    if (item.parentNode) {
+      item.style.opacity = "0";
+      setTimeout(() => item.remove(), 150);
+    }
+  }, 3600);
+}
+
+function handleTap(item) {
+  if (!gameRunning) return;
+
+  const type = item.dataset.type;
+
+  if (type === "helpful") {
+    score += 1;
+    feedbackText.textContent = helpfulFeedback[Math.floor(Math.random() * helpfulFeedback.length)];
+    feedbackText.className = "helpfulFeedback";
+  } else {
+    score = Math.max(0, score - 1);
+    feedbackText.textContent = staticFeedback[Math.floor(Math.random() * staticFeedback.length)];
+    feedbackText.className = "staticFeedback";
+  }
+
+  scoreEl.textContent = score;
+
+  item.style.opacity = "0";
+  item.style.transform = "scale(0.75)";
+  setTimeout(() => item.remove(), 120);
+}
+
+function endGame() {
+  gameRunning = false;
+  clearInterval(spawnInterval);
+  clearInterval(timerInterval);
+
+  document.querySelectorAll(".item").forEach(item => item.remove());
+
+  finalScore.textContent = "Final Score: " + score;
+  endScreen.classList.remove("hidden");
+}
+
+</script>
+</body>
+</html>
