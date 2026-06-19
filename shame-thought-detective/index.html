@@ -17,6 +17,30 @@ body {
   touch-action: manipulation;
 }
 
+  #landscapeWarning {
+  display: none;
+}
+
+@media (orientation: landscape) {
+  #game {
+    display: none;
+  }
+
+  #landscapeWarning {
+    display: flex;
+    position: fixed;
+    inset: 0;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 24px;
+    background: #EEF4F8;
+    color: #2E2E2E;
+    font-size: 24px;
+    font-weight: bold;
+  }
+}
+  
 #game {
   width: 100vw;
   height: 100vh;
@@ -221,6 +245,10 @@ p {
     </div>
   </div>
 
+  <div id="landscapeWarning">
+  Please rotate your phone upright to play.
+</div>
+  
   <div id="thoughtCard" class="card">
     <div id="thoughtText">Loading...</div>
   </div>
