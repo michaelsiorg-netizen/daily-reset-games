@@ -1,9 +1,10 @@
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-<title>Thought Detective v2</title>
+<title>Thought Detective v3</title>
 
 <style>
 * { box-sizing: border-box; }
@@ -17,14 +18,12 @@ body {
   touch-action: manipulation;
 }
 
-  #landscapeWarning {
+#landscapeWarning {
   display: none;
 }
 
 @media (orientation: landscape) {
-  #game {
-    display: none;
-  }
+  #game { display: none; }
 
   #landscapeWarning {
     display: flex;
@@ -40,7 +39,7 @@ body {
     font-weight: bold;
   }
 }
-  
+
 #game {
   width: 100vw;
   height: 100vh;
@@ -59,7 +58,7 @@ body {
 }
 
 #headerCard {
-  padding: 10px 10px;
+  padding: 10px;
 }
 
 h1 {
@@ -83,7 +82,7 @@ p {
 }
 
 #thoughtCard {
-  padding: 12px 12px;
+  padding: 12px;
   min-height: 72px;
   display: flex;
   align-items: center;
@@ -94,6 +93,17 @@ p {
   font-size: 21px;
   font-weight: bold;
   line-height: 1.25;
+}
+
+#revealButton {
+  background: #4A6FA5;
+  color: white;
+  border: none;
+  border-radius: 18px;
+  padding: 13px 16px;
+  font-size: 18px;
+  font-weight: bold;
+  width: 100%;
 }
 
 #evidenceArea {
@@ -123,24 +133,18 @@ p {
 }
 
 .hiddenEvidence {
-  color: #8E99A8;
-  font-weight: bold;
+  display: none;
 }
 
 #feedbackText {
   text-align: center;
-  font-size: 18x;
+  font-size: 18px;
   font-weight: bold;
-  min-height: 22px;
+  min-height: 24px;
 }
 
-.correct {
-  color: #2E7D5B;
-}
-
-.incorrect {
-  color: #A94442;
-}
+.correct { color: #2E7D5B; }
+.incorrect { color: #A94442; }
 
 #spacer {
   flex: 1;
@@ -150,7 +154,6 @@ p {
 .buttonRow {
   display: flex;
   gap: 10px;
-  margin-bottom: 0px;
 }
 
 .choiceButton {
@@ -164,24 +167,8 @@ p {
   box-shadow: 0 5px 16px rgba(0,0,0,0.12);
 }
 
-#factButton {
-  background: #4A6FA5;
-}
-
-#storyButton {
-  background: #8E99A8;
-}
-
-#revealButton {
-  background: #4A6FA5;
-  color: white;
-  border: none;
-  border-radius: 18px;
-  padding: 11px 16px;
-  font-size: 18px;
-  font-weight: bold;
-  width: 100%;
-}
+#factButton { background: #4A6FA5; }
+#storyButton { background: #8E99A8; }
 
 #startScreen, #endScreen {
   position: fixed;
@@ -219,15 +206,14 @@ p {
   #headerCard { padding: 8px 10px; }
   h1 { font-size: 26px; }
   p { font-size: 15px; margin: 4px 0; }
-  .stats { font-size: 18px; margin-top: 3px; }
+  .stats { font-size: 18px; }
   #thoughtCard { min-height: 64px; padding: 10px; }
   #thoughtText { font-size: 20px; }
   #revealButton { padding: 10px 14px; font-size: 17px; }
-  #evidenceArea { gap: 6px; }
   .evidenceCard { min-height: 48px; padding: 7px; }
   .evidenceLabel { font-size: 14px; }
   .evidenceText { font-size: 15px; }
-  #feedbackText { font-size: 17px; min-height: 20px; }
+  #feedbackText { font-size: 17px; min-height: 22px; }
   .choiceButton { min-height: 58px; font-size: 22px; }
 }
 </style>
@@ -235,11 +221,10 @@ p {
 
 <body>
 
-  
-  <div id="landscapeWarning">
+<div id="landscapeWarning">
   Please rotate your phone upright to play.
 </div>
-  
+
 <div id="game">
 
   <div id="headerCard" class="card">
@@ -247,26 +232,25 @@ p {
     <p>Reveal the clues, then decide: Fact or Story?</p>
     <div class="stats">
       <div>Score: <span id="score">0</span></div>
-      <div>Round: <span id="round">1</span>/10</div>
+      <div>Case: <span id="round">1</span>/10</div>
     </div>
   </div>
 
-  
   <div id="thoughtCard" class="card">
     <div id="thoughtText">Loading...</div>
   </div>
 
-  <button id="revealButton" onclick="revealClues()">Check the Evidence</button>
+  <button id="revealButton" onclick="revealClues()">Reveal the Clues</button>
 
   <div id="evidenceArea">
     <div class="card evidenceCard">
       <div class="evidenceLabel">What do I know for sure?</div>
-      <div id="factClue" class="evidenceText hiddenEvidence">Tap “Check the Evidence”</div>
+      <div id="factClue" class="evidenceText hiddenEvidence"></div>
     </div>
 
     <div class="card evidenceCard">
       <div class="evidenceLabel">What might I be assuming?</div>
-      <div id="storyClue" class="evidenceText hiddenEvidence">Tap “Check the Evidence”</div>
+      <div id="storyClue" class="evidenceText hiddenEvidence"></div>
     </div>
   </div>
 
@@ -274,7 +258,7 @@ p {
 
   <div id="spacer"></div>
 
-  <div class="buttonRow">
+  <div id="choiceRow" class="buttonRow hidden">
     <button id="factButton" class="choiceButton" onclick="chooseAnswer('fact')">Fact</button>
     <button id="storyButton" class="choiceButton" onclick="chooseAnswer('story')">Story</button>
   </div>
@@ -283,7 +267,7 @@ p {
     <div class="card modalCard">
       <h1>Thought Detective</h1>
       <p>Shame can make stories feel like facts.</p>
-      <p>Reveal the clues, check the evidence, then choose Fact or Story.</p>
+      <p>First reveal the clues. Then decide if the thought is a Fact or a Story.</p>
       <button class="startButton" onclick="startGame()">Start</button>
     </div>
   </div>
@@ -310,6 +294,7 @@ const finalScore = document.getElementById("finalScore");
 const factClue = document.getElementById("factClue");
 const storyClue = document.getElementById("storyClue");
 const revealButton = document.getElementById("revealButton");
+const choiceRow = document.getElementById("choiceRow");
 
 const thoughts = [
   {
@@ -433,18 +418,21 @@ function showThought() {
   feedbackText.textContent = "";
   feedbackText.className = "";
 
-  factClue.textContent = "Tap “Check the Evidence”";
-  storyClue.textContent = "Tap “Check the Evidence”";
+  factClue.textContent = "";
+  storyClue.textContent = "";
   factClue.className = "evidenceText hiddenEvidence";
   storyClue.className = "evidenceText hiddenEvidence";
 
   revealButton.disabled = false;
-  revealButton.textContent = "Check the Evidence";
+  revealButton.textContent = "Reveal the Clues";
   revealButton.style.opacity = "1";
+  revealButton.classList.remove("hidden");
+
+  choiceRow.classList.add("hidden");
 }
 
 function revealClues() {
-  if (!acceptingInput) return;
+  if (!acceptingInput || cluesRevealed) return;
 
   cluesRevealed = true;
 
@@ -453,18 +441,12 @@ function revealClues() {
   factClue.className = "evidenceText";
   storyClue.className = "evidenceText";
 
-  revealButton.textContent = "Now choose Fact or Story";
-  revealButton.style.opacity = "0.75";
+  revealButton.classList.add("hidden");
+  choiceRow.classList.remove("hidden");
 }
 
 function chooseAnswer(choice) {
-  if (!acceptingInput) return;
-
-  if (!cluesRevealed) {
-    feedbackText.textContent = "Check the evidence first.";
-    feedbackText.className = "incorrect";
-    return;
-  }
+  if (!acceptingInput || !cluesRevealed) return;
 
   acceptingInput = false;
 
@@ -474,7 +456,7 @@ function chooseAnswer(choice) {
     feedbackText.textContent = "Good detective work.";
     feedbackText.className = "correct";
   } else {
-    feedbackText.textContent = "Pause and check the evidence.";
+    feedbackText.textContent = "Pause and check the clues.";
     feedbackText.className = "incorrect";
   }
 
@@ -500,6 +482,7 @@ function shuffle(array) {
   }
   return array;
 }
+
 document.addEventListener(
   "touchmove",
   function (e) {
@@ -510,3 +493,4 @@ document.addEventListener(
 </script>
 </body>
 </html>
+```
