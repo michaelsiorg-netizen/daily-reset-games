@@ -103,6 +103,13 @@ p {
   font-size: 18px;
   font-weight: bold;
   width: 100%;
+  transition: opacity 0.25s ease, visibility 0.25s ease;
+}
+
+#revealButton.hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
 }
 
 #evidenceArea {
@@ -129,10 +136,15 @@ p {
 .evidenceText {
   font-size: 16px;
   line-height: 1.25;
+  max-height: 100px;
+  opacity: 1;
+  transition: opacity 0.35s ease, max-height 0.35s ease;
+  overflow: hidden;
 }
 
 .hiddenEvidence {
-  display: none;
+  max-height: 0;
+  opacity: 0;
 }
 
 #feedbackText {
@@ -146,15 +158,20 @@ p {
 .incorrect { color: #A94442; }
 
 #spacer {
-  flex: 0;
-  min-height: 50px;
+  flex: 1;
 }
 
 .buttonRow {
   display: flex;
   gap: 10px;
-  margin-top: 50px;
+  margin-top: 10px;
   margin-bottom: 16px;
+  transition: opacity 0.25s ease;
+}
+
+.buttonRow.disabled-state {
+  opacity: 0.35;
+  pointer-events: none;
 }
 
 .choiceButton {
@@ -166,10 +183,9 @@ p {
   font-size: 24px;
   font-weight: bold;
   box-shadow: 0 5px 16px rgba(0,0,0,0.12);
+  background: #4A6FA5;
+  cursor: pointer;
 }
-
-#factButton { background: #4A6FA5; }
-#storyButton { background: #8E99A8; }
 
 #startScreen, #endScreen {
   position: fixed;
@@ -259,7 +275,7 @@ p {
 
   <div id="spacer"></div>
 
-  <div id="choiceRow" class="buttonRow hidden">
+  <div id="choiceRow" class="buttonRow disabled-state">
     <button id="factButton" class="choiceButton" onclick="chooseAnswer('fact')">Fact</button>
     <button id="storyButton" class="choiceButton" onclick="chooseAnswer('story')">Story</button>
   </div>
@@ -426,10 +442,9 @@ function showThought() {
 
   revealButton.disabled = false;
   revealButton.textContent = "Reveal the Clues";
-  revealButton.style.opacity = "1";
   revealButton.classList.remove("hidden");
 
-  choiceRow.classList.add("hidden");
+  choiceRow.classList.add("disabled-state");
 }
 
 function revealClues() {
@@ -439,11 +454,12 @@ function revealClues() {
 
   factClue.textContent = currentThought.fact;
   storyClue.textContent = currentThought.assumption;
-  factClue.className = "evidenceText";
-  storyClue.className = "evidenceText";
+  
+  factClue.classList.remove("hiddenEvidence");
+  storyClue.classList.remove("hiddenEvidence");
 
   revealButton.classList.add("hidden");
-  choiceRow.classList.remove("hidden");
+  choiceRow.classList.remove("disabled-state");
 }
 
 function chooseAnswer(choice) {
@@ -494,4 +510,3 @@ document.addEventListener(
 </script>
 </body>
 </html>
-
