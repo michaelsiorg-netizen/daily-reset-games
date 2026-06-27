@@ -1,1 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<title>Color Hunt</title>
 
+<style>
+  * {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html, body {
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    position: fixed;
+    font-family: Arial, sans-serif;
+    background: #000;
+    touch-action: manipulation;
+  }
+
+  #game {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    background-image: url("background.png");
+    background-size: cover;
+    background-position: center;
+    overflow: hidden;
+  }
+
+  .overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      to bottom,
+      rgba(0,0,0,0.22),
+      rgba(0,0,0,0.04),
+      rgba(0,0,0,0.28)
+    );
+    pointer-events: none;
+  }
+
+  .top-panel {
+    position: absolute;
+    top: 28px;
+    left: 18px;
+    right: 18px;
+    padding: 18px 16px;
+    border-radius: 24px;
+    background: rgba(255,255,255,0.82);
+    backdrop-filter: blur(10px);
+    text-align: center;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.18);
+  }
+
+  .small-text {
+    font-size: 15px;
+    color: #555;
+    margin-bottom: 6px;
+  }
+
+  #prompt {
+    font-size: 30px;
+    font-weight: 700;
+    color: #2E2E2E;
+  }
+
+  #feedback {
+    margin-top: 8px;
+    font-size: 17px;
+    color: #4A6FA5;
+    min-height: 22px;
+  }
+
+  .zone {
+    position: absolute;
+    border-radius: 999px;
+  }
+
+  .ripple {
+    position: absolute;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    border: 3px solid rgba(255,255,255,0.95);
+    transform: translate(-50%, -50%) scale(0.3);
+    animation: ripple 650ms ease-out forwards;
+    pointer-events: none;
+  }
+
+  @keyframes ripple {
+    to {
+      transform: translate(-50%, -50%) scale(2.6);
+      opacity: 0;
+    }
+  }
+
+  #complete {
+    position: absolute;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(0,0,0,0.36);
+  }
+
+  .complete-card {
+    width: 100%;
+    max-width: 360px;
+    padding: 28px 24px;
+    border-radius: 28px;
+    background: rgba(255,255,255,0.92);
+    text-align: center;
+    box-shadow: 0 10px 36px rgba(0,0,0,0.25);
+  }
+
+  .complete-card h1 {
+    margin: 0 0 12px;
+    font-size: 30px;
+    color: #2E2E2E;
+  }
+
+  .complete-card p {
+    margin: 0 0 20px;
+    font-size: 18px;
+    line-height: 1.4;
+    color: #555;
+  }
+
+  button {
+    border: none;
+    border-radius: 999px;
+    padding: 14px 26px;
+    font-size: 18px;
+    font-weight: 700;
+    background: #4A6FA5;
+    color: white;
+  }
+</style>
+</head>
+
+<body>
+<div id="game">
+  <div class="overlay"></div>
+
+  <div class="top-panel">
+    <div class="small-text">Color Hunt</div>
+    <div id="prompt">Find something blue.</div>
+    <div id="feedback"></div>
+  </div>
+
+  <!-- Invisible tappable areas based on this beach photo -->
+  <div class="zone" data-color="blue" style="left: 45%; top: 9%; width: 46%; height: 18%;"></div>
+  <div class="zone" data-color="orange" style="left: 55%; top: 32%; width: 40%; height: 16%;"></div>
+  <div class="zone" data-color="white" style="left: 42%; top: 52%; width: 42%; height: 9%;"></div>
+  <div class="zone" data-color="green" style="left: 0%; top: 48%; width: 24%; height: 24%;"></div>
+  <div class="zone" data-color="brown" style="left: 2%; top: 76%; width: 48%; height: 16%;"></div>
+  <div class="zone" data-color="gray" style="left: 55%; top: 73%; width: 42%; height: 22%;"></div>
+  <div class="zone" data-color="pink" style="left: 4%; top: 4%; width: 45%; height: 30%;"></div>
+
+  <div id="complete">
+    <div class="complete-card">
+      <h1>Well done.</h1>
+      <p>You practiced bringing your attention back to the present moment.</p>
+      <button onclick="restartGame()">Start Over</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const prompts = [
+    { color: "blue", text: "Find something blue." },
+    { color: "orange", text: "Find something orange." },
+    { color: "white", text: "Find something white." },
+    { color: "green", text: "Find something green." },
+    { color: "brown", text: "Find something brown." },
+    { color: "gray", text: "Find something gray." },
+    { color: "pink", text: "Find something pink." }
+  ];
+
+  let round = 0;
+  let activePrompts = [];
+
+  const promptEl = document.getElementById("prompt");
+  const feedbackEl = document.getElementById("feedback");
+  const completeEl = document.getElementById("complete");
+  const gameEl = document.getElementById("game");
+
+  function shuffle(array) {
+    return array.sort(() => Math.random() - 0.5);
+  }
+
+  function startGame() {
+    activePrompts = shuffle([...prompts]).slice(0, 5);
+    round = 0;
+    completeEl.style.display = "none";
+    feedbackEl.textContent = "";
+    updatePrompt();
+  }
+
+  function updatePrompt() {
+    promptEl.textContent = activePrompts[round].text;
+  }
+
+  function showRipple(x, y) {
+    const ripple = document.createElement("div");
+    ripple.className = "ripple";
+    ripple.style.left = x + "px";
+    ripple.style.top = y + "px";
+    gameEl.appendChild(ripple);
+
+    setTimeout(() => ripple.remove(), 700);
+  }
+
+  function gentleVibrate() {
+    if (navigator.vibrate) {
+      navigator.vibrate(35);
+    }
+  }
+
+  document.querySelectorAll(".zone").forEach(zone => {
+    zone.addEventListener("click", e => {
+      const neededColor = activePrompts[round].color;
+      const tappedColor = zone.dataset.color;
+
+      if (tappedColor === neededColor) {
+        showRipple(e.clientX, e.clientY);
+        gentleVibrate();
+
+        feedbackEl.textContent = "Nice. Notice the color.";
+
+        setTimeout(() => {
+          round++;
+
+          if (round >= activePrompts.length) {
+            completeEl.style.display = "flex";
+          } else {
+            feedbackEl.textContent = "";
+            updatePrompt();
+          }
+        }, 900);
+
+      } else {
+        feedbackEl.textContent = "Keep looking slowly.";
+      }
+    });
+  });
+
+  function restartGame() {
+    startGame();
+  }
+
+  startGame();
+</script>
+</body>
+</html>
