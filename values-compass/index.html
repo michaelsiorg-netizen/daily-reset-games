@@ -33,14 +33,13 @@
     width: 100%;
     max-width: 440px;
     min-height: 85vh;
-    background: rgba(255, 255, 255, 0.95);
+    background: rgba(255, 255, 255, 0.96);
     border-radius: 24px;
-    padding: 32px 24px;
-    box-shadow: 0 20px 40px rgba(0,0,0,0.06);
+    padding: 30px 24px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.07);
     display: flex;
     flex-direction: column;
     justify-content: center;
-    transition: all 0.3s ease;
   }
 
   h1 {
@@ -54,7 +53,7 @@
 
   h2 {
     font-size: 24px;
-    font-weight: 700;
+    font-weight: 750;
     margin: 0 0 16px;
     color: #2B6CB0;
     text-align: center;
@@ -74,11 +73,43 @@
     line-height: 1.5;
   }
 
-  /* Progress Tracking */
+  .compass {
+    width: 120px;
+    height: 120px;
+    border: 3px solid #BEE3F8;
+    border-radius: 50%;
+    margin: 0 auto 20px;
+    position: relative;
+    background: #F7FAFC;
+    box-shadow: inset 0 0 0 8px #FFFFFF;
+  }
+
+  .needle {
+    position: absolute;
+    width: 8px;
+    height: 74px;
+    background: linear-gradient(#2B6CB0 0%, #2B6CB0 50%, #319795 50%, #319795 100%);
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%) rotate(28deg);
+    border-radius: 8px;
+  }
+
+  .center-dot {
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    background: #2D3748;
+    border-radius: 50%;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+  }
+
   .progress-container {
     margin-bottom: 24px;
   }
-  
+
   .progress-text {
     font-size: 13px;
     text-align: center;
@@ -91,9 +122,9 @@
 
   .progress-bar-bg {
     width: 100%;
-    height: 6px;
+    height: 7px;
     background: #E2E8F0;
-    border-radius: 3px;
+    border-radius: 4px;
     overflow: hidden;
   }
 
@@ -101,20 +132,26 @@
     width: 0%;
     height: 100%;
     background: #2B6CB0;
-    border-radius: 3px;
-    transition: width 0.3s ease;
+    border-radius: 4px;
+    transition: width 0.35s ease;
   }
 
-  .question {
-    font-size: 21px;
-    font-weight: 700;
-    margin: 24px 0;
+  .scenario-card {
+    background: #F7FAFC;
+    border: 1px solid #E2E8F0;
+    border-radius: 18px;
+    padding: 20px;
+    margin: 18px 0;
+  }
+
+  .scenario {
+    font-size: 20px;
+    font-weight: 750;
     text-align: center;
     color: #1A202C;
-    line-height: 1.4;
+    line-height: 1.45;
   }
 
-  /* Buttons */
   button {
     width: 100%;
     border: 1px solid #E2E8F0;
@@ -122,11 +159,11 @@
     padding: 18px 20px;
     margin: 10px 0;
     font-size: 16px;
-    font-weight: 500;
-    line-height: 1.4;
+    font-weight: 550;
+    line-height: 1.45;
     background: #FFFFFF;
     color: #2D3748;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.03);
     cursor: pointer;
     transition: all 0.2s ease;
     text-align: center;
@@ -137,7 +174,7 @@
       background: #F7FAFC;
       border-color: #CBD5E0;
       transform: translateY(-1px);
-      box-shadow: 0 6px 12px rgba(0,0,0,0.05);
+      box-shadow: 0 8px 14px rgba(0,0,0,0.06);
     }
   }
 
@@ -149,53 +186,48 @@
   button.primary {
     background: #2B6CB0;
     color: white;
-    font-weight: 600;
+    font-weight: 650;
     border: none;
     box-shadow: 0 4px 14px rgba(43, 108, 176, 0.3);
-  }
-
-  @media (hover: hover) {
-    button.primary:hover {
-      background: #2B529A;
-      box-shadow: 0 6px 20px rgba(43, 108, 176, 0.4);
-    }
   }
 
   button.secondary {
     background: #319795;
     color: white;
-    font-weight: 600;
+    font-weight: 650;
     border: none;
-    box-shadow: 0 4px 14px rgba(49, 151, 149, 0.2);
-  }
-
-  @media (hover: hover) {
-    button.secondary:hover {
-      background: #287E7C;
-    }
+    box-shadow: 0 4px 14px rgba(49, 151, 149, 0.25);
   }
 
   button.action-completed {
     background: #E6FFFA;
     color: #234E52;
     border-color: #B2F5EA;
-    pointer-events: none;
   }
 
-  /* Cards */
   .value-card {
     background: #F7FAFC;
     border: 1px solid #EDF2F7;
-    border-radius: 16px;
+    border-radius: 18px;
     padding: 16px;
     margin: 12px 0;
     text-align: left;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.03);
+    opacity: 0;
+    transform: translateY(10px);
+    animation: revealCard 0.45s ease forwards;
+  }
+
+  @keyframes revealCard {
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
   .value-title {
-    font-size: 18px;
-    font-weight: 700;
+    font-size: 19px;
+    font-weight: 750;
     color: #2B6CB0;
     margin-bottom: 6px;
   }
@@ -204,6 +236,29 @@
     font-size: 15px;
     line-height: 1.5;
     color: #4A5568;
+  }
+
+  .percentage {
+    font-size: 14px;
+    font-weight: 750;
+    color: #319795;
+    margin-bottom: 6px;
+  }
+
+  .why {
+    margin-top: 8px;
+    font-size: 14px;
+    color: #718096;
+    line-height: 1.45;
+    font-style: italic;
+  }
+
+  .final-message {
+    background: #EBF8FF;
+    border: 1px solid #BEE3F8;
+    border-radius: 18px;
+    padding: 16px;
+    margin: 16px 0;
   }
 
   .hidden {
@@ -217,10 +272,14 @@
 <div class="game">
 
   <div id="startScreen">
+    <div class="compass">
+      <div class="needle"></div>
+      <div class="center-dot"></div>
+    </div>
     <h1>Values Compass</h1>
     <p>This short activity can help you notice what matters most to you.</p>
-    <p class="small">There are no right or wrong answers. Just choose the option that feels more like you today.</p>
-    <button class="primary" onclick="startGame()">Start Assessment</button>
+    <p class="small">You will see real-life situations where two good values compete. Choose the option that feels more like the person you want to be today.</p>
+    <button class="primary" onclick="startGame()">Start</button>
   </div>
 
   <div id="choiceScreen" class="hidden">
@@ -230,16 +289,28 @@
         <div class="progress-bar-fill" id="progressBar"></div>
       </div>
     </div>
-    <div class="question" id="questionText"></div>
+
+    <div class="scenario-card">
+      <div class="scenario" id="questionText"></div>
+    </div>
+
     <button onclick="chooseOption(0)" id="optionA"></button>
     <button onclick="chooseOption(1)" id="optionB"></button>
   </div>
 
   <div id="resultsScreen" class="hidden">
-    <h2>Your Top Values</h2>
-    <p class="small">This is a snapshot of what seems important to you right now.</p>
+    <h2>Your Values Compass</h2>
+    <p class="small">This is not a diagnosis or a label. It is a snapshot of what seemed important to you today.</p>
     <div id="resultsList"></div>
-    <button class="primary" onclick="showReflection()" style="margin-top: 16px;">Continue</button>
+    <button class="primary" onclick="showAccuracyCheck()" style="margin-top: 16px;">Continue</button>
+  </div>
+
+  <div id="accuracyScreen" class="hidden">
+    <h2>Pause and Notice</h2>
+    <p>Do these values feel accurate for you today?</p>
+    <button onclick="showReflection()">Yes, they feel accurate</button>
+    <button onclick="showReflection()">Mostly</button>
+    <button onclick="showReflection()">Not really, but they give me something to think about</button>
   </div>
 
   <div id="reflectionScreen" class="hidden">
@@ -250,9 +321,15 @@
 
   <div id="actionScreen" class="hidden">
     <h2 id="actionTitle"></h2>
-    <p>Choose one small action you can commit to taking today.</p>
+
+    <div class="final-message">
+      <p><strong>Your values are not goals to achieve.</strong></p>
+      <p>They are directions you can choose, one small step at a time.</p>
+    </div>
+
+    <p>Choose one small action you can take today.</p>
     <div id="actionOptions"></div>
-    <button class="secondary" onclick="restartGame()" style="margin-top: 20px;">Restart App</button>
+    <button class="secondary" onclick="restartGame()" style="margin-top: 20px;">Restart</button>
   </div>
 
 </div>
@@ -262,6 +339,7 @@ const values = {
   growth: {
     name: "🌱 Growth",
     description: "Learning, improving, and becoming more aligned with the person you want to be.",
+    why: "Growth appeared because you kept choosing learning, progress, and becoming better over staying comfortable.",
     actions: [
       "Read or listen to something helpful for five minutes.",
       "Practice one skill you want to improve.",
@@ -271,6 +349,7 @@ const values = {
   connection: {
     name: "❤️ Connection",
     description: "Building meaningful relationships and staying emotionally present with others.",
+    why: "Connection appeared because you kept choosing relationships, presence, and emotional closeness.",
     actions: [
       "Text someone you care about.",
       "Give someone your full attention for a few minutes.",
@@ -280,6 +359,7 @@ const values = {
   integrity: {
     name: "🧭 Integrity",
     description: "Living in a way that matches your beliefs, values, and principles.",
+    why: "Integrity appeared because you kept choosing honesty, follow-through, and alignment with your principles.",
     actions: [
       "Follow through on one small promise.",
       "Be honest about how you feel.",
@@ -289,6 +369,7 @@ const values = {
   peace: {
     name: "🕊️ Peace",
     description: "Protecting calm, balance, and emotional steadiness in your life.",
+    why: "Peace appeared because you kept choosing steadiness, space, and calm over unnecessary pressure or conflict.",
     actions: [
       "Take three slow breaths before responding.",
       "Step away from one unnecessary conflict.",
@@ -298,6 +379,7 @@ const values = {
   courage: {
     name: "🔥 Courage",
     description: "Doing what matters even when it feels uncomfortable or uncertain.",
+    why: "Courage appeared because you kept choosing brave action even when the situation involved discomfort.",
     actions: [
       "Take one step you have been avoiding.",
       "Say what needs to be said respectfully.",
@@ -307,6 +389,7 @@ const values = {
   compassion: {
     name: "🤝 Compassion",
     description: "Responding to yourself and others with kindness, patience, and understanding.",
+    why: "Compassion appeared because you kept choosing kindness, patience, and understanding toward yourself or others.",
     actions: [
       "Speak to yourself like you would speak to a friend.",
       "Offer kindness to someone who is struggling.",
@@ -316,6 +399,7 @@ const values = {
   freedom: {
     name: "🌤️ Freedom",
     description: "Having room to choose, explore, and live with a sense of independence.",
+    why: "Freedom appeared because you kept choosing independence, choice, and room to live in a way that feels authentic.",
     actions: [
       "Make one choice based on what matters to you.",
       "Spend a few minutes doing something that feels freeing.",
@@ -325,6 +409,7 @@ const values = {
   health: {
     name: "💪 Health",
     description: "Caring for your body, mind, energy, and overall well-being.",
+    why: "Health appeared because you kept choosing care for your body, mind, energy, and stability.",
     actions: [
       "Drink a glass of water.",
       "Go for a short walk.",
@@ -333,89 +418,173 @@ const values = {
   }
 };
 
-const questions = [
+const allQuestions = [
   {
-    text: "You have a free hour. What feels more meaningful?",
+    text: "You promised yourself you would rest tonight, but someone asks for a favor that could wait until tomorrow.",
     options: [
-      { text: "Work on something that helps me grow.", value: "growth" },
-      { text: "Spend quality time with someone I care about.", value: "connection" }
+      { text: "Protect the rest I know I need.", value: "health" },
+      { text: "Help them because being there matters to me.", value: "connection" }
     ]
   },
   {
-    text: "You are under pressure. What matters more?",
+    text: "You made a mistake at work. No one noticed, but it could affect someone else later.",
     options: [
-      { text: "Staying true to what I believe.", value: "integrity" },
-      { text: "Keeping things calm and steady.", value: "peace" }
+      { text: "Bring it up and take responsibility.", value: "integrity" },
+      { text: "Use it as a learning moment and make a better plan.", value: "growth" }
     ]
   },
   {
-    text: "You are facing something difficult. What would you rather practice?",
+    text: "A friend wants your honest opinion, but you know the truth might be uncomfortable.",
     options: [
-      { text: "Taking a brave step forward.", value: "courage" },
-      { text: "Being gentle with myself through it.", value: "compassion" }
+      { text: "Be honest, but kind.", value: "integrity" },
+      { text: "Focus on being gentle and supportive.", value: "compassion" }
     ]
   },
   {
-    text: "A decision needs to be made. What pulls you more?",
+    text: "You are invited to something fun, but your body feels exhausted.",
     options: [
-      { text: "Having freedom to choose my own path.", value: "freedom" },
-      { text: "Making the choice that supports my well-being.", value: "health" }
+      { text: "Stay home and take care of myself.", value: "health" },
+      { text: "Go because shared memories matter.", value: "connection" }
     ]
   },
   {
-    text: "You made a mistake. What feels most important?",
+    text: "You want to try something new, but you might not be good at it.",
     options: [
-      { text: "Learning from it.", value: "growth" },
-      { text: "Being honest about it.", value: "integrity" }
+      { text: "Try it anyway.", value: "courage" },
+      { text: "See it as a chance to learn.", value: "growth" }
     ]
   },
   {
-    text: "Someone close to you is struggling. What do you focus on?",
+    text: "Someone says something unfair. Speaking up might make the room uncomfortable.",
     options: [
-      { text: "Being present with them.", value: "connection" },
-      { text: "Responding with kindness and patience.", value: "compassion" }
+      { text: "Speak up respectfully.", value: "courage" },
+      { text: "Stay grounded and protect my peace.", value: "peace" }
     ]
   },
   {
-    text: "You feel overwhelmed. What would help most?",
+    text: "You have a full day planned, but you suddenly get a quiet hour to yourself.",
     options: [
-      { text: "Creating space and quiet.", value: "peace" },
-      { text: "Taking care of my body and energy.", value: "health" }
+      { text: "Use it to do something that feels freeing.", value: "freedom" },
+      { text: "Use it to slow down and reset.", value: "peace" }
     ]
   },
   {
-    text: "You feel stuck. What sounds more important?",
+    text: "You are working toward a goal, but someone you love needs your attention.",
     options: [
-      { text: "Trying something new.", value: "freedom" },
-      { text: "Doing the uncomfortable thing that matters.", value: "courage" }
+      { text: "Pause and be present with them.", value: "connection" },
+      { text: "Keep building the future I am working toward.", value: "growth" }
     ]
   },
   {
-    text: "You are thinking about your future. What do you want more of?",
+    text: "You feel pressure to follow the path everyone expects from you.",
     options: [
-      { text: "Meaningful relationships.", value: "connection" },
-      { text: "Personal growth.", value: "growth" }
+      { text: "Choose the path that feels true to me.", value: "freedom" },
+      { text: "Choose the path that matches my principles.", value: "integrity" }
     ]
   },
   {
-    text: "You are in conflict with someone. What guides you?",
+    text: "You are overwhelmed and tempted to push through without stopping.",
     options: [
-      { text: "Staying respectful and honest.", value: "integrity" },
-      { text: "Protecting my peace.", value: "peace" }
+      { text: "Slow down before I burn out.", value: "peace" },
+      { text: "Care for my body and energy first.", value: "health" }
     ]
   },
   {
-    text: "You have been hard on yourself. What do you need?",
+    text: "Someone hurts your feelings and later apologizes.",
     options: [
-      { text: "Compassion.", value: "compassion" },
-      { text: "Courage to keep going.", value: "courage" }
+      { text: "Try to understand where they were coming from.", value: "compassion" },
+      { text: "Be honest about how it affected me.", value: "integrity" }
     ]
   },
   {
-    text: "You are planning your day. What deserves attention?",
+    text: "You have been avoiding a difficult conversation.",
     options: [
-      { text: "My health and energy.", value: "health" },
-      { text: "My freedom to choose what matters.", value: "freedom" }
+      { text: "Have the conversation with courage.", value: "courage" },
+      { text: "Approach it with kindness and patience.", value: "compassion" }
+    ]
+  },
+  {
+    text: "You have extra money this month.",
+    options: [
+      { text: "Spend it on an experience that feels meaningful.", value: "freedom" },
+      { text: "Use it to support stability and well-being.", value: "health" }
+    ]
+  },
+  {
+    text: "You receive criticism that stings.",
+    options: [
+      { text: "Look for what I can learn from it.", value: "growth" },
+      { text: "Respond to myself with kindness instead of shame.", value: "compassion" }
+    ]
+  },
+  {
+    text: "A group is making a decision you disagree with.",
+    options: [
+      { text: "Say what I believe, even if I stand alone.", value: "courage" },
+      { text: "Stay true to my principles without attacking anyone.", value: "integrity" }
+    ]
+  },
+  {
+    text: "Your schedule is packed, but someone asks to spend time with you.",
+    options: [
+      { text: "Make space because relationships matter.", value: "connection" },
+      { text: "Keep the boundary because balance matters.", value: "peace" }
+    ]
+  },
+  {
+    text: "You could stay comfortable, or you could take a step that might help you grow.",
+    options: [
+      { text: "Take the growth step.", value: "growth" },
+      { text: "Take the brave step.", value: "courage" }
+    ]
+  },
+  {
+    text: "You are deciding how to spend your weekend.",
+    options: [
+      { text: "Do something spontaneous and open-ended.", value: "freedom" },
+      { text: "Do something restorative and grounding.", value: "peace" }
+    ]
+  },
+  {
+    text: "You notice someone being left out.",
+    options: [
+      { text: "Invite them in and help them feel included.", value: "connection" },
+      { text: "Respond with kindness because everyone deserves care.", value: "compassion" }
+    ]
+  },
+  {
+    text: "You feel pulled between doing what is easy and doing what is right.",
+    options: [
+      { text: "Do what is right.", value: "integrity" },
+      { text: "Do the hard thing even though it is uncomfortable.", value: "courage" }
+    ]
+  },
+  {
+    text: "You have been scrolling for a while and notice your mood getting worse.",
+    options: [
+      { text: "Put the phone down and take care of myself.", value: "health" },
+      { text: "Choose something that gives me more freedom and space.", value: "freedom" }
+    ]
+  },
+  {
+    text: "You are frustrated with yourself for not being further along.",
+    options: [
+      { text: "Remind myself that growth takes time.", value: "growth" },
+      { text: "Respond to myself with patience.", value: "compassion" }
+    ]
+  },
+  {
+    text: "You have a chance to take on more responsibility, but it would add stress.",
+    options: [
+      { text: "Accept it because growth matters.", value: "growth" },
+      { text: "Decline it because peace matters.", value: "peace" }
+    ]
+  },
+  {
+    text: "You are choosing between independence and closeness.",
+    options: [
+      { text: "Choose room to be myself.", value: "freedom" },
+      { text: "Choose meaningful connection.", value: "connection" }
     ]
   }
 ];
@@ -423,6 +592,8 @@ const questions = [
 let currentQuestion = 0;
 let scores = {};
 let topValues = [];
+let selectedQuestions = [];
+const questionsPerGame = 12;
 
 function startGame() {
   scores = {};
@@ -432,42 +603,50 @@ function startGame() {
     scores[value] = 0;
   });
 
+  selectedQuestions = shuffleArray(allQuestions).slice(0, questionsPerGame);
+
   showScreen("choiceScreen");
   loadQuestion();
 }
 
 function showScreen(screenId) {
-  const screens = ["startScreen", "choiceScreen", "resultsScreen", "reflectionScreen", "actionScreen"];
+  const screens = [
+    "startScreen",
+    "choiceScreen",
+    "resultsScreen",
+    "accuracyScreen",
+    "reflectionScreen",
+    "actionScreen"
+  ];
+
   screens.forEach(id => document.getElementById(id).classList.add("hidden"));
   document.getElementById(screenId).classList.remove("hidden");
 }
 
 function loadQuestion() {
-  const question = questions[currentQuestion];
-  const progressPercent = ((currentQuestion) / questions.length) * 100;
+  const question = selectedQuestions[currentQuestion];
+  const progressPercent = (currentQuestion / selectedQuestions.length) * 100;
 
   document.getElementById("progressText").textContent =
-    `Question ${currentQuestion + 1} of ${questions.length}`;
-    
-  document.getElementById("progressBar").style.width = `${progressPercent}%`;
+    `Question ${currentQuestion + 1} of ${selectedQuestions.length}`;
 
+  document.getElementById("progressBar").style.width = `${progressPercent}%`;
   document.getElementById("questionText").textContent = question.text;
   document.getElementById("optionA").textContent = question.options[0].text;
   document.getElementById("optionB").textContent = question.options[1].text;
 }
 
 function chooseOption(index) {
-  const selectedValue = questions[currentQuestion].options[index].value;
+  const selectedValue = selectedQuestions[currentQuestion].options[index].value;
   scores[selectedValue]++;
 
   currentQuestion++;
 
-  if (currentQuestion < questions.length) {
+  if (currentQuestion < selectedQuestions.length) {
     loadQuestion();
   } else {
-    // Complete the progress bar right before showing results
     document.getElementById("progressBar").style.width = "100%";
-    setTimeout(showResults, 200);
+    setTimeout(showResults, 250);
   }
 }
 
@@ -476,22 +655,32 @@ function showResults() {
     .sort((a, b) => scores[b] - scores[a])
     .slice(0, 3);
 
+  const highestScore = Math.max(...Object.values(scores));
   const resultsList = document.getElementById("resultsList");
   resultsList.innerHTML = "";
 
-  topValues.forEach(valueKey => {
+  topValues.forEach((valueKey, index) => {
     const card = document.createElement("div");
     card.className = "value-card";
+    card.style.animationDelay = `${index * 0.25}s`;
+
+    const percent = highestScore === 0 ? 0 : Math.round((scores[valueKey] / highestScore) * 100);
 
     card.innerHTML = `
       <div class="value-title">${values[valueKey].name}</div>
+      <div class="percentage">${percent}% alignment today</div>
       <div class="value-description">${values[valueKey].description}</div>
+      <div class="why">${values[valueKey].why}</div>
     `;
 
     resultsList.appendChild(card);
   });
 
   showScreen("resultsScreen");
+}
+
+function showAccuracyCheck() {
+  showScreen("accuracyScreen");
 }
 
 function showReflection() {
@@ -517,23 +706,18 @@ function showActionStep(valueKey) {
   values[valueKey].actions.forEach(action => {
     const button = document.createElement("button");
     button.textContent = action;
+    button.setAttribute("data-original-text", action);
+
     button.onclick = () => {
-      // Remove completed styling from any other button first if user changes mind
       Array.from(container.children).forEach(btn => {
         btn.classList.remove("action-completed");
-        if(btn !== button) {
-          // Restore original text if they click a different option
-          btn.textContent = btn.getAttribute("data-original-text") || btn.textContent;
-        }
+        btn.textContent = btn.getAttribute("data-original-text");
       });
-      
-      if(!button.hasAttribute("data-original-text")) {
-        button.setAttribute("data-original-text", action);
-      }
-      
+
       button.textContent = "✓ " + action;
       button.classList.add("action-completed");
     };
+
     container.appendChild(button);
   });
 
@@ -542,6 +726,17 @@ function showActionStep(valueKey) {
 
 function restartGame() {
   showScreen("startScreen");
+}
+
+function shuffleArray(array) {
+  const copy = [...array];
+
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+
+  return copy;
 }
 </script>
 
