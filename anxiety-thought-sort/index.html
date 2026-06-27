@@ -8,7 +8,7 @@
 <style>
 * { box-sizing: border-box; }
 
-  html, body {
+html, body {
   margin: 0;
   padding: 0;
   width: 100%;
@@ -17,6 +17,7 @@
   position: fixed;
   overscroll-behavior: none;
   touch-action: none;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
 .game-container {
@@ -25,7 +26,6 @@
   overflow: hidden;
   touch-action: none;
 }
-
 
 #game {
   width: 100vw;
@@ -55,9 +55,10 @@ h1 {
 }
 
 p {
-  font-size: 18px;
-  line-height: 1.35;
-  margin: 12px 0;
+  color: #5A6B7C;
+  font-size: 17px;
+  line-height: 1.4;
+  margin: 10px 0;
 }
 
 .stats {
@@ -66,22 +67,31 @@ p {
   margin-top: 10px;
   font-size: 22px;
   font-weight: bold;
+  color: #4A6FA5;
 }
 
 #thoughtCard {
   padding: 28px 18px;
-  min-height: 120px;
+  min-height: 140px;
   display: flex;
   align-items: center;
   justify-content: center;
   touch-action: none;
   z-index: 5;
+  cursor: grab;
+  user-select: none;
+  transition: transform 0.1s ease-out, opacity 0.3s ease;
+}
+
+#thoughtCard:active {
+  cursor: grabbing;
 }
 
 #thoughtText {
-  font-size: 25px;
+  font-size: 24px;
   font-weight: bold;
-  line-height: 1.25;
+  line-height: 1.3;
+  color: #2C3E50;
 }
 
 #feedbackText {
@@ -91,14 +101,17 @@ p {
   min-height: 30px;
   margin-top: -4px;
   margin-bottom: -4px;
+  transition: all 0.2s ease;
 }
 
 .correct {
   color: #2E7D5B;
+  transform: scale(1.05);
 }
 
 .incorrect {
   color: #A94442;
+  transform: scale(1.05);
 }
 
 #spacer {
@@ -122,16 +135,19 @@ p {
   justify-content: center;
   text-align: center;
   padding: 14px;
-  font-size: 24px;
+  font-size: 22px;
   font-weight: bold;
   box-shadow: 0 5px 16px rgba(0,0,0,0.12);
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), filter 0.2s ease, opacity 0.2s ease;
+  cursor: pointer;
 }
 
 .drop-zone small {
   display: block;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: normal;
   margin-top: 6px;
+  opacity: 0.8;
 }
 
 #unhelpfulZone {
@@ -140,6 +156,17 @@ p {
 
 #helpfulZone {
   background: #4A6FA5;
+}
+
+/* Visual states for drag targeting */
+.drop-zone.active-target {
+  transform: scale(1.06);
+  filter: brightness(1.1);
+}
+
+.drop-zone.inactive-target {
+  opacity: 0.6;
+  transform: scale(0.96);
 }
 
 button {
@@ -151,6 +178,13 @@ button {
   font-size: 20px;
   font-weight: bold;
   margin-top: 12px;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  transition: background 0.2s, transform 0.1s;
+}
+
+button:active {
+  transform: scale(0.98);
 }
 
 #startScreen, #endScreen {
@@ -166,7 +200,8 @@ button {
 
 .modalCard {
   max-width: 420px;
-  padding: 30px 24px;
+  padding: 34px 24px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.15);
 }
 
 .hidden {
@@ -180,7 +215,7 @@ button {
 
   <div id="headerCard" class="card">
     <h1>Thought Sort</h1>
-    <p>Drag each thought into the category that fits best.</p>
+    <p>Drag each thought into the category that fits best, or tap the zones directly.</p>
     <div class="stats">
       <div>Score: <span id="score">0</span></div>
       <div>Round: <span id="round">1</span>/10</div>
@@ -197,11 +232,11 @@ button {
 
   <div class="drop-area">
     <div id="unhelpfulZone" class="drop-zone">
-      <div>Unhelpful<br>Thought<small>Drag here</small></div>
+      <div>Unhelpful<br>Thought<small>Drag or Tap</small></div>
     </div>
 
     <div id="helpfulZone" class="drop-zone">
-      <div>Helpful<br>Thought<small>Drag here</small></div>
+      <div>Helpful<br>Thought<small>Drag or Tap</small></div>
     </div>
   </div>
 
@@ -297,15 +332,25 @@ function showThought() {
 }
 
 function resetCard() {
-  thoughtCard.style.transform = "translate(0px, 0px)";
+  // Clear any structural inline transition styles so manual drags remain snap-fast
+  thoughtCard.style.transition = "transform 0.2s ease-out, opacity 0.3s ease";
+  thoughtCard.style.transform = "translate(0px, 0px) rotate(0deg) scale(1)";
   thoughtCard.style.opacity = "1";
+  
+  unhelpfulZone.className = "drop-zone";
+  helpfulZone.className = "drop-zone";
 }
+
+// Tap-to-sort option for simplified usability
+helpfulZone.addEventListener("pointerdown", () => { if (acceptingInput && !dragging) chooseAnswer("helpful"); });
+unhelpfulZone.addEventListener("pointerdown", () => { if (acceptingInput && !dragging) chooseAnswer("unhelpful"); });
 
 thoughtCard.addEventListener("pointerdown", function(e) {
   if (!acceptingInput) return;
   dragging = true;
   startX = e.clientX;
   startY = e.clientY;
+  thoughtCard.style.transition = "none"; // Drop transitions for absolute tracking feel
   thoughtCard.setPointerCapture(e.pointerId);
 });
 
@@ -313,7 +358,29 @@ thoughtCard.addEventListener("pointermove", function(e) {
   if (!dragging || !acceptingInput) return;
   const moveX = e.clientX - startX;
   const moveY = e.clientY - startY;
-  thoughtCard.style.transform = `translate(${moveX}px, ${moveY}px)`;
+  
+  // Calculate a slight rotation based on horizontal drag distance
+  const rotateDeg = moveX * 0.04;
+  thoughtCard.style.transform = `translate(${moveX}px, ${moveY}px) rotate(${rotateDeg}deg) scale(0.98)`;
+
+  // Live element detection to highlight targets dynamically during a drag
+  const cardRect = thoughtCard.getBoundingClientRect();
+  const centerX = cardRect.left + cardRect.width / 2;
+  const centerY = cardRect.top + cardRect.height / 2;
+
+  const helpfulRect = helpfulZone.getBoundingClientRect();
+  const unhelpfulRect = unhelpfulZone.getBoundingClientRect();
+
+  if (isInside(centerX, centerY, helpfulRect)) {
+    helpfulZone.className = "drop-zone active-target";
+    unhelpfulZone.className = "drop-zone inactive-target";
+  } else if (isInside(centerX, centerY, unhelpfulRect)) {
+    unhelpfulZone.className = "drop-zone active-target";
+    helpfulZone.className = "drop-zone inactive-target";
+  } else {
+    unhelpfulZone.className = "drop-zone";
+    helpfulZone.className = "drop-zone";
+  }
 });
 
 thoughtCard.addEventListener("pointerup", function(e) {
@@ -338,6 +405,18 @@ thoughtCard.addEventListener("pointerup", function(e) {
 
 function chooseAnswer(choice) {
   acceptingInput = false;
+
+  // Visual clean up for target states
+  unhelpfulZone.className = "drop-zone";
+  helpfulZone.className = "drop-zone";
+
+  // Provide animated slide out to target zone if tapped instead of dragged
+  thoughtCard.style.transition = "transform 0.4s ease-in, opacity 0.3s ease";
+  if (choice === "helpful") {
+    thoughtCard.style.transform = "translate(150px, 120px) rotate(15deg) scale(0.8)";
+  } else {
+    thoughtCard.style.transform = "translate(-150px, 120px) rotate(-15deg) scale(0.8)";
+  }
 
   if (choice === currentThought.type) {
     score += 1;
@@ -371,13 +450,6 @@ function isInside(x, y, rect) {
 }
 
 function shuffle(array) {
-  for (let i = array.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [array[i], array[j]] = [array[j], array[i]];
-  }
-  return array;
-}
-  function shuffle(array) {
   for (let i = array.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [array[i], array[j]] = [array[j], array[i]];
