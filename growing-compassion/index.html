@@ -1,1 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<title>Growing Compassion</title>
 
+<style>
+  * {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    position: fixed;
+    font-family: Arial, sans-serif;
+    background: linear-gradient(to bottom, #b8dff5 0%, #eaf7ff 55%, #d9f2d0 100%);
+    color: #2e2e2e;
+    touch-action: manipulation;
+  }
+
+  #game {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  .top-box {
+    position: absolute;
+    top: 22px;
+    left: 18px;
+    right: 18px;
+    padding: 18px 16px;
+    border-radius: 24px;
+    background: rgba(255,255,255,0.82);
+    text-align: center;
+    z-index: 10;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+  }
+
+  .title {
+    font-size: 26px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .instructions {
+    font-size: 17px;
+    line-height: 1.35;
+    color: #555;
+  }
+
+  #progressText {
+    margin-top: 10px;
+    font-size: 15px;
+    color: #4a6fa5;
+    font-weight: 700;
+  }
+
+  .cloud {
+    position: absolute;
+    min-width: 170px;
+    max-width: 245px;
+    padding: 18px 22px;
+    border-radius: 40px;
+    background: rgba(255,255,255,0.92);
+    box-shadow: 0 8px 18px rgba(0,0,0,0.12);
+    font-size: 18px;
+    font-weight: 700;
+    text-align: center;
+    line-height: 1.25;
+    color: #333;
+    z-index: 5;
+    animation: floatAcross linear forwards;
+  }
+
+  .cloud::before,
+  .cloud::after {
+    content: "";
+    position: absolute;
+    background: rgba(255,255,255,0.92);
+    border-radius: 50%;
+    z-index: -1;
+  }
+
+  .cloud::before {
+    width: 58px;
+    height: 58px;
+    top: -25px;
+    left: 28px;
+  }
+
+  .cloud::after {
+    width: 76px;
+    height: 76px;
+    top: -38px;
+    right: 30px;
+  }
+
+  .cloud.harsh {
+    opacity: 0.82;
+  }
+
+  .cloud.tapped {
+    animation: dissolve 0.6s ease forwards;
+  }
+
+  .cloud.wrong {
+    animation: gentleShake 0.35s ease;
+  }
+
+  @keyframes floatAcross {
+    from { transform: translateX(-290px); }
+    to { transform: translateX(calc(100vw + 290px)); }
+  }
+
+  @keyframes dissolve {
+    to {
+      transform: scale(0.8);
+      opacity: 0;
+    }
+  }
+
+  @keyframes gentleShake {
+    0% { margin-left: 0; }
+    25% { margin-left: -6px; }
+    50% { margin-left: 6px; }
+    75% { margin-left: -4px; }
+    100% { margin-left: 0; }
+  }
+
+  #garden {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 36vh;
+    z-index: 3;
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    padding-bottom: 42px;
+  }
+
+  .grass {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    height: 120px;
+    background: linear-gradient(to top, #8bcf7a, #bfe8a8);
+    border-radius: 50% 50% 0 0 / 18% 18% 0 0;
+  }
+
+  #flower {
+    position: relative;
+    width: 180px;
+    height: 260px;
+    z-index: 4;
+  }
+
+  .stem {
+    position: absolute;
+    bottom: 20px;
+    left: 88px;
+    width: 8px;
+    height: 0;
+    background: #4f9d50;
+    border-radius: 10px;
+    transition: height 0.6s ease;
+  }
+
+  .leaf {
+    position: absolute;
+    width: 0;
+    height: 0;
+    background: #65b96a;
+    border-radius: 100% 0 100% 0;
+    opacity: 0;
+    transition: all 0.6s ease;
+  }
+
+  .leaf.left {
+    bottom: 84px;
+    left: 45px;
+    transform: rotate(-25deg);
+  }
+
+  .leaf.right {
+    bottom: 118px;
+    right: 44px;
+    transform: rotate(115deg);
+  }
+
+  .flower-head {
+    position: absolute;
+    bottom: 170px;
+    left: 50%;
+    width: 110px;
+    height: 110px;
+    transform: translateX(-50%) scale(0);
+    transition: transform 0.8s ease;
+  }
+
+  .petal {
+    position: absolute;
+    width: 48px;
+    height: 68px;
+    background: #f6a8c9;
+    border-radius: 50%;
+    left: 31px;
+    top: 21px;
+    transform-origin: center 34px;
+  }
+
+  .p1 { transform: rotate(0deg) translateY(-34px); }
+  .p2 { transform: rotate(60deg) translateY(-34px); }
+  .p3 { transform: rotate(120deg) translateY(-34px); }
+  .p4 { transform: rotate(180deg) translateY(-34px); }
+  .p5 { transform: rotate(240deg) translateY(-34px); }
+  .p6 { transform: rotate(300deg) translateY(-34px); }
+
+  .center {
+    position: absolute;
+    width: 44px;
+    height: 44px;
+    background: #f8d36b;
+    border-radius: 50%;
+    left: 33px;
+    top: 34px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  }
+
+  .drop {
+    position: absolute;
+    width: 16px;
+    height: 24px;
+    background: #7fd1ff;
+    border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg);
+    animation: fall 0.75s ease forwards;
+    z-index: 8;
+  }
+
+  @keyframes fall {
+    to {
+      top: 73vh;
+      opacity: 0;
+    }
+  }
+
+  #finalScreen {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to bottom, #cceeff, #f7fff3);
+    z-index: 30;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    text-align: center;
+  }
+
+  .final-card {
+    background: rgba(255,255,255,0.9);
+    border-radius: 30px;
+    padding: 30px 24px;
+    max-width: 360px;
+    box-shadow: 0 10px 28px rgba(0,0,0,0.12);
+  }
+
+  .final-flower {
+    font-size: 64px;
+    margin-bottom: 12px;
+  }
+
+  .final-title {
+    font-size: 28px;
+    font-weight: 800;
+    margin-bottom: 14px;
+  }
+
+  .final-message {
+    font-size: 19px;
+    line-height: 1.45;
+    color: #444;
+  }
+
+  .done-btn {
+    margin-top: 24px;
+    border: none;
+    background: #4a6fa5;
+    color: white;
+    padding: 14px 28px;
+    font-size: 18px;
+    border-radius: 999px;
+    font-weight: 700;
+  }
+</style>
+</head>
+
+<body>
+<div id="game">
+
+  <div class="top-box">
+    <div class="title">Growing Compassion</div>
+    <div class="instructions">
+      Thoughts will pass by.<br>
+      Tap the ones that help you grow.
+    </div>
+    <div id="progressText">0 / 6</div>
+  </div>
+
+  <div id="garden">
+    <div class="grass"></div>
+
+    <div id="flower">
+      <div class="stem" id="stem"></div>
+      <div class="leaf left" id="leafLeft"></div>
+      <div class="leaf right" id="leafRight"></div>
+
+      <div class="flower-head" id="flowerHead">
+        <div class="petal p1"></div>
+        <div class="petal p2"></div>
+        <div class="petal p3"></div>
+        <div class="petal p4"></div>
+        <div class="petal p5"></div>
+        <div class="petal p6"></div>
+        <div class="center"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="finalScreen">
+    <div class="final-card">
+      <div class="final-flower">🌸</div>
+      <div class="final-title">Compassion Helps You Grow</div>
+      <div class="final-message">
+        The way you speak to yourself matters.<br><br>
+        Practice choosing kindness, one thought at a time.
+      </div>
+      <button class="done-btn" onclick="finishGame()">Done</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const compassionateThoughts = [
+    "I'm allowed to learn.",
+    "Everyone makes mistakes.",
+    "One step is enough.",
+    "I can try again.",
+    "Rest is allowed.",
+    "I'm doing my best today.",
+    "This is hard, and I can be kind to myself.",
+    "My worth is not one bad day.",
+    "Progress does not have to be perfect.",
+    "I can slow down."
+  ];
+
+  const harshThoughts = [
+    "I'm such a failure.",
+    "I should be doing more.",
+    "Everyone else has it together.",
+    "I always mess things up.",
+    "I don't deserve a break.",
+    "I'll never change.",
+    "I have to be perfect.",
+    "I'm not enough.",
+    "I ruin everything.",
+    "I can't handle this."
+  ];
+
+  let growth = 0;
+  const goal = 6;
+  let cloudInterval;
+  let gameOver = false;
+
+  const game = document.getElementById("game");
+  const progressText = document.getElementById("progressText");
+  const stem = document.getElementById("stem");
+  const leafLeft = document.getElementById("leafLeft");
+  const leafRight = document.getElementById("leafRight");
+  const flowerHead = document.getElementById("flowerHead");
+  const finalScreen = document.getElementById("finalScreen");
+
+  function randomItem(arr) {
+    return arr[Math.floor(Math.random() * arr.length)];
+  }
+
+  function createCloud() {
+    if (gameOver) return;
+
+    const isCompassionate = Math.random() < 0.58;
+    const cloud = document.createElement("div");
+
+    cloud.className = "cloud " + (isCompassionate ? "kind" : "harsh");
+    cloud.textContent = isCompassionate
+      ? randomItem(compassionateThoughts)
+      : randomItem(harshThoughts);
+
+    const topLimit = window.innerHeight * 0.55;
+    const top = 135 + Math.random() * Math.max(120, topLimit - 135);
+
+    cloud.style.top = top + "px";
+    cloud.style.left = "0px";
+    cloud.style.animationDuration = (11 + Math.random() * 5) + "s";
+
+    cloud.addEventListener("click", () => {
+      if (cloud.dataset.used === "true" || gameOver) return;
+      cloud.dataset.used = "true";
+
+      if (isCompassionate) {
+        cloud.classList.add("tapped");
+        makeDrop(cloud);
+        growFlower();
+        setTimeout(() => cloud.remove(), 600);
+      } else {
+        cloud.classList.add("wrong");
+        setTimeout(() => {
+          cloud.classList.remove("wrong");
+          cloud.dataset.used = "false";
+        }, 400);
+      }
+    });
+
+    cloud.addEventListener("animationend", () => {
+      cloud.remove();
+    });
+
+    game.appendChild(cloud);
+  }
+
+  function makeDrop(cloud) {
+    const rect = cloud.getBoundingClientRect();
+    const drop = document.createElement("div");
+
+    drop.className = "drop";
+    drop.style.left = rect.left + rect.width / 2 + "px";
+    drop.style.top = rect.top + rect.height / 2 + "px";
+
+    game.appendChild(drop);
+
+    setTimeout(() => drop.remove(), 800);
+  }
+
+  function growFlower() {
+    growth++;
+    progressText.textContent = growth + " / " + goal;
+
+    if (growth >= 1) {
+      stem.style.height = "70px";
+    }
+
+    if (growth >= 2) {
+      stem.style.height = "105px";
+      leafLeft.style.width = "48px";
+      leafLeft.style.height = "30px";
+      leafLeft.style.opacity = "1";
+    }
+
+    if (growth >= 3) {
+      stem.style.height = "135px";
+      leafRight.style.width = "52px";
+      leafRight.style.height = "32px";
+      leafRight.style.opacity = "1";
+    }
+
+    if (growth >= 4) {
+      stem.style.height = "160px";
+      flowerHead.style.transform = "translateX(-50%) scale(0.55)";
+    }
+
+    if (growth >= 5) {
+      flowerHead.style.transform = "translateX(-50%) scale(0.82)";
+    }
+
+    if (growth >= 6) {
+      flowerHead.style.transform = "translateX(-50%) scale(1)";
+      endGame();
+    }
+  }
+
+  function endGame() {
+    gameOver = true;
+    clearInterval(cloudInterval);
+
+    document.querySelectorAll(".cloud").forEach(cloud => {
+      cloud.style.transition = "opacity 0.6s ease";
+      cloud.style.opacity = "0";
+      setTimeout(() => cloud.remove(), 600);
+    });
+
+    setTimeout(() => {
+      finalScreen.style.display = "flex";
+    }, 900);
+  }
+
+  function finishGame() {
+    window.history.back();
+  }
+
+  createCloud();
+  cloudInterval = setInterval(createCloud, 1700);
+</script>
+
+</body>
+</html>
