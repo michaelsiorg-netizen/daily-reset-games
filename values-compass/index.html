@@ -48,7 +48,6 @@
     margin: 0 0 12px;
     color: #2B6CB0;
     text-align: center;
-    letter-spacing: -0.5px;
   }
 
   h2 {
@@ -70,7 +69,6 @@
   .small {
     font-size: 14px;
     color: #718096;
-    line-height: 1.5;
   }
 
   .compass {
@@ -104,6 +102,20 @@
     left: 50%;
     top: 50%;
     transform: translate(-50%, -50%);
+  }
+
+  .completion-icon {
+    width: 88px;
+    height: 88px;
+    border-radius: 50%;
+    background: #E6FFFA;
+    border: 3px solid #B2F5EA;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 42px;
+    margin: 0 auto 18px;
+    box-shadow: 0 10px 22px rgba(49,151,149,0.16);
   }
 
   .progress-container {
@@ -169,15 +181,6 @@
     text-align: center;
   }
 
-  @media (hover: hover) {
-    button:hover {
-      background: #F7FAFC;
-      border-color: #CBD5E0;
-      transform: translateY(-1px);
-      box-shadow: 0 8px 14px rgba(0,0,0,0.06);
-    }
-  }
-
   button:active {
     transform: scale(0.98);
     background: #EDF2F7;
@@ -188,7 +191,6 @@
     color: white;
     font-weight: 650;
     border: none;
-    box-shadow: 0 4px 14px rgba(43, 108, 176, 0.3);
   }
 
   button.secondary {
@@ -196,13 +198,26 @@
     color: white;
     font-weight: 650;
     border: none;
-    box-shadow: 0 4px 14px rgba(49, 151, 149, 0.25);
+  }
+
+  button.subtle {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    color: #718096;
+    font-weight: 600;
+    padding: 12px;
   }
 
   button.action-completed {
     background: #E6FFFA;
     color: #234E52;
     border-color: #B2F5EA;
+  }
+
+  button.disabled {
+    opacity: 0.5;
+    pointer-events: none;
   }
 
   .value-card {
@@ -213,16 +228,6 @@
     margin: 12px 0;
     text-align: left;
     box-shadow: 0 4px 8px rgba(0,0,0,0.03);
-    opacity: 0;
-    transform: translateY(10px);
-    animation: revealCard 0.45s ease forwards;
-  }
-
-  @keyframes revealCard {
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
   }
 
   .value-title {
@@ -258,6 +263,60 @@
     border: 1px solid #BEE3F8;
     border-radius: 18px;
     padding: 16px;
+    margin: 16px 0;
+  }
+
+  .chosen-value-card {
+    background: #F7FAFC;
+    border: 1px solid #BEE3F8;
+    border-radius: 22px;
+    padding: 22px 18px;
+    margin: 16px 0;
+    text-align: center;
+  }
+
+  .chosen-value-name {
+    font-size: 28px;
+    font-weight: 800;
+    color: #2B6CB0;
+    margin-bottom: 10px;
+  }
+
+  .chosen-statement {
+    font-size: 17px;
+    line-height: 1.5;
+    color: #2D3748;
+  }
+
+  .small-step-card {
+    background: #E6FFFA;
+    border: 1px solid #B2F5EA;
+    border-radius: 18px;
+    padding: 16px;
+    margin: 14px 0 18px;
+    text-align: center;
+  }
+
+  .small-step-label {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    font-weight: 800;
+    color: #2C7A7B;
+    margin-bottom: 8px;
+  }
+
+  .small-step-text {
+    font-size: 17px;
+    line-height: 1.45;
+    font-weight: 650;
+    color: #234E52;
+  }
+
+  .closure-text {
+    font-size: 17px;
+    color: #4A5568;
+    line-height: 1.6;
     margin: 16px 0;
   }
 
@@ -302,7 +361,7 @@
     <h2>Your Values Compass</h2>
     <p class="small">This is not a diagnosis or a label. It is a snapshot of what seemed important to you today.</p>
     <div id="resultsList"></div>
-    <button class="primary" onclick="showAccuracyCheck()" style="margin-top: 16px;">Continue</button>
+    <button class="primary" onclick="showAccuracyCheck()">Continue</button>
   </div>
 
   <div id="accuracyScreen" class="hidden">
@@ -329,7 +388,30 @@
 
     <p>Choose one small action you can take today.</p>
     <div id="actionOptions"></div>
-    <button class="secondary" onclick="restartGame()" style="margin-top: 20px;">Restart</button>
+    <button id="completeButton" class="primary disabled" onclick="showCompletion()">Complete My Reset</button>
+  </div>
+
+  <div id="completionScreen" class="hidden">
+    <div class="completion-icon">✓</div>
+    <h2>Your Value for Today</h2>
+
+    <div class="chosen-value-card">
+      <div class="chosen-value-name" id="completedValueName"></div>
+      <p class="chosen-statement" id="completedValueStatement"></p>
+    </div>
+
+    <div class="small-step-card">
+      <div class="small-step-label">My small step</div>
+      <div class="small-step-text" id="completedActionText"></div>
+    </div>
+
+    <p class="closure-text">
+      You do not have to change your whole life today.
+      Just take one step in the direction that matters.
+    </p>
+
+    <button class="secondary" onclick="restartGame()">Done</button>
+    <button class="subtle" onclick="restartGame()">Start Over</button>
   </div>
 
 </div>
@@ -338,6 +420,7 @@
 const values = {
   growth: {
     name: "🌱 Growth",
+    statement: "Today, I choose to move in the direction of growth.",
     description: "Learning, improving, and becoming more aligned with the person you want to be.",
     why: "Growth appeared because you kept choosing learning, progress, and becoming better over staying comfortable.",
     actions: [
@@ -348,6 +431,7 @@ const values = {
   },
   connection: {
     name: "❤️ Connection",
+    statement: "Today, I choose to move in the direction of connection.",
     description: "Building meaningful relationships and staying emotionally present with others.",
     why: "Connection appeared because you kept choosing relationships, presence, and emotional closeness.",
     actions: [
@@ -358,6 +442,7 @@ const values = {
   },
   integrity: {
     name: "🧭 Integrity",
+    statement: "Today, I choose to move in the direction of integrity.",
     description: "Living in a way that matches your beliefs, values, and principles.",
     why: "Integrity appeared because you kept choosing honesty, follow-through, and alignment with your principles.",
     actions: [
@@ -368,6 +453,7 @@ const values = {
   },
   peace: {
     name: "🕊️ Peace",
+    statement: "Today, I choose to move in the direction of peace.",
     description: "Protecting calm, balance, and emotional steadiness in your life.",
     why: "Peace appeared because you kept choosing steadiness, space, and calm over unnecessary pressure or conflict.",
     actions: [
@@ -378,6 +464,7 @@ const values = {
   },
   courage: {
     name: "🔥 Courage",
+    statement: "Today, I choose to move in the direction of courage.",
     description: "Doing what matters even when it feels uncomfortable or uncertain.",
     why: "Courage appeared because you kept choosing brave action even when the situation involved discomfort.",
     actions: [
@@ -388,6 +475,7 @@ const values = {
   },
   compassion: {
     name: "🤝 Compassion",
+    statement: "Today, I choose to move in the direction of compassion.",
     description: "Responding to yourself and others with kindness, patience, and understanding.",
     why: "Compassion appeared because you kept choosing kindness, patience, and understanding toward yourself or others.",
     actions: [
@@ -398,6 +486,7 @@ const values = {
   },
   freedom: {
     name: "🌤️ Freedom",
+    statement: "Today, I choose to move in the direction of freedom.",
     description: "Having room to choose, explore, and live with a sense of independence.",
     why: "Freedom appeared because you kept choosing independence, choice, and room to live in a way that feels authentic.",
     actions: [
@@ -408,6 +497,7 @@ const values = {
   },
   health: {
     name: "💪 Health",
+    statement: "Today, I choose to move in the direction of health.",
     description: "Caring for your body, mind, energy, and overall well-being.",
     why: "Health appeared because you kept choosing care for your body, mind, energy, and stability.",
     actions: [
@@ -593,11 +683,15 @@ let currentQuestion = 0;
 let scores = {};
 let topValues = [];
 let selectedQuestions = [];
+let selectedValueKey = null;
+let selectedActionText = "";
 const questionsPerGame = 12;
 
 function startGame() {
   scores = {};
   currentQuestion = 0;
+  selectedValueKey = null;
+  selectedActionText = "";
 
   Object.keys(values).forEach(value => {
     scores[value] = 0;
@@ -616,7 +710,8 @@ function showScreen(screenId) {
     "resultsScreen",
     "accuracyScreen",
     "reflectionScreen",
-    "actionScreen"
+    "actionScreen",
+    "completionScreen"
   ];
 
   screens.forEach(id => document.getElementById(id).classList.add("hidden"));
@@ -659,10 +754,9 @@ function showResults() {
   const resultsList = document.getElementById("resultsList");
   resultsList.innerHTML = "";
 
-  topValues.forEach((valueKey, index) => {
+  topValues.forEach(valueKey => {
     const card = document.createElement("div");
     card.className = "value-card";
-    card.style.animationDelay = `${index * 0.25}s`;
 
     const percent = highestScore === 0 ? 0 : Math.round((scores[valueKey] / highestScore) * 100);
 
@@ -698,7 +792,13 @@ function showReflection() {
 }
 
 function showActionStep(valueKey) {
+  selectedValueKey = valueKey;
+  selectedActionText = "";
+
   document.getElementById("actionTitle").textContent = values[valueKey].name;
+
+  const completeButton = document.getElementById("completeButton");
+  completeButton.classList.add("disabled");
 
   const container = document.getElementById("actionOptions");
   container.innerHTML = "";
@@ -714,14 +814,28 @@ function showActionStep(valueKey) {
         btn.textContent = btn.getAttribute("data-original-text");
       });
 
+      selectedActionText = action;
       button.textContent = "✓ " + action;
       button.classList.add("action-completed");
+      completeButton.classList.remove("disabled");
     };
 
     container.appendChild(button);
   });
 
   showScreen("actionScreen");
+}
+
+function showCompletion() {
+  if (!selectedValueKey || !selectedActionText) {
+    return;
+  }
+
+  document.getElementById("completedValueName").textContent = values[selectedValueKey].name;
+  document.getElementById("completedValueStatement").textContent = values[selectedValueKey].statement;
+  document.getElementById("completedActionText").textContent = selectedActionText;
+
+  showScreen("completionScreen");
 }
 
 function restartGame() {
