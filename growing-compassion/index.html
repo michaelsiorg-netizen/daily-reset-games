@@ -18,7 +18,7 @@
     height: 100%;
     overflow: hidden;
     position: fixed;
-    font-family: Arial, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     background: linear-gradient(to bottom, #b8dff5 0%, #eaf7ff 55%, #d9f2d0 100%);
     color: #2e2e2e;
     touch-action: manipulation;
@@ -33,82 +33,69 @@
 
   .top-box {
     position: absolute;
-    top: 22px;
-    left: 18px;
-    right: 18px;
-    padding: 18px 16px;
-    border-radius: 24px;
-    background: rgba(255,255,255,0.82);
+    top: 16px;
+    left: 16px;
+    right: 16px;
+    padding: 16px;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.9);
     text-align: center;
     z-index: 10;
-    box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
   }
 
   .title {
-    font-size: 26px;
+    font-size: 22px;
     font-weight: 700;
-    margin-bottom: 8px;
+    margin-bottom: 4px;
+    color: #1a1a1a;
   }
 
   .instructions {
-    font-size: 17px;
-    line-height: 1.35;
+    font-size: 14px;
+    line-height: 1.4;
     color: #555;
   }
 
   #progressText {
-    margin-top: 10px;
-    font-size: 15px;
+    margin-top: 8px;
+    font-size: 14px;
     color: #4a6fa5;
     font-weight: 700;
   }
 
+  /* Redesigned clean pill-cloud for better text readability on mobile */
   .cloud {
     position: absolute;
-    min-width: 170px;
-    max-width: 245px;
-    padding: 18px 22px;
-    border-radius: 40px;
-    background: rgba(255,255,255,0.92);
-    box-shadow: 0 8px 18px rgba(0,0,0,0.12);
-    font-size: 18px;
-    font-weight: 700;
+    width: auto;
+    max-width: 80vw;
+    white-space: normal;
+    word-wrap: break-word;
+    padding: 12px 20px;
+    border-radius: 24px;
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.08);
+    font-size: 15px;
+    font-weight: 600;
     text-align: center;
-    line-height: 1.25;
+    line-height: 1.3;
     color: #333;
     z-index: 5;
+    pointer-events: auto;
     animation: floatAcross linear forwards;
-  }
-
-  .cloud::before,
-  .cloud::after {
-    content: "";
-    position: absolute;
-    background: rgba(255,255,255,0.92);
-    border-radius: 50%;
-    z-index: -1;
-  }
-
-  .cloud::before {
-    width: 58px;
-    height: 58px;
-    top: -25px;
-    left: 28px;
-  }
-
-  .cloud::after {
-    width: 76px;
-    height: 76px;
-    top: -38px;
-    right: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(255, 255, 255, 0.5);
   }
 
   .cloud.harsh {
-    opacity: 0.82;
+    background: rgba(245, 248, 250, 0.92);
+    color: #444;
   }
 
   .cloud.tapped {
-    animation: dissolve 0.6s ease forwards;
+    animation: dissolve 0.4s ease forwards;
   }
 
   .cloud.wrong {
@@ -116,8 +103,8 @@
   }
 
   @keyframes floatAcross {
-    from { transform: translateX(-290px); }
-    to { transform: translateX(calc(100vw + 290px)); }
+    from { transform: translateX(-105%); }
+    to { transform: translateX(105vw); }
   }
 
   @keyframes dissolve {
@@ -128,11 +115,11 @@
   }
 
   @keyframes gentleShake {
-    0% { margin-left: 0; }
-    25% { margin-left: -6px; }
-    50% { margin-left: 6px; }
-    75% { margin-left: -4px; }
-    100% { margin-left: 0; }
+    0% { transform: translateX(0); }
+    25% { transform: translateX(-6px); }
+    50% { transform: translateX(6px); }
+    75% { transform: translateX(-4px); }
+    100% { transform: translateX(0); }
   }
 
   #garden {
@@ -140,34 +127,34 @@
     bottom: 0;
     left: 0;
     right: 0;
-    height: 36vh;
+    height: 32vh;
     z-index: 3;
     display: flex;
     justify-content: center;
     align-items: flex-end;
-    padding-bottom: 42px;
   }
 
   .grass {
     position: absolute;
     bottom: 0;
     width: 100%;
-    height: 120px;
+    height: 90px;
     background: linear-gradient(to top, #8bcf7a, #bfe8a8);
-    border-radius: 50% 50% 0 0 / 18% 18% 0 0;
+    border-radius: 100% 100% 0 0 / 25% 25% 0 0;
   }
 
   #flower {
     position: relative;
-    width: 180px;
-    height: 260px;
+    width: 140px;
+    height: 200px;
     z-index: 4;
+    margin-bottom: 10px;
   }
 
   .stem {
     position: absolute;
     bottom: 20px;
-    left: 88px;
+    left: 66px;
     width: 8px;
     height: 0;
     background: #4f9d50;
@@ -186,70 +173,71 @@
   }
 
   .leaf.left {
-    bottom: 84px;
-    left: 45px;
+    bottom: 60px;
+    left: 32px;
     transform: rotate(-25deg);
   }
 
   .leaf.right {
-    bottom: 118px;
-    right: 44px;
+    bottom: 90px;
+    right: 32px;
     transform: rotate(115deg);
   }
 
   .flower-head {
     position: absolute;
-    bottom: 170px;
+    bottom: 130px;
     left: 50%;
-    width: 110px;
-    height: 110px;
+    width: 80px;
+    height: 80px;
     transform: translateX(-50%) scale(0);
+    transform-origin: bottom center;
     transition: transform 0.8s ease;
   }
 
   .petal {
     position: absolute;
-    width: 48px;
-    height: 68px;
+    width: 36px;
+    height: 50px;
     background: #f6a8c9;
     border-radius: 50%;
-    left: 31px;
-    top: 21px;
-    transform-origin: center 34px;
+    left: 22px;
+    top: 15px;
+    transform-origin: center 25px;
   }
 
-  .p1 { transform: rotate(0deg) translateY(-34px); }
-  .p2 { transform: rotate(60deg) translateY(-34px); }
-  .p3 { transform: rotate(120deg) translateY(-34px); }
-  .p4 { transform: rotate(180deg) translateY(-34px); }
-  .p5 { transform: rotate(240deg) translateY(-34px); }
-  .p6 { transform: rotate(300deg) translateY(-34px); }
+  .p1 { transform: rotate(0deg) translateY(-25px); }
+  .p2 { transform: rotate(60deg) translateY(-25px); }
+  .p3 { transform: rotate(120deg) translateY(-25px); }
+  .p4 { transform: rotate(180deg) translateY(-25px); }
+  .p5 { transform: rotate(240deg) translateY(-25px); }
+  .p6 { transform: rotate(300deg) translateY(-25px); }
 
   .center {
     position: absolute;
-    width: 44px;
-    height: 44px;
+    width: 32px;
+    height: 32px;
     background: #f8d36b;
     border-radius: 50%;
-    left: 33px;
-    top: 34px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    left: 24px;
+    top: 24px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
   }
 
   .drop {
     position: absolute;
-    width: 16px;
-    height: 24px;
+    width: 12px;
+    height: 18px;
     background: #7fd1ff;
     border-radius: 50% 50% 50% 0;
     transform: rotate(-45deg);
-    animation: fall 0.75s ease forwards;
+    animation: fall 0.6s ease-in forwards;
     z-index: 8;
   }
 
   @keyframes fall {
     to {
-      top: 73vh;
+      transform: translateY(180px) rotate(-45deg);
       opacity: 0;
     }
   }
@@ -262,42 +250,43 @@
     display: none;
     align-items: center;
     justify-content: center;
-    padding: 24px;
+    padding: 20px;
     text-align: center;
   }
 
   .final-card {
-    background: rgba(255,255,255,0.9);
-    border-radius: 30px;
-    padding: 30px 24px;
-    max-width: 360px;
-    box-shadow: 0 10px 28px rgba(0,0,0,0.12);
+    background: rgba(255,255,255,0.95);
+    border-radius: 24px;
+    padding: 24px 20px;
+    max-width: 320px;
+    box-width: 90vw;
+    box-shadow: 0 10px 24px rgba(0,0,0,0.1);
   }
 
   .final-flower {
-    font-size: 64px;
-    margin-bottom: 12px;
+    font-size: 54px;
+    margin-bottom: 8px;
   }
 
   .final-title {
-    font-size: 28px;
+    font-size: 24px;
     font-weight: 800;
-    margin-bottom: 14px;
+    margin-bottom: 10px;
   }
 
   .final-message {
-    font-size: 19px;
-    line-height: 1.45;
+    font-size: 16px;
+    line-height: 1.4;
     color: #444;
   }
 
   .done-btn {
-    margin-top: 24px;
+    margin-top: 20px;
     border: none;
     background: #4a6fa5;
     color: white;
-    padding: 14px 28px;
-    font-size: 18px;
+    padding: 12px 28px;
+    font-size: 16px;
     border-radius: 999px;
     font-weight: 700;
   }
@@ -307,7 +296,7 @@
 <body>
 <div id="game">
 
-  <div class="top-box">
+  <div class="top-box" id="headerCard">
     <div class="title">Growing Compassion</div>
     <div class="instructions">
       Thoughts will pass by.<br>
@@ -381,6 +370,7 @@
   const goal = 6;
   let cloudInterval;
   let gameOver = false;
+  let lastY = 0;
 
   const game = document.getElementById("game");
   const progressText = document.getElementById("progressText");
@@ -389,6 +379,7 @@
   const leafRight = document.getElementById("leafRight");
   const flowerHead = document.getElementById("flowerHead");
   const finalScreen = document.getElementById("finalScreen");
+  const headerCard = document.getElementById("headerCard");
 
   function randomItem(arr) {
     return arr[Math.floor(Math.random() * arr.length)];
@@ -405,12 +396,24 @@
       ? randomItem(compassionateThoughts)
       : randomItem(harshThoughts);
 
-    const topLimit = window.innerHeight * 0.55;
-    const top = 135 + Math.random() * Math.max(120, topLimit - 135);
+    // Dynamic Safe Spawning Zone Setup
+    const headerRect = headerCard.getBoundingClientRect();
+    const startY = headerRect.bottom + 15;
+    const endY = window.innerHeight * 0.62;
+    const zoneHeight = endY - startY;
 
-    cloud.style.top = top + "px";
-    cloud.style.left = "0px";
-    cloud.style.animationDuration = (11 + Math.random() * 5) + "s";
+    // Split the zone into 3 distinct bands to guarantee items don't overlap vertically
+    let lane = Math.floor(Math.random() * 3);
+    let targetY = startY + (lane * (zoneHeight / 3)) + (Math.random() * 10);
+
+    // Prevent direct consecutive lane repeats
+    if (Math.abs(targetY - lastY) < 45) {
+      targetY = targetY + 50 > endY ? startY : targetY + 50;
+    }
+    lastY = targetY;
+
+    cloud.style.top = targetY + "px";
+    cloud.style.animationDuration = (7 + Math.random() * 4) + "s";
 
     cloud.addEventListener("click", () => {
       if (cloud.dataset.used === "true" || gameOver) return;
@@ -420,13 +423,13 @@
         cloud.classList.add("tapped");
         makeDrop(cloud);
         growFlower();
-        setTimeout(() => cloud.remove(), 600);
+        setTimeout(() => cloud.remove(), 400);
       } else {
         cloud.classList.add("wrong");
         setTimeout(() => {
           cloud.classList.remove("wrong");
           cloud.dataset.used = "false";
-        }, 400);
+        }, 350);
       }
     });
 
@@ -442,12 +445,11 @@
     const drop = document.createElement("div");
 
     drop.className = "drop";
-    drop.style.left = rect.left + rect.width / 2 + "px";
-    drop.style.top = rect.top + rect.height / 2 + "px";
+    drop.style.left = (rect.left + rect.width / 2 - 6) + "px";
+    drop.style.top = (rect.bottom - 5) + "px";
 
     game.appendChild(drop);
-
-    setTimeout(() => drop.remove(), 800);
+    setTimeout(() => drop.remove(), 600);
   }
 
   function growFlower() {
@@ -455,32 +457,27 @@
     progressText.textContent = growth + " / " + goal;
 
     if (growth >= 1) {
-      stem.style.height = "70px";
+      stem.style.height = "50px";
     }
-
     if (growth >= 2) {
-      stem.style.height = "105px";
-      leafLeft.style.width = "48px";
-      leafLeft.style.height = "30px";
+      stem.style.height = "80px";
+      leafLeft.style.width = "38px";
+      leafLeft.style.height = "24px";
       leafLeft.style.opacity = "1";
     }
-
     if (growth >= 3) {
-      stem.style.height = "135px";
-      leafRight.style.width = "52px";
-      leafRight.style.height = "32px";
+      stem.style.height = "105px";
+      leafRight.style.width = "42px";
+      leafRight.style.height = "26px";
       leafRight.style.opacity = "1";
     }
-
     if (growth >= 4) {
-      stem.style.height = "160px";
-      flowerHead.style.transform = "translateX(-50%) scale(0.55)";
+      stem.style.height = "125px";
+      flowerHead.style.transform = "translateX(-50%) scale(0.6)";
     }
-
     if (growth >= 5) {
-      flowerHead.style.transform = "translateX(-50%) scale(0.82)";
+      flowerHead.style.transform = "translateX(-50%) scale(0.85)";
     }
-
     if (growth >= 6) {
       flowerHead.style.transform = "translateX(-50%) scale(1)";
       endGame();
@@ -492,14 +489,14 @@
     clearInterval(cloudInterval);
 
     document.querySelectorAll(".cloud").forEach(cloud => {
-      cloud.style.transition = "opacity 0.6s ease";
+      cloud.style.transition = "opacity 0.4s ease";
       cloud.style.opacity = "0";
-      setTimeout(() => cloud.remove(), 600);
+      setTimeout(() => cloud.remove(), 400);
     });
 
     setTimeout(() => {
       finalScreen.style.display = "flex";
-    }, 900);
+    }, 700);
   }
 
   function finishGame() {
@@ -507,7 +504,7 @@
   }
 
   createCloud();
-  cloudInterval = setInterval(createCloud, 1700);
+  cloudInterval = setInterval(createCloud, 2200); // Staggered delay slightly to minimize layout clumps
 </script>
 
 </body>
