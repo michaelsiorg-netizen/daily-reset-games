@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Next Best Step</title>
 
 <style>
@@ -13,18 +13,17 @@ body {
   font-family: Arial, sans-serif;
   background: #EEF4F8;
   color: #2E2E2E;
-  overflow: hidden;
   touch-action: manipulation;
 }
 
 #game {
   width: 100vw;
-  height: 100vh;
+  min-height: 100vh;
   background: linear-gradient(#EEF4F8, #DCEBE7);
   padding: 14px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
 .card {
@@ -98,39 +97,57 @@ p {
   line-height: 1.2;
   padding: 10px 12px;
   box-shadow: 0 4px 14px rgba(0,0,0,0.10);
+  cursor: pointer;
+  transition: background 0.2s ease;
 }
 
 .choiceButton:disabled {
-  opacity: 0.9;
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .choiceCorrect {
-  background: #4A6FA5 !important;
+  background: #2E7D5B !important;
   color: white !important;
 }
 
 .choiceIncorrect {
-  background: #8E99A8 !important;
+  background: #A94442 !important;
   color: white !important;
+}
+
+#feedbackArea {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  min-height: 110px;
 }
 
 #feedbackText {
   text-align: center;
   font-size: 18px;
   font-weight: bold;
-  min-height: 42px;
   line-height: 1.25;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
-.correct {
-  color: #2E7D5B;
+.correct { color: #2E7D5B; }
+.incorrect { color: #A94442; }
+
+.nextButton, .startButton {
+  background: #4A6FA5;
+  color: white;
+  border: none;
+  border-radius: 18px;
+  padding: 14px 24px;
+  font-size: 20px;
+  font-weight: bold;
+  cursor: pointer;
 }
 
-.incorrect {
-  color: #A94442;
+.nextButton {
+  width: 80%;
+  max-width: 200px;
 }
 
 #startScreen, #endScreen {
@@ -142,6 +159,7 @@ p {
   justify-content: center;
   padding: 24px;
   z-index: 20;
+  overflow-y: auto;
 }
 
 .modalCard {
@@ -150,13 +168,6 @@ p {
 }
 
 .startButton {
-  background: #4A6FA5;
-  color: white;
-  border: none;
-  border-radius: 18px;
-  padding: 14px 24px;
-  font-size: 20px;
-  font-weight: bold;
   margin-top: 12px;
 }
 
@@ -173,7 +184,7 @@ p {
   #scenarioText { font-size: 19px; }
   #questionText { font-size: 16px; }
   .choiceButton { min-height: 50px; font-size: 15px; padding: 8px 10px; }
-  #feedbackText { font-size: 16px; min-height: 34px; }
+  #feedbackText { font-size: 16px; }
 }
 </style>
 </head>
@@ -197,20 +208,23 @@ p {
   <div id="questionText">What is the healthiest next step?</div>
 
   <div id="choices">
-    <button class="choiceButton" onclick="chooseAnswer(0)" id="choice0">Loading...</button>
-    <button class="choiceButton" onclick="chooseAnswer(1)" id="choice1">Loading...</button>
-    <button class="choiceButton" onclick="chooseAnswer(2)" id="choice2">Loading...</button>
-    <button class="choiceButton" onclick="chooseAnswer(3)" id="choice3">Loading...</button>
+    <button class="choiceButton" id="choice0">Loading...</button>
+    <button class="choiceButton" id="choice1">Loading...</button>
+    <button class="choiceButton" id="choice2">Loading...</button>
+    <button class="choiceButton" id="choice3">Loading...</button>
   </div>
 
-  <div id="feedbackText"></div>
+  <div id="feedbackArea">
+    <div id="feedbackText"></div>
+    <button id="nextButton" class="nextButton hidden">Next</button>
+  </div>
 
   <div id="startScreen">
     <div class="card modalCard">
       <h1>Next Best Step</h1>
       <p>Overwhelm can make everything feel urgent.</p>
       <p>Practice choosing the smallest healthy next step.</p>
-      <button class="startButton" onclick="startGame()">Start</button>
+      <button class="startButton" id="startBtn">Start</button>
     </div>
   </div>
 
@@ -219,7 +233,7 @@ p {
       <h1>Great Work</h1>
       <p id="finalScore"></p>
       <p>You practiced slowing down and choosing one workable step.</p>
-      <button class="startButton" onclick="startGame()">Play Again</button>
+      <button class="startButton" id="restartBtn">Play Again</button>
     </div>
   </div>
 
@@ -233,6 +247,7 @@ const roundEl = document.getElementById("round");
 const startScreen = document.getElementById("startScreen");
 const endScreen = document.getElementById("endScreen");
 const finalScore = document.getElementById("finalScore");
+const nextButton = document.getElementById("nextButton");
 
 const choiceButtons = [
   document.getElementById("choice0"),
@@ -404,6 +419,15 @@ let score = 0;
 let round = 1;
 let acceptingInput = true;
 
+// Setup centralized click handlers instead of inline HTML onclicks
+document.getElementById("startBtn").addEventListener("click", startGame);
+document.getElementById("restartBtn").addEventListener("click", startGame);
+nextButton.addEventListener("click", advanceRound);
+
+choiceButtons.forEach((button, idx) => {
+  button.addEventListener("click", () => chooseAnswer(idx));
+});
+
 function startGame() {
   score = 0;
   round = 1;
@@ -413,6 +437,7 @@ function startGame() {
   roundEl.textContent = round;
   feedbackText.textContent = "";
   feedbackText.className = "";
+  nextButton.classList.add("hidden");
 
   startScreen.classList.add("hidden");
   endScreen.classList.add("hidden");
@@ -429,6 +454,7 @@ function showRound() {
   roundEl.textContent = round;
   feedbackText.textContent = "";
   feedbackText.className = "";
+  nextButton.classList.add("hidden");
 
   const shuffledChoices = currentRound.choices.map((text, index) => ({
     text,
@@ -447,7 +473,6 @@ function showRound() {
 
 function chooseAnswer(buttonIndex) {
   if (!acceptingInput) return;
-
   acceptingInput = false;
 
   const selectedButton = choiceButtons[buttonIndex];
@@ -461,11 +486,11 @@ function chooseAnswer(buttonIndex) {
     score += 1;
     scoreEl.textContent = score;
     selectedButton.classList.add("choiceCorrect");
-    feedbackText.textContent = currentRound.feedback;
+    feedbackText.innerHTML = "✓ " + currentRound.feedback;
     feedbackText.className = "correct";
   } else {
     selectedButton.classList.add("choiceIncorrect");
-    feedbackText.textContent = "When overwhelmed, look for the smallest healthy next step.";
+    feedbackText.innerHTML = "✗ When overwhelmed, look for the smallest healthy next step.";
     feedbackText.className = "incorrect";
 
     choiceButtons.forEach(button => {
@@ -475,14 +500,17 @@ function chooseAnswer(buttonIndex) {
     });
   }
 
-  setTimeout(() => {
-    if (round >= 10) {
-      endGame();
-    } else {
-      round += 1;
-      showRound();
-    }
-  }, 1400);
+  // Display the next button instead of a forced automatic transition
+  nextButton.classList.remove("hidden");
+}
+
+function advanceRound() {
+  if (round >= 10) {
+    endGame();
+  } else {
+    round += 1;
+    showRound();
+  }
 }
 
 function endGame() {
