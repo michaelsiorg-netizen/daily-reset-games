@@ -18,18 +18,68 @@
     overflow: hidden;
     position: fixed;
     font-family: Arial, sans-serif;
-    background: #000;
+    background: #121212; /* Dark ambient background for letterboxing */
     touch-action: manipulation;
+    display: flex;
+    justify-content: center;
+    align-items: center;
   }
 
+  /* Fixed aspect-ratio container ensures identical scaling on all screens */
   #game {
     position: relative;
-    width: 100vw;
-    height: 100vh;
-    background-image: url("background.png");
-    background-size: cover;
-    background-position: center;
+    width: 100%;
+    height: 100%;
+    max-width: 450px; /* Standard mobile width ceiling */
+    max-height: 920px; /* Standard mobile height ceiling */
+    background: #000;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* UI Top Panel sits in its own space now, preventing image overlap */
+  .top-panel {
+    position: relative;
+    margin: 16px;
+    padding: 16px;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(10px);
+    text-align: center;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+    z-index: 10;
+  }
+
+  .small-text {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  #prompt {
+    font-size: 26px;
+    font-weight: 700;
+    color: #2E2E2E;
+  }
+
+  #feedback {
+    margin-top: 6px;
+    font-size: 16px;
+    color: #4A6FA5;
+    min-height: 20px;
+  }
+
+  /* Dedicated canvas for the image. Zones stay locked perfectly to this box. */
+  .image-container {
+    position: relative;
+    flex: 1;
+    width: 100%;
+    background-image: url("background.png");
+    background-size: 100% 100%; /* Forces image to match container geometry exactly */
+    background-position: center;
   }
 
   .overlay {
@@ -37,48 +87,17 @@
     inset: 0;
     background: linear-gradient(
       to bottom,
-      rgba(0,0,0,0.22),
-      rgba(0,0,0,0.04),
-      rgba(0,0,0,0.28)
+      rgba(0,0,0,0.1),
+      rgba(0,0,0,0) 80%
     );
     pointer-events: none;
   }
 
-  .top-panel {
-    position: absolute;
-    top: 28px;
-    left: 18px;
-    right: 18px;
-    padding: 18px 16px;
-    border-radius: 24px;
-    background: rgba(255,255,255,0.82);
-    backdrop-filter: blur(10px);
-    text-align: center;
-    box-shadow: 0 8px 30px rgba(0,0,0,0.18);
-  }
-
-  .small-text {
-    font-size: 15px;
-    color: #555;
-    margin-bottom: 6px;
-  }
-
-  #prompt {
-    font-size: 30px;
-    font-weight: 700;
-    color: #2E2E2E;
-  }
-
-  #feedback {
-    margin-top: 8px;
-    font-size: 17px;
-    color: #4A6FA5;
-    min-height: 22px;
-  }
-
   .zone {
     position: absolute;
-    border-radius: 999px;
+    border-radius: 50%;
+    /* Temporary debug style: uncomment background below to see your zones during testing */
+    /* background: rgba(255, 0, 0, 0.3); */
   }
 
   .ripple {
@@ -106,28 +125,29 @@
     align-items: center;
     justify-content: center;
     padding: 24px;
-    background: rgba(0,0,0,0.36);
+    background: rgba(0,0,0,0.5);
+    z-index: 20;
   }
 
   .complete-card {
     width: 100%;
-    max-width: 360px;
+    max-width: 320px;
     padding: 28px 24px;
     border-radius: 28px;
-    background: rgba(255,255,255,0.92);
+    background: rgba(255,255,255,0.95);
     text-align: center;
-    box-shadow: 0 10px 36px rgba(0,0,0,0.25);
+    box-shadow: 0 10px 36px rgba(0,0,0,0.3);
   }
 
   .complete-card h1 {
     margin: 0 0 12px;
-    font-size: 30px;
+    font-size: 28px;
     color: #2E2E2E;
   }
 
   .complete-card p {
     margin: 0 0 20px;
-    font-size: 18px;
+    font-size: 16px;
     line-height: 1.4;
     color: #555;
   }
@@ -135,33 +155,35 @@
   button {
     border: none;
     border-radius: 999px;
-    padding: 14px 26px;
-    font-size: 18px;
+    padding: 14px 32px;
+    font-size: 16px;
     font-weight: 700;
     background: #4A6FA5;
     color: white;
+    cursor: pointer;
   }
 </style>
 </head>
 
 <body>
 <div id="game">
-  <div class="overlay"></div>
-
   <div class="top-panel">
     <div class="small-text">Color Hunt</div>
     <div id="prompt">Find something blue.</div>
     <div id="feedback"></div>
   </div>
 
-  <!-- Invisible tappable areas based on this beach photo -->
-  <div class="zone" data-color="blue" style="left: 45%; top: 9%; width: 46%; height: 18%;"></div>
-  <div class="zone" data-color="orange" style="left: 55%; top: 32%; width: 40%; height: 16%;"></div>
-  <div class="zone" data-color="white" style="left: 42%; top: 52%; width: 42%; height: 9%;"></div>
-  <div class="zone" data-color="green" style="left: 0%; top: 48%; width: 24%; height: 24%;"></div>
-  <div class="zone" data-color="brown" style="left: 2%; top: 76%; width: 48%; height: 16%;"></div>
-  <div class="zone" data-color="gray" style="left: 55%; top: 73%; width: 42%; height: 22%;"></div>
-  <div class="zone" data-color="pink" style="left: 4%; top: 4%; width: 45%; height: 30%;"></div>
+  <div class="image-container" id="stage">
+    <div class="overlay"></div>
+
+    <div class="zone" data-color="blue" style="left: 45%; top: 9%; width: 46%; height: 18%;"></div>
+    <div class="zone" data-color="orange" style="left: 55%; top: 32%; width: 40%; height: 16%;"></div>
+    <div class="zone" data-color="white" style="left: 42%; top: 52%; width: 42%; height: 9%;"></div>
+    <div class="zone" data-color="green" style="left: 0%; top: 48%; width: 24%; height: 24%;"></div>
+    <div class="zone" data-color="brown" style="left: 2%; top: 76%; width: 48%; height: 16%;"></div>
+    <div class="zone" data-color="gray" style="left: 55%; top: 73%; width: 42%; height: 22%;"></div>
+    <div class="zone" data-color="pink" style="left: 4%; top: 4%; width: 45%; height: 30%;"></div>
+  </div>
 
   <div id="complete">
     <div class="complete-card">
@@ -189,7 +211,7 @@
   const promptEl = document.getElementById("prompt");
   const feedbackEl = document.getElementById("feedback");
   const completeEl = document.getElementById("complete");
-  const gameEl = document.getElementById("game");
+  const stageEl = document.getElementById("stage");
 
   function shuffle(array) {
     return array.sort(() => Math.random() - 0.5);
@@ -210,9 +232,12 @@
   function showRipple(x, y) {
     const ripple = document.createElement("div");
     ripple.className = "ripple";
-    ripple.style.left = x + "px";
-    ripple.style.top = y + "px";
-    gameEl.appendChild(ripple);
+    
+    // Calculate ripple position relative to the image stage instead of entire screen
+    const rect = stageEl.getBoundingClientRect();
+    ripple.style.left = (x - rect.left) + "px";
+    ripple.style.top = (y - rect.top) + "px";
+    stageEl.appendChild(ripple);
 
     setTimeout(() => ripple.remove(), 700);
   }
