@@ -17,8 +17,8 @@
     height: 100%;
     overflow: hidden;
     position: fixed;
-    font-family: Arial, sans-serif;
-    background: linear-gradient(180deg, #2f3e46 0%, #52796f 55%, #cad2c5 100%);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: linear-gradient(180deg, #1a252c 0%, #2d4a43 60%, #4a6b5d 100%);
     color: #ffffff;
     touch-action: none;
   }
@@ -26,215 +26,267 @@
   .game {
     width: 100vw;
     height: 100vh;
-    padding: 22px;
+    padding: 24px;
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: space-between;
+  }
+
+  .header-group {
+    text-align: center;
+    width: 100%;
   }
 
   h1 {
-    margin: 12px 0 6px;
-    font-size: 32px;
-    text-align: center;
+    margin: 8px 0 4px;
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
   }
 
   .subtitle {
-    font-size: 17px;
+    font-size: 15px;
     text-align: center;
-    line-height: 1.35;
-    opacity: 0.95;
-    max-width: 330px;
-    margin-bottom: 10px;
+    line-height: 1.4;
+    opacity: 0.85;
+    max-width: 320px;
+    margin: 0 auto 12px;
   }
 
   .score {
-    font-size: 16px;
-    margin: 6px 0 10px;
-    opacity: 0.95;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    background: rgba(255, 255, 255, 0.15);
+    padding: 6px 16px;
+    border-radius: 20px;
+    display: inline-block;
+    margin-bottom: 8px;
   }
 
   .fire-area {
     width: 100%;
     max-width: 360px;
-    height: 300px;
-    border-radius: 28px;
-    background: rgba(255,255,255,0.16);
-    backdrop-filter: blur(8px);
+    height: 240px;
+    border-radius: 24px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px rgba(255, 255, 255, 0.1) solid;
+    backdrop-filter: blur(12px);
     display: flex;
     align-items: flex-end;
     justify-content: center;
     position: relative;
-    margin-top: 4px;
     overflow: hidden;
-    box-shadow: 0 12px 25px rgba(0,0,0,0.25);
+    box-shadow: inset 0 4px 30px rgba(0, 0, 0, 0.2);
   }
 
   .fire {
     position: relative;
-    width: 150px;
-    height: 190px;
-    margin-bottom: 35px;
-    transition: transform 0.35s ease;
+    width: 140px;
+    height: 160px;
+    margin-bottom: 20px;
+    transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   }
 
   .flame {
     position: absolute;
     bottom: 0;
     left: 50%;
-    border-radius: 50% 50% 50% 50%;
-    transform: translateX(-50%) rotate(45deg);
-    animation: flicker 0.8s infinite alternate ease-in-out;
+    border-radius: 0 50% 50% 50%;
+    transform: translateX(-50%) rotate(-135deg);
+    animation: flicker 0.6s infinite alternate ease-in-out;
   }
 
   .flame.outer {
-    width: 130px;
-    height: 130px;
-    background: #ff6b35;
+    width: 110px;
+    height: 110px;
+    background: linear-gradient(135deg, #ff4d00, #ff7400);
+    box-shadow: 0 0 30px rgba(255, 77, 0, 0.4);
   }
 
   .flame.middle {
-    width: 95px;
-    height: 95px;
-    background: #f7b801;
-    bottom: 12px;
-    animation-delay: 0.15s;
+    width: 80px;
+    height: 80px;
+    background: linear-gradient(135deg, #ff9a00, #ffb900);
+    bottom: 8px;
+    animation-delay: 0.1s;
   }
 
   .flame.inner {
-    width: 60px;
-    height: 60px;
-    background: #fff3b0;
-    bottom: 25px;
-    animation-delay: 0.3s;
+    width: 50px;
+    height: 50px;
+    background: linear-gradient(135deg, #ffdd00, #ffffff);
+    bottom: 16px;
+    animation-delay: 0.2s;
   }
 
   .logs {
     position: absolute;
-    bottom: -10px;
+    bottom: -12px;
     left: 50%;
-    width: 150px;
-    height: 22px;
+    width: 130px;
+    height: 20px;
     transform: translateX(-50%);
   }
 
   .log {
     position: absolute;
-    width: 130px;
-    height: 18px;
-    border-radius: 20px;
-    background: #6b3f24;
+    width: 110px;
+    height: 14px;
+    border-radius: 10px;
+    background: #54311c;
     top: 0;
-    left: 10px;
   }
 
-  .log.one {
-    transform: rotate(15deg);
-  }
-
-  .log.two {
-    transform: rotate(-15deg);
-  }
+  .log.one { transform: rotate(12deg); left: 5px; }
+  .log.two { transform: rotate(-12deg); right: 5px; }
 
   @keyframes flicker {
-    from {
-      transform: translateX(-50%) rotate(45deg) scale(1);
-    }
-    to {
-      transform: translateX(-50%) rotate(45deg) scale(1.08);
-    }
+    from { transform: translateX(-50%) rotate(-135deg) scale(1); }
+    to { transform: translateX(-50%) rotate(-135deg) scale(1.06) skewX(3deg); }
   }
 
-  .water {
+  .water-splash {
     position: absolute;
-    font-size: 42px;
+    font-size: 48px;
     opacity: 0;
-    animation: splash 0.8s ease-out;
+    animation: splash 0.7s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
     pointer-events: none;
+    z-index: 10;
   }
 
   @keyframes splash {
-    0% { transform: scale(0.4); opacity: 0; }
-    30% { transform: scale(1.2); opacity: 1; }
-    100% { transform: scale(1.8); opacity: 0; }
+    0% { transform: translate(-50%, -30%) scale(0.5); opacity: 0; }
+    30% { transform: translate(-50%, -60%) scale(1.3); opacity: 1; }
+    100% { transform: translate(-50%, -90%) scale(1.6); opacity: 0; }
   }
 
-  .tray {
+  .interactive-container {
     width: 100%;
     max-width: 360px;
-    margin-top: 18px;
-    min-height: 150px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    align-items: center;
+  }
+
+  .card-stage {
+    width: 100%;
+    height: 130px;
     display: flex;
     align-items: center;
     justify-content: center;
+    position: relative;
   }
 
   .card {
     width: 100%;
-    min-height: 108px;
-    border-radius: 24px;
-    background: rgba(255,255,255,0.92);
-    color: #2e2e2e;
-    padding: 20px;
+    height: 100%;
+    border-radius: 20px;
+    background: #ffffff;
+    color: #1e293b;
+    padding: 16px 24px;
     text-align: center;
-    font-size: 22px;
-    line-height: 1.25;
-    box-shadow: 0 10px 18px rgba(0,0,0,0.22);
+    font-size: 18px;
+    font-weight: 500;
+    line-height: 1.4;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.25);
     display: flex;
     align-items: center;
     justify-content: center;
-    touch-action: none;
-    user-select: none;
-    cursor: grab;
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s ease;
+  }
+
+  .action-buttons {
+    display: flex;
+    width: 100%;
+    gap: 12px;
+  }
+
+  .action-btn {
+    flex: 1;
+    border: none;
+    border-radius: 16px;
+    padding: 14px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.1s ease, background 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  }
+
+  .action-btn:active {
+    transform: scale(0.96);
+  }
+
+  .action-btn.quench {
+    background: #38bdf8;
+    color: #0369a1;
+  }
+
+  .action-btn.discard {
+    background: rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
   }
 
   .feedback {
-    min-height: 55px;
-    max-width: 350px;
-    margin-top: 14px;
+    min-height: 48px;
+    width: 100%;
     text-align: center;
-    font-size: 17px;
-    line-height: 1.35;
-    opacity: 0.95;
+    font-size: 14px;
+    line-height: 1.4;
+    opacity: 0.9;
+    padding: 0 8px;
   }
 
-  .button {
-    margin-top: auto;
-    margin-bottom: 18px;
+  .button-primary {
     width: 100%;
-    max-width: 330px;
+    max-width: 320px;
     border: none;
     border-radius: 999px;
-    padding: 16px 20px;
-    font-size: 20px;
+    padding: 16px 24px;
+    font-size: 18px;
+    font-weight: 600;
     background: #ffffff;
-    color: #2e2e2e;
-    box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+    color: #1e293b;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+    cursor: pointer;
+    margin-bottom: 12px;
   }
 
   .hidden {
-    display: none;
+    display: none !important;
   }
 
   .end-card {
-    margin-top: 40px;
     width: 100%;
     max-width: 350px;
-    border-radius: 28px;
-    background: rgba(255,255,255,0.92);
-    color: #2e2e2e;
-    padding: 28px 24px;
+    border-radius: 24px;
+    background: rgba(255, 255, 255, 0.95);
+    color: #1e293b;
+    padding: 32px 24px;
     text-align: center;
-    box-shadow: 0 12px 22px rgba(0,0,0,0.22);
+    box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+    margin: auto 0;
   }
 
   .end-card h2 {
     margin-top: 0;
-    font-size: 30px;
+    font-size: 26px;
+    color: #0f172a;
   }
 
   .end-card p {
-    font-size: 19px;
-    line-height: 1.4;
+    font-size: 16px;
+    line-height: 1.5;
+    color: #475569;
   }
 </style>
 </head>
@@ -242,13 +294,15 @@
 <body>
 
 <div class="game" id="startScreen">
-  <h1>Extinguish the Fire</h1>
-  <p class="subtitle">
-    Some thoughts feed the fire. Some thoughts help it cool down.
-  </p>
+  <div class="header-group" style="margin-top: auto;">
+    <h1>Extinguish the Fire</h1>
+    <p class="subtitle">
+      Some thoughts feed anger's flame. Other thoughts help it cool down. Practice choosing what to keep.
+    </p>
+  </div>
 
-  <div class="fire-area">
-    <div class="fire" style="transform: scale(1.05);">
+  <div class="fire-area" style="margin: 24px 0;">
+    <div class="fire" style="transform: scale(1); opacity: 0.85;">
       <div class="flame outer"></div>
       <div class="flame middle"></div>
       <div class="flame inner"></div>
@@ -259,12 +313,14 @@
     </div>
   </div>
 
-  <button class="button" onclick="startGame()">Begin</button>
+  <button class="button-primary" style="margin-top: auto;" onclick="startGame()">Begin Practice</button>
 </div>
 
 <div class="game hidden" id="gameScreen">
-  <h1>Cool the Fire</h1>
-  <div class="score" id="scoreText">Fire level: 5</div>
+  <div class="header-group">
+    <h1>Cool the Fire</h1>
+    <div class="score" id="scoreText">Fire Intensity: 5</div>
+  </div>
 
   <div class="fire-area" id="fireArea">
     <div class="fire" id="fire">
@@ -278,131 +334,87 @@
     </div>
   </div>
 
-  <div class="tray">
-    <div class="card" id="thoughtCard"></div>
-  </div>
+  <div class="interactive-container">
+    <div class="card-stage">
+      <div class="card" id="thoughtCard"></div>
+    </div>
 
-  <div class="feedback" id="feedback">
-    Drag the thought into the fire.
+    <div class="action-buttons">
+      <button class="action-btn discard" onclick="chooseAction('fuel')">✕ Discard</button>
+      <button class="action-btn quench" onclick="chooseAction('water')">💧 Quench</button>
+    </div>
+
+    <div class="feedback" id="feedback">
+      Is this thought water that cools, or fuel that burns?
+    </div>
   </div>
-</div>
+  <div></div> </div>
 
 <div class="game hidden" id="endScreen">
   <div class="end-card">
-    <h2>Nice work.</h2>
+    <h2>Fire Extinguished.</h2>
     <p>
-      The thoughts we focus on can either fuel anger or help it settle.
+      The thoughts we validate can either build a wildfire or let it pass safely.
     </p>
     <p>
-      You practiced noticing the difference.
+      You successfully recognized and set aside the thoughts that keep you stuck.
     </p>
   </div>
 
-  <button class="button" onclick="restartGame()">Play Again</button>
+  <button class="button-primary" onclick="restartGame()">Practice Again</button>
 </div>
 
 <script>
 const thoughts = [
-  {
-    text: "I can pause before reacting.",
-    type: "water",
-    feedback: "This thought creates space between the feeling and the action."
-  },
-  {
-    text: "One slow breath first.",
-    type: "water",
-    feedback: "This helps your body settle before you respond."
-  },
-  {
-    text: "I don't know the whole story.",
-    type: "water",
-    feedback: "This reduces assumptions and cools the fire."
-  },
-  {
-    text: "I can respond later.",
-    type: "water",
-    feedback: "This reminds you that urgency is not always truth."
-  },
-  {
-    text: "I want to respond, not react.",
-    type: "water",
-    feedback: "This helps you act from your values instead of the anger."
-  },
-  {
-    text: "Maybe there is another explanation.",
-    type: "water",
-    feedback: "This gives your mind more than one story to consider."
-  },
-  {
-    text: "They always do this.",
-    type: "fuel",
-    feedback: "This thought fuels anger because it turns one moment into a pattern."
-  },
-  {
-    text: "I need to prove I'm right.",
-    type: "fuel",
-    feedback: "This thought adds pressure and makes it harder to pause."
-  },
-  {
-    text: "They don't respect me.",
-    type: "fuel",
-    feedback: "This thought may be a story your mind is adding to the situation."
-  },
-  {
-    text: "I have to react now.",
-    type: "fuel",
-    feedback: "This thought creates urgency and feeds the fire."
-  },
-  {
-    text: "This is unbearable.",
-    type: "fuel",
-    feedback: "This thought makes the feeling seem impossible to handle."
-  },
-  {
-    text: "I'll show them.",
-    type: "fuel",
-    feedback: "This thought pushes you toward reacting instead of choosing."
-  }
+  { text: "I can pause before reacting.", type: "water", feedback: "Excellent. Taking a pause separates impulse from intentional action." },
+  { text: "One slow breath first.", type: "water", feedback: "Perfect. Slowing down your biology calms the nervous system directly." },
+  { text: "I don't know the whole story.", type: "water", feedback: "Yes. Staying open prevents your mind from creating painful assumptions." },
+  { text: "I can respond later.", type: "water", feedback: "Spot on. Urgency is often just a trick emotion plays on us." },
+  { text: "I want to respond, not react.", type: "water", feedback: "Great focus. This anchors you to your real values instead of heat." },
+  { text: "Maybe there is another explanation.", type: "water", feedback: "Wonderful. Finding alternatives dilutes anger instantly." },
+  { text: "They always do this.", type: "fuel", feedback: "That's fuel. Sweeping absolute statements expand a single moment into a lifetime pattern." },
+  { text: "I need to prove I'm right.", type: "fuel", feedback: "That's fuel. Forcing compliance escalates pressure instead of settling things." },
+  { text: "They don't respect me.", type: "fuel", feedback: "That's fuel. This assigns hidden, hurtful meaning behind someone else's behaviors." },
+  { text: "I have to react right now.", type: "fuel", feedback: "That's fuel. Simulated emergency takes away your power of clarity." },
+  { text: "This is completely unbearable.", type: "fuel", feedback: "That's fuel. Convincing yourself you can't survive a feeling locks you up." },
+  { text: "I'll show them.", type: "fuel", feedback: "That's fuel. Retaliation replaces resolving the tension with fueling it." }
 ];
 
 let deck = [];
 let currentThought = null;
 let fireLevel = 5;
-let card = null;
-let fireArea = null;
-let fire = null;
-let feedback = null;
-let scoreText = null;
+let isAnimating = false;
+
+const card = document.getElementById("thoughtCard");
+const fireArea = document.getElementById("fireArea");
+const fire = document.getElementById("fire");
+const feedback = document.getElementById("feedback");
+const scoreText = document.getElementById("scoreText");
 
 function startGame() {
   document.getElementById("startScreen").classList.add("hidden");
   document.getElementById("gameScreen").classList.remove("hidden");
-
-  card = document.getElementById("thoughtCard");
-  fireArea = document.getElementById("fireArea");
-  fire = document.getElementById("fire");
-  feedback = document.getElementById("feedback");
-  scoreText = document.getElementById("scoreText");
-
-  deck = shuffle([...thoughts]);
-  fireLevel = 5;
-  updateFire();
-  nextCard();
+  resetSession();
 }
 
 function restartGame() {
   document.getElementById("endScreen").classList.add("hidden");
   document.getElementById("gameScreen").classList.remove("hidden");
+  resetSession();
+}
 
+function resetSession() {
   deck = shuffle([...thoughts]);
   fireLevel = 5;
+  isAnimating = false;
+  feedback.textContent = "Is this thought water that cools, or fuel that burns?";
   updateFire();
   nextCard();
 }
 
 function nextCard() {
   if (fireLevel <= 0) {
-    endGame();
+    setTimeout(endGame, 400);
     return;
   }
 
@@ -412,49 +424,63 @@ function nextCard() {
 
   currentThought = deck.pop();
   card.textContent = currentThought.text;
-  card.style.transform = "translate(0, 0)";
+  card.style.transform = "scale(1) translateY(0)";
   card.style.opacity = "1";
+  isAnimating = false;
 }
 
 function updateFire() {
-  const scale = 0.25 + fireLevel * 0.18;
+  const scale = 0.2 + fireLevel * 0.16;
   fire.style.transform = `scale(${scale})`;
-  scoreText.textContent = `Fire level: ${fireLevel}`;
+  scoreText.textContent = `Fire Intensity: ${fireLevel}`;
 }
 
-function handleDrop() {
-  if (!currentThought) return;
+function chooseAction(actionType) {
+  if (isAnimating || !currentThought) return;
+  isAnimating = true;
 
-  if (currentThought.type === "water") {
-    fireLevel--;
-    showSplash("💧");
-    feedback.textContent = currentThought.feedback;
-  } else {
-    fireLevel = Math.min(6, fireLevel + 1);
-    showSplash("🔥");
-    feedback.textContent = currentThought.feedback;
-    vibrate();
+  const isCorrect = currentThought.type === actionType;
+
+  if (actionType === "water") {
+    if (isCorrect) {
+      fireLevel--;
+      showSplash("💧");
+      card.style.transform = "translateY(-40px) scale(0.8)";
+    } else {
+      fireLevel = Math.min(7, fireLevel + 1);
+      showSplash("🔥");
+      card.style.transform = "translateY(20px) scale(1.05)";
+      vibrate(100);
+    }
+  } else { // User selected 'discard'
+    if (isCorrect) {
+      // Discarded fuel successfully
+      card.style.transform = "translateX(-150%) rotate(-15deg)";
+    } else {
+      // Discarded water mistakenly
+      fireLevel = Math.min(7, fireLevel + 1);
+      showSplash("🔥");
+      card.style.transform = "translateX(150%) rotate(15deg)";
+      vibrate(100);
+    }
   }
 
+  feedback.textContent = currentThought.feedback;
+  card.style.opacity = "0";
   updateFire();
 
-  card.style.opacity = "0";
-
-  setTimeout(() => {
-    nextCard();
-  }, 900);
+  setTimeout(nextCard, 1200);
 }
 
 function showSplash(symbol) {
   const splash = document.createElement("div");
-  splash.className = "water";
+  splash.className = "water-splash";
   splash.textContent = symbol;
   splash.style.left = "50%";
-  splash.style.top = "45%";
-  splash.style.transform = "translate(-50%, -50%)";
+  splash.style.top = "55%";
   fireArea.appendChild(splash);
 
-  setTimeout(() => splash.remove(), 850);
+  setTimeout(() => splash.remove(), 700);
 }
 
 function endGame() {
@@ -466,59 +492,11 @@ function shuffle(array) {
   return array.sort(() => Math.random() - 0.5);
 }
 
-function vibrate() {
+function vibrate(ms) {
   if (navigator.vibrate) {
-    navigator.vibrate(80);
+    navigator.vibrate(ms);
   }
 }
-
-let dragging = false;
-let startX = 0;
-let startY = 0;
-let currentX = 0;
-let currentY = 0;
-
-document.addEventListener("pointerdown", e => {
-  if (!e.target.classList.contains("card")) return;
-
-  dragging = true;
-  startX = e.clientX;
-  startY = e.clientY;
-  currentX = 0;
-  currentY = 0;
-  card.setPointerCapture(e.pointerId);
-});
-
-document.addEventListener("pointermove", e => {
-  if (!dragging) return;
-
-  currentX = e.clientX - startX;
-  currentY = e.clientY - startY;
-  card.style.transform = `translate(${currentX}px, ${currentY}px)`;
-});
-
-document.addEventListener("pointerup", e => {
-  if (!dragging) return;
-  dragging = false;
-
-  const cardRect = card.getBoundingClientRect();
-  const fireRect = fireArea.getBoundingClientRect();
-
-  const cardCenterX = cardRect.left + cardRect.width / 2;
-  const cardCenterY = cardRect.top + cardRect.height / 2;
-
-  const droppedInFire =
-    cardCenterX > fireRect.left &&
-    cardCenterX < fireRect.right &&
-    cardCenterY > fireRect.top &&
-    cardCenterY < fireRect.bottom;
-
-  if (droppedInFire) {
-    handleDrop();
-  } else {
-    card.style.transform = "translate(0, 0)";
-  }
-});
 </script>
 
 </body>
