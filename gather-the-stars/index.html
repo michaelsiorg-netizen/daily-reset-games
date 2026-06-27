@@ -1,1 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<title>Gather the Stars</title>
 
+<style>
+  * {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    position: fixed;
+    font-family: Arial, sans-serif;
+    touch-action: none;
+    background: #081326;
+    color: white;
+  }
+
+  #game {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 50% 18%, rgba(255,255,255,0.15), transparent 18%),
+      linear-gradient(to bottom, #07111f 0%, #10284a 48%, #1d3151 72%, #101828 100%);
+  }
+
+  .tiny-star {
+    position: absolute;
+    width: 2px;
+    height: 2px;
+    background: white;
+    border-radius: 50%;
+    opacity: 0.7;
+    animation: twinkle 3s infinite ease-in-out;
+  }
+
+  @keyframes twinkle {
+    0%, 100% { opacity: 0.25; transform: scale(1); }
+    50% { opacity: 0.9; transform: scale(1.6); }
+  }
+
+  .moon {
+    position: absolute;
+    top: 8%;
+    right: 13%;
+    width: 74px;
+    height: 74px;
+    border-radius: 50%;
+    background: rgba(255,255,230,0.95);
+    box-shadow: 0 0 35px rgba(255,255,220,0.5);
+  }
+
+  .mountains {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    height: 28%;
+    background:
+      linear-gradient(135deg, transparent 18%, #0a1425 18% 45%, transparent 45%),
+      linear-gradient(225deg, transparent 22%, #0c1a2e 22% 50%, transparent 50%),
+      linear-gradient(145deg, transparent 30%, #07101e 30% 60%, transparent 60%);
+    opacity: 0.95;
+  }
+
+  .panel {
+    position: absolute;
+    top: 24px;
+    left: 18px;
+    right: 18px;
+    z-index: 10;
+    text-align: center;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: 28px;
+    font-weight: 700;
+  }
+
+  .subtitle {
+    margin-top: 8px;
+    font-size: 15px;
+    opacity: 0.9;
+    line-height: 1.3;
+  }
+
+  .progress {
+    margin-top: 14px;
+    font-size: 24px;
+    letter-spacing: 3px;
+  }
+
+  .timer {
+    margin-top: 8px;
+    font-size: 15px;
+    opacity: 0.9;
+  }
+
+  .falling-item {
+    position: absolute;
+    z-index: 6;
+    min-width: 105px;
+    max-width: 165px;
+    padding: 12px 14px;
+    border-radius: 999px;
+    text-align: center;
+    font-size: 17px;
+    font-weight: 700;
+    color: #fff;
+    background: rgba(255,255,255,0.16);
+    border: 1px solid rgba(255,255,255,0.35);
+    box-shadow: 0 0 22px rgba(255,255,255,0.25);
+    backdrop-filter: blur(8px);
+    animation: drift 5.2s linear forwards;
+  }
+
+  .good {
+    background: rgba(255,255,255,0.18);
+    box-shadow: 0 0 26px rgba(255,240,160,0.55);
+  }
+
+  .thought {
+    background: rgba(20,25,40,0.42);
+    color: rgba(255,255,255,0.78);
+    font-size: 15px;
+    font-weight: 600;
+    box-shadow: 0 0 18px rgba(0,0,0,0.25);
+  }
+
+  @keyframes drift {
+    0% {
+      transform: translateY(0) scale(0.9);
+      opacity: 0;
+    }
+    12% {
+      opacity: 1;
+    }
+    85% {
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(58vh) translateX(var(--drift)) scale(1.05);
+      opacity: 0;
+    }
+  }
+
+  .message {
+    position: absolute;
+    left: 24px;
+    right: 24px;
+    bottom: 110px;
+    z-index: 12;
+    padding: 14px 18px;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.28);
+    text-align: center;
+    font-size: 16px;
+    line-height: 1.35;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+    backdrop-filter: blur(8px);
+  }
+
+  .message.show {
+    opacity: 1;
+  }
+
+  svg {
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    pointer-events: none;
+  }
+
+  .constellation-dot {
+    fill: #fff7ba;
+    filter: drop-shadow(0 0 8px #fff2a8);
+  }
+
+  .constellation-line {
+    stroke: rgba(255,245,170,0.9);
+    stroke-width: 2;
+    stroke-linecap: round;
+    filter: drop-shadow(0 0 8px #fff2a8);
+  }
+
+  #startScreen, #endScreen {
+    position: absolute;
+    inset: 0;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 28px;
+    text-align: center;
+    background: rgba(5,12,24,0.72);
+    backdrop-filter: blur(8px);
+  }
+
+  .card {
+    max-width: 360px;
+    padding: 28px 24px;
+    border-radius: 28px;
+    background: rgba(255,255,255,0.14);
+    border: 1px solid rgba(255,255,255,0.3);
+    box-shadow: 0 18px 50px rgba(0,0,0,0.25);
+  }
+
+  .card h2 {
+    margin: 0 0 12px;
+    font-size: 30px;
+  }
+
+  .card p {
+    margin: 10px 0;
+    font-size: 17px;
+    line-height: 1.45;
+    opacity: 0.92;
+  }
+
+  button {
+    margin-top: 20px;
+    width: 100%;
+    border: none;
+    border-radius: 999px;
+    padding: 15px 18px;
+    font-size: 18px;
+    font-weight: 700;
+    color: #10284a;
+    background: #fff7d6;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+  }
+
+  .hidden {
+    display: none !important;
+  }
+</style>
+</head>
+
+<body>
+<div id="game">
+  <div class="moon"></div>
+  <svg id="constellation"></svg>
+
+  <div class="panel">
+    <h1>Gather the Stars</h1>
+    <div class="subtitle">Tap what is still meaningful. Let heavy thoughts pass.</div>
+    <div id="progress" class="progress">☆☆☆☆☆☆☆☆☆☆</div>
+    <div id="timer" class="timer">60 seconds</div>
+  </div>
+
+  <div id="message" class="message"></div>
+  <div class="mountains"></div>
+
+  <div id="startScreen">
+    <div class="card">
+      <h2>Gather the Stars</h2>
+      <p>Some nights feel dark.</p>
+      <p>Tap the stars that represent what is still meaningful.</p>
+      <p>Let the heavy thoughts drift by.</p>
+      <button onclick="startGame()">Start</button>
+    </div>
+  </div>
+
+  <div id="endScreen" class="hidden">
+    <div class="card">
+      <h2>Nice noticing</h2>
+      <p><strong>Even on difficult nights, there are still stars worth noticing.</strong></p>
+      <p>Hope often grows by noticing what is still here.</p>
+      <button onclick="restartGame()">Play Again</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const game = document.getElementById("game");
+  const progress = document.getElementById("progress");
+  const timerDisplay = document.getElementById("timer");
+  const message = document.getElementById("message");
+  const constellation = document.getElementById("constellation");
+  const startScreen = document.getElementById("startScreen");
+  const endScreen = document.getElementById("endScreen");
+
+  const goodStars = [
+    "Hope", "Family", "Friends", "Nature", "Kindness",
+    "Music", "Courage", "Rest", "Growth", "Memories",
+    "Support", "Purpose", "Pets", "Compassion", "Tomorrow"
+  ];
+
+  const heavyThoughts = [
+    "Nothing matters",
+    "I'm alone",
+    "It's hopeless",
+    "No one cares",
+    "There's no point",
+    "I'll never feel better"
+  ];
+
+  const constellationShapes = [
+    [[20,48],[31,38],[43,45],[54,34],[66,42],[78,30]],
+    [[26,36],[38,48],[50,35],[62,49],[74,37],[62,25],[50,18]],
+    [[24,42],[36,30],[50,40],[64,28],[76,44],[58,54],[42,55]],
+    [[28,34],[43,25],[58,34],[69,48],[52,61],[36,51]]
+  ];
+
+  let collected = 0;
+  let needed = 10;
+  let timeLeft = 60;
+  let timerInterval;
+  let spawnInterval;
+  let points = [];
+  let chosenShape = [];
+
+  function createTinyStars() {
+    for (let i = 0; i < 90; i++) {
+      const star = document.createElement("div");
+      star.className = "tiny-star";
+      star.style.left = Math.random() * 100 + "%";
+      star.style.top = Math.random() * 75 + "%";
+      star.style.animationDelay = Math.random() * 3 + "s";
+      game.appendChild(star);
+    }
+  }
+
+  function startGame() {
+    startScreen.classList.add("hidden");
+    endScreen.classList.add("hidden");
+
+    collected = 0;
+    timeLeft = 60;
+    points = [];
+    chosenShape = constellationShapes[Math.floor(Math.random() * constellationShapes.length)];
+
+    progress.textContent = "☆☆☆☆☆☆☆☆☆☆";
+    timerDisplay.textContent = "60 seconds";
+    constellation.innerHTML = "";
+
+    timerInterval = setInterval(() => {
+      timeLeft--;
+      timerDisplay.textContent = timeLeft + " seconds";
+
+      if (timeLeft <= 0) {
+        endGame();
+      }
+    }, 1000);
+
+    spawnInterval = setInterval(spawnItem, 1150);
+    spawnItem();
+  }
+
+  function spawnItem() {
+    if (collected >= needed) {
+      endGame();
+      return;
+    }
+
+    const isGood = Math.random() > 0.28;
+    const item = document.createElement("div");
+    item.className = "falling-item " + (isGood ? "good" : "thought");
+
+    item.textContent = isGood
+      ? goodStars[Math.floor(Math.random() * goodStars.length)]
+      : heavyThoughts[Math.floor(Math.random() * heavyThoughts.length)];
+
+    item.style.left = Math.random() * 68 + 8 + "%";
+    item.style.top = Math.random() * 22 + 18 + "%";
+    item.style.setProperty("--drift", (Math.random() * 80 - 40) + "px");
+
+    item.addEventListener("click", () => {
+      if (isGood) {
+        collectStar(item);
+      } else {
+        showMessage("Notice the thought... then let it pass.");
+        item.remove();
+      }
+    });
+
+    item.addEventListener("animationend", () => item.remove());
+    game.appendChild(item);
+  }
+
+  function collectStar(item) {
+    collected++;
+    progress.textContent = "★".repeat(collected) + "☆".repeat(needed - collected);
+
+    const rect = item.getBoundingClientRect();
+    const x = ((rect.left + rect.width / 2) / window.innerWidth) * 100;
+    const y = ((rect.top + rect.height / 2) / window.innerHeight) * 100;
+
+    points.push({ x, y });
+    drawConstellation();
+
+    item.remove();
+    showMessage("That still matters.");
+
+    if (collected >= needed) {
+      setTimeout(endGame, 700);
+    }
+  }
+
+  function drawConstellation() {
+    constellation.innerHTML = "";
+
+    const scalePoints = chosenShape.slice(0, collected);
+
+    for (let i = 0; i < scalePoints.length - 1; i++) {
+      const [x1, y1] = scalePoints[i];
+      const [x2, y2] = scalePoints[i + 1];
+
+      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      line.setAttribute("x1", x1 + "%");
+      line.setAttribute("y1", y1 + "%");
+      line.setAttribute("x2", x2 + "%");
+      line.setAttribute("y2", y2 + "%");
+      line.setAttribute("class", "constellation-line");
+      constellation.appendChild(line);
+    }
+
+    scalePoints.forEach(([x, y]) => {
+      const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      dot.setAttribute("cx", x + "%");
+      dot.setAttribute("cy", y + "%");
+      dot.setAttribute("r", "5");
+      dot.setAttribute("class", "constellation-dot");
+      constellation.appendChild(dot);
+    });
+  }
+
+  function showMessage(text) {
+    message.textContent = text;
+    message.classList.add("show");
+
+    setTimeout(() => {
+      message.classList.remove("show");
+    }, 1300);
+  }
+
+  function endGame() {
+    clearInterval(timerInterval);
+    clearInterval(spawnInterval);
+
+    document.querySelectorAll(".falling-item").forEach(item => item.remove());
+
+    while (collected < needed) {
+      collected++;
+      drawConstellation();
+    }
+
+    setTimeout(() => {
+      endScreen.classList.remove("hidden");
+    }, 500);
+  }
+
+  function restartGame() {
+    startGame();
+  }
+
+  createTinyStars();
+</script>
+</body>
+</html>
