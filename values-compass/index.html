@@ -200,15 +200,6 @@
     border: none;
   }
 
-  button.subtle {
-    background: transparent;
-    border: none;
-    box-shadow: none;
-    color: #718096;
-    font-weight: 600;
-    padding: 12px;
-  }
-
   button.action-completed {
     background: #E6FFFA;
     color: #234E52;
@@ -320,6 +311,13 @@
     margin: 16px 0;
   }
 
+  .back-instruction {
+    font-size: 14px;
+    color: #718096;
+    margin-top: 18px;
+    font-style: italic;
+  }
+
   .hidden {
     display: none !important;
   }
@@ -393,7 +391,8 @@
 
   <div id="completionScreen" class="hidden">
     <div class="completion-icon">✓</div>
-    <h2>Your Value for Today</h2>
+
+    <h2>Today's Direction</h2>
 
     <div class="chosen-value-card">
       <div class="chosen-value-name" id="completedValueName"></div>
@@ -406,12 +405,12 @@
     </div>
 
     <p class="closure-text">
-      You do not have to change your whole life today.
-      Just take one step in the direction that matters.
+      Today you've chosen a direction.<br><br>
+      You don't have to change your whole life today.
+      Just take one step toward the person you want to become.
     </p>
 
-    <button class="secondary" onclick="restartGame()">Done</button>
-    <button class="subtle" onclick="restartGame()">Start Over</button>
+    <p class="back-instruction">Press the back arrow when you're ready.</p>
   </div>
 
 </div>
@@ -836,10 +835,6 @@ function showCompletion() {
   document.getElementById("completedActionText").textContent = selectedActionText;
 
   showScreen("completionScreen");
-}
-
-function restartGame() {
-  showScreen("startScreen");
 }
 
 function shuffleArray(array) {
