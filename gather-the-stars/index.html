@@ -194,12 +194,21 @@
   }
 
   .thought {
-    background: rgba(20, 25, 40, 0.35);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: rgba(255, 255, 255, 0.5);
-    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-    padding: 12px 20px;
-    border-radius: 30px;
+    color: rgba(255, 255, 255, 0.55);
+    text-shadow: 0 0 6px rgba(180, 190, 210, 0.35);
+    font-weight: 500;
+    padding: 6px 10px;
+  }
+
+  .thought .tail {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    height: 2px;
+    width: 55px;
+    background: linear-gradient(to left, rgba(180, 190, 210, 0.45), transparent);
+    filter: blur(0.5px);
+    z-index: -1;
   }
 
   @keyframes shoot {
@@ -517,15 +526,33 @@
       tail.style.transform = `translate(-50%, -50%) rotate(${angleDeg + 180}deg)`;
       item.insertBefore(tail, label);
     } else {
-      // Heavy thoughts sink slowly and dimly, with no bright tail -
-      // the visual opposite of a shooting star.
-      const startXPct = 15 + Math.random() * 55;
+      // Heavy thoughts also streak across like shooting stars, but
+      // slower, dimmer, on a steeper downward slope, with a shorter,
+      // grayer tail - visually related to the good stars, but clearly
+      // heavier and less bright.
+      const fromLeft = Math.random() > 0.5;
+      const startXPct = fromLeft ? -15 : 115;
+      const endXPct = fromLeft ? 115 : -15;
+      const startYPct = 10 + Math.random() * 30;
+      const dyPct = 26 + Math.random() * 20; // steeper downward slope than good stars
+      const duration = 5.5 + Math.random() * 2;
+
       item.style.left = startXPct + "%";
-      item.style.top = "10%";
-      item.style.setProperty("--dx", (Math.random() * 10 - 5) + "vw");
-      item.style.setProperty("--dy", "62vh");
+      item.style.top = startYPct + "%";
+
+      const dxPx = (endXPct - startXPct) / 100 * window.innerWidth;
+      const dyPx = dyPct / 100 * window.innerHeight;
+      const angleDeg = Math.atan2(dyPx, dxPx) * (180 / Math.PI);
+
+      item.style.setProperty("--dx", (endXPct - startXPct) + "vw");
+      item.style.setProperty("--dy", dyPct + "vh");
       item.style.animationName = prefersReducedMotion ? "fadeOnly" : "shoot";
-      item.style.animationDuration = (prefersReducedMotion ? 2.2 : 8) + "s";
+      item.style.animationDuration = (prefersReducedMotion ? 2.2 : duration) + "s";
+
+      const tail = document.createElement("div");
+      tail.className = "tail";
+      tail.style.transform = `translate(-50%, -50%) rotate(${angleDeg + 180}deg)`;
+      item.insertBefore(tail, label);
     }
 
     const handleInteraction = (e) => {
@@ -676,8 +703,15 @@
   }
 
   function doExit() {
-    // Hook this up to whatever navigation your app uses to leave the game.
     exitConfirm.style.display = "none";
+
+    clearInterval(spawnInterval);
+    clearTimeout(ambientTimeout);
+    document.querySelectorAll(".falling-item, .ambient-shoot").forEach(el => el.remove());
+    constellation.innerHTML = "";
+
+    endScreen.classList.add("hidden");
+    startScreen.classList.remove("hidden");
   }
 
   createTinyStars();
