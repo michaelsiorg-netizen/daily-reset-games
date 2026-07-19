@@ -57,18 +57,6 @@
     }
   }
 
-  .moon {
-    position: absolute;
-    top: 6%;
-    right: 10%;
-    width: 64px;
-    height: 64px;
-    border-radius: 50%;
-    background: rgba(255,255,240,0.9);
-    box-shadow: 0 0 40px rgba(255,255,220,0.4);
-    pointer-events: none;
-  }
-
   .mountains {
     position: absolute;
     bottom: 0;
@@ -373,7 +361,6 @@
 
 <body>
 <div id="game">
-  <div class="moon"></div>
   <svg id="constellation"></svg>
 
   <div class="top-row">
@@ -405,6 +392,7 @@
       <p><strong>Even on difficult nights, there are still stars worth noticing.</strong></p>
       <p>Hope often grows by acknowledging what is still here.</p>
       <button class="primary" onclick="restartGame()">Play Again</button>
+      <button class="secondary" onclick="backToStart()">Exit</button>
     </div>
   </div>
 
@@ -692,6 +680,14 @@
 
   function restartGame() {
     startGame();
+  }
+
+  function backToStart() {
+    // Called from the completion screen - no in-progress game state to
+    // lose here, so this can return to start directly without a
+    // confirmation step.
+    endScreen.classList.add("hidden");
+    startScreen.classList.remove("hidden");
   }
 
   function confirmExit() {
