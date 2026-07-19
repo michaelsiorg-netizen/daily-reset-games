@@ -46,16 +46,18 @@ html, body {
 
 #headerCard {
   padding: 20px 16px;
-  position: relative;
+}
+
+.headerTopRow {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: -8px;
 }
 
 .exitButton {
-  position: absolute;
-  top: 10px;
-  right: 12px;
   background: none;
   border: none;
-  font-size: 20px;
+  font-size: 16px;
   color: #8E99A8;
   cursor: pointer;
   padding: 6px 10px;
@@ -273,7 +275,9 @@ button.primaryButton:focus-visible {
 <div id="game">
 
   <div id="headerCard" class="card">
-    <button class="exitButton" onclick="confirmExit()" aria-label="Exit game">&times; Exit</button>
+    <div class="headerTopRow">
+      <button class="exitButton" onclick="confirmExit()" aria-label="Exit game">&times; Exit</button>
+    </div>
     <h1>Thought Sort</h1>
     <p>Drag each thought into the category that fits best, or tap/select a zone directly.</p>
     <div class="stats">
