@@ -44,6 +44,27 @@
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
   }
 
+  .top-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: -6px;
+  }
+
+  .exitButton {
+    background: none;
+    border: none;
+    font-size: 14px;
+    color: #8E99A8;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 10px;
+  }
+
+  .exitButton:hover, .exitButton:focus-visible {
+    background: rgba(0, 0, 0, 0.05);
+    color: #4a6fa5;
+  }
+
   .title {
     font-size: 22px;
     font-weight: 700;
@@ -254,6 +275,30 @@
     text-align: center;
   }
 
+  #startScreen {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to bottom, #cceeff, #f7fff3);
+    z-index: 32;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    text-align: center;
+  }
+
+  #exitConfirm {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 40;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    text-align: center;
+  }
+
   .final-card {
     background: rgba(255,255,255,0.95);
     border-radius: 24px;
@@ -297,6 +342,9 @@
 <div id="game">
 
   <div class="top-box" id="headerCard">
+    <div class="top-row">
+      <button class="exitButton" onclick="confirmExit()" aria-label="Exit game">&times; Exit</button>
+    </div>
     <div class="title">Growing Compassion</div>
     <div class="instructions">
       Thoughts will pass by.<br>
@@ -334,6 +382,27 @@
         Practice choosing kindness, one thought at a time.
       </div>
       <button class="done-btn" onclick="finishGame()">Done</button>
+    </div>
+  </div>
+
+  <div id="startScreen">
+    <div class="final-card">
+      <div class="final-flower">🌱</div>
+      <div class="final-title">Growing Compassion</div>
+      <div class="final-message">
+        Thoughts will float by.<br><br>
+        Tap the ones that help you grow, and let the harsh ones pass.
+      </div>
+      <button class="done-btn" onclick="startGame()">Start</button>
+    </div>
+  </div>
+
+  <div id="exitConfirm">
+    <div class="final-card">
+      <div class="final-title" style="font-size:22px;">Leave the game?</div>
+      <div class="final-message">Your current progress won't be saved.</div>
+      <button class="done-btn" onclick="doExit()">Yes, exit</button>
+      <button class="done-btn" style="background:#8E99A8;margin-top:10px;" onclick="cancelExit()">Stay</button>
     </div>
   </div>
 
@@ -380,6 +449,8 @@
   const flowerHead = document.getElementById("flowerHead");
   const finalScreen = document.getElementById("finalScreen");
   const headerCard = document.getElementById("headerCard");
+  const startScreen = document.getElementById("startScreen");
+  const exitConfirm = document.getElementById("exitConfirm");
 
   function randomItem(arr) {
     return arr[Math.floor(Math.random() * arr.length)];
@@ -503,8 +574,48 @@
     window.history.back();
   }
 
-  createCloud();
-  cloudInterval = setInterval(createCloud, 2200); // Staggered delay slightly to minimize layout clumps
+  function startGame() {
+    growth = 0;
+    gameOver = false;
+    lastY = 0;
+
+    progressText.textContent = "0 / " + goal;
+    stem.style.height = "0";
+    leafLeft.style.width = "0";
+    leafLeft.style.height = "0";
+    leafLeft.style.opacity = "0";
+    leafRight.style.width = "0";
+    leafRight.style.height = "0";
+    leafRight.style.opacity = "0";
+    flowerHead.style.transform = "translateX(-50%) scale(0)";
+
+    document.querySelectorAll(".cloud, .drop").forEach(el => el.remove());
+
+    startScreen.style.display = "none";
+    finalScreen.style.display = "none";
+    exitConfirm.style.display = "none";
+
+    createCloud();
+    cloudInterval = setInterval(createCloud, 2200); // Staggered delay slightly to minimize layout clumps
+  }
+
+  function confirmExit() {
+    exitConfirm.style.display = "flex";
+  }
+
+  function cancelExit() {
+    exitConfirm.style.display = "none";
+  }
+
+  function doExit() {
+    gameOver = true;
+    clearInterval(cloudInterval);
+    document.querySelectorAll(".cloud, .drop").forEach(el => el.remove());
+
+    exitConfirm.style.display = "none";
+    finalScreen.style.display = "none";
+    startScreen.style.display = "flex";
+  }
 </script>
 
 </body>

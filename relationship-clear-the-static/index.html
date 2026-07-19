@@ -38,6 +38,27 @@ body {
   z-index: 10;
 }
 
+.headerTopRow {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: -6px;
+}
+
+.exitButton {
+  background: none;
+  border: none;
+  font-size: 15px;
+  color: #8E99A8;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 10px;
+}
+
+.exitButton:hover, .exitButton:focus-visible {
+  background: #EEF4F8;
+  color: #4A6FA5;
+}
+
 h1 {
   margin: 0;
   color: #4A6FA5;
@@ -185,6 +206,9 @@ button {
 <div id="game">
 
   <div id="headerCard">
+    <div class="headerTopRow">
+      <button class="exitButton" onclick="confirmExit()" aria-label="Exit game">&times; Exit</button>
+    </div>
     <h1>Clear the Static</h1>
     <p>Tap helpful communication. Avoid relationship static.</p>
     <div class="stats">
@@ -218,6 +242,15 @@ button {
     </div>
   </div>
 
+  <div id="exitConfirm" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;z-index:30;padding:24px;">
+    <div class="modalCard">
+      <h1 style="font-size:22px;">Leave the game?</h1>
+      <p>Your current session progress won't be saved.</p>
+      <button onclick="doExit()">Yes, exit</button>
+      <button style="margin-top:10px;background:#8E99A8;" onclick="cancelExit()">Stay</button>
+    </div>
+  </div>
+
 </div>
 
 <script>
@@ -228,6 +261,7 @@ const feedbackText = document.getElementById("feedbackText");
 const startScreen = document.getElementById("startScreen");
 const endScreen = document.getElementById("endScreen");
 const finalScore = document.getElementById("finalScore");
+const exitConfirm = document.getElementById("exitConfirm");
 
 const helpfulItems = [
   "Pause",
@@ -376,6 +410,25 @@ function endGame() {
 
   finalScore.textContent = "Final Score: " + score;
   endScreen.classList.remove("hidden");
+}
+
+function confirmExit() {
+  exitConfirm.classList.remove("hidden");
+}
+
+function cancelExit() {
+  exitConfirm.classList.add("hidden");
+}
+
+function doExit() {
+  gameRunning = false;
+  clearInterval(spawnInterval);
+  clearInterval(timerInterval);
+  document.querySelectorAll(".item").forEach(item => item.remove());
+
+  exitConfirm.classList.add("hidden");
+  endScreen.classList.add("hidden");
+  startScreen.classList.remove("hidden");
 }
 
 </script>

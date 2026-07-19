@@ -38,6 +38,27 @@ body {
   padding: 14px 12px;
 }
 
+.headerTopRow {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: -6px;
+}
+
+.exitButton {
+  background: none;
+  border: none;
+  font-size: 16px;
+  color: #8E99A8;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 10px;
+}
+
+.exitButton:hover, .exitButton:focus-visible {
+  background: #EEF4F8;
+  color: #4A6FA5;
+}
+
 h1 {
   margin: 0;
   color: #4A6FA5;
@@ -182,6 +203,9 @@ p {
 <div id="game">
 
   <div id="headerCard" class="card">
+    <div class="headerTopRow">
+      <button class="exitButton" onclick="confirmExit()" aria-label="Exit game">&times; Exit</button>
+    </div>
     <h1>Repair Mode</h1>
     <p>When conflict gets tense, choose the repair attempt.</p>
     <div class="stats">
@@ -223,6 +247,15 @@ p {
     </div>
   </div>
 
+  <div id="exitConfirm" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;z-index:30;padding:24px;">
+    <div class="card modalCard">
+      <h1 style="font-size:22px;">Leave the game?</h1>
+      <p>Your current round progress won't be saved.</p>
+      <button class="startButton" onclick="doExit()">Yes, exit</button>
+      <button class="startButton" style="margin-top:10px;background:#8E99A8;" onclick="cancelExit()">Stay</button>
+    </div>
+  </div>
+
 </div>
 
 <script>
@@ -233,6 +266,7 @@ const roundEl = document.getElementById("round");
 const startScreen = document.getElementById("startScreen");
 const endScreen = document.getElementById("endScreen");
 const finalScore = document.getElementById("finalScore");
+const exitConfirm = document.getElementById("exitConfirm");
 
 const choiceButtons = [
   document.getElementById("choice0"),
@@ -403,8 +437,10 @@ let currentRound = null;
 let score = 0;
 let round = 1;
 let acceptingInput = true;
+let roundTimeout = null;
 
 function startGame() {
+  clearTimeout(roundTimeout);
   score = 0;
   round = 1;
   acceptingInput = true;
@@ -475,7 +511,7 @@ function chooseAnswer(buttonIndex) {
     });
   }
 
-  setTimeout(() => {
+  roundTimeout = setTimeout(() => {
     if (round >= 10) {
       endGame();
     } else {
@@ -488,6 +524,21 @@ function chooseAnswer(buttonIndex) {
 function endGame() {
   finalScore.textContent = "Final Score: " + score + " / 10";
   endScreen.classList.remove("hidden");
+}
+
+function confirmExit() {
+  exitConfirm.classList.remove("hidden");
+}
+
+function cancelExit() {
+  exitConfirm.classList.add("hidden");
+}
+
+function doExit() {
+  clearTimeout(roundTimeout);
+  exitConfirm.classList.add("hidden");
+  endScreen.classList.add("hidden");
+  startScreen.classList.remove("hidden");
 }
 
 function shuffle(array) {
