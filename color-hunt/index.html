@@ -18,27 +18,25 @@
     overflow: hidden;
     position: fixed;
     font-family: Arial, sans-serif;
-    background: #F4F6F9; /* 1. Changes the outer edges of the screen */
+    background: #F4F6F9;
     touch-action: manipulation;
     display: flex;
     justify-content: center;
     align-items: center;
   }
 
-  /* Fixed aspect-ratio container ensures identical scaling on all screens */
   #game {
     position: relative;
     width: 100%;
     height: 100%;
-    max-width: 450px; /* Standard mobile width ceiling */
-    max-height: 920px; /* Standard mobile height ceiling */
-    background: #F4F6F9; /* 2. Changes the space directly behind the card */
+    max-width: 450px;
+    max-height: 920px;
+    background: #F4F6F9;
     overflow: hidden;
     display: flex;
     flex-direction: column;
   }
 
-  /* UI Top Panel sits in its own space now, preventing image overlap */
   .top-panel {
     position: relative;
     margin: 16px;
@@ -49,6 +47,27 @@
     text-align: center;
     box-shadow: 0 8px 30px rgba(0,0,0,0.15);
     z-index: 10;
+  }
+
+  .top-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 2px;
+  }
+
+  .exitButton {
+    background: none;
+    border: none;
+    font-size: 14px;
+    color: #999;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 10px;
+  }
+
+  .exitButton:hover, .exitButton:focus-visible {
+    background: #F4F6F9;
+    color: #4A6FA5;
   }
 
   .small-text {
@@ -72,14 +91,13 @@
     min-height: 20px;
   }
 
-  /* Dedicated canvas for the image. Zones stay locked perfectly to this box. */
   .image-container {
     position: relative;
     flex: 1;
     width: 100%;
-    background-image: url("background.png");
-    background-size: 100% 100%; /* Forces image to match container geometry exactly */
+    background-size: 100% 100%;
     background-position: center;
+    transition: background-image 0.2s ease;
   }
 
   .overlay {
@@ -96,6 +114,7 @@
   .zone {
     position: absolute;
     border-radius: 50%;
+    cursor: pointer;
     /* Temporary debug style: uncomment background below to see your zones during testing */
     /* background: rgba(255, 0, 0, 0.3); */
   }
@@ -129,6 +148,17 @@
     z-index: 20;
   }
 
+  #exitConfirm {
+    position: absolute;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(0,0,0,0.5);
+    z-index: 25;
+  }
+
   .complete-card {
     width: 100%;
     max-width: 320px;
@@ -152,7 +182,7 @@
     color: #555;
   }
 
-  button {
+  button.primaryButton {
     border: none;
     border-radius: 999px;
     padding: 14px 32px;
@@ -162,39 +192,107 @@
     color: white;
     cursor: pointer;
   }
+
+  button.secondaryButton {
+    border: none;
+    border-radius: 999px;
+    padding: 12px 28px;
+    font-size: 15px;
+    font-weight: 700;
+    background: #DADFE5;
+    color: #2E2E2E;
+    cursor: pointer;
+    margin-top: 10px;
+  }
 </style>
 </head>
 
 <body>
 <div id="game">
   <div class="top-panel">
+    <div class="top-row">
+      <button class="exitButton" onclick="confirmExit()" aria-label="Exit game">&times; Exit</button>
+    </div>
     <div class="small-text">Color Hunt</div>
     <div id="prompt">Find something blue.</div>
-    <div id="feedback"></div>
+    <div id="feedback" aria-live="polite"></div>
   </div>
 
   <div class="image-container" id="stage">
     <div class="overlay"></div>
-
-    <div class="zone" data-color="blue" style="left: 45%; top: 9%; width: 46%; height: 18%;"></div>
-    <div class="zone" data-color="orange" style="left: 55%; top: 32%; width: 40%; height: 16%;"></div>
-    <div class="zone" data-color="white" style="left: 42%; top: 52%; width: 42%; height: 9%;"></div>
-    <div class="zone" data-color="green" style="left: 0%; top: 48%; width: 24%; height: 24%;"></div>
-    <div class="zone" data-color="brown" style="left: 2%; top: 76%; width: 48%; height: 16%;"></div>
-    <div class="zone" data-color="gray" style="left: 55%; top: 73%; width: 42%; height: 22%;"></div>
-    <div class="zone" data-color="pink" style="left: 4%; top: 4%; width: 45%; height: 30%;"></div>
+    <!-- Zones are rendered dynamically in JS, based on the chosen background -->
   </div>
 
   <div id="complete">
     <div class="complete-card">
       <h1>Well done.</h1>
       <p>You practiced bringing your attention back to the present moment.</p>
-      <button onclick="restartGame()">Start Over</button>
+      <button class="primaryButton" onclick="restartGame()">Start Over</button>
+    </div>
+  </div>
+
+  <div id="exitConfirm">
+    <div class="complete-card">
+      <h1 style="font-size:22px;">Leave the game?</h1>
+      <p>Your current round progress won't be saved.</p>
+      <button class="primaryButton" onclick="doExit()">Yes, exit</button>
+      <button class="secondaryButton" onclick="cancelExit()">Stay</button>
     </div>
   </div>
 </div>
 
 <script>
+  /*
+    Each background has its own set of 7 zones, mapped by hand to real
+    objects/colors in that specific photo. All backgrounds share the
+    same 7 color labels (blue, orange, white, green, brown, gray, pink)
+    so the round/prompt logic can stay background-agnostic - only the
+    zone positions and image change.
+
+    Positions are percentages of the image container (left/top/width/
+    height), so they scale with the fixed-aspect-ratio #game box.
+  */
+  const backgrounds = [
+    {
+      file: "background.png",
+      zones: [
+        { color: "blue",   left: 45, top: 9,  width: 46, height: 18 },
+        { color: "orange", left: 55, top: 32, width: 40, height: 16 },
+        { color: "white",  left: 42, top: 52, width: 42, height: 9 },
+        { color: "green",  left: 0,  top: 48, width: 24, height: 24 },
+        { color: "brown",  left: 2,  top: 76, width: 48, height: 16 },
+        { color: "gray",   left: 55, top: 73, width: 42, height: 22 },
+        { color: "pink",   left: 4,  top: 4,  width: 45, height: 30 }
+      ]
+    },
+    {
+      // Mountain lake at sunset: pine forest, snow-capped peak, wooden dock
+      file: "background2.png",
+      zones: [
+        { color: "blue",   left: 55, top: 1,  width: 42, height: 11 },  // clear sky, upper right
+        { color: "orange", left: 0,  top: 25, width: 22, height: 20 },  // sunset glow / sun flare, left
+        { color: "white",  left: 5,  top: 80, width: 23, height: 14 },  // white daisies, bottom left
+        { color: "green",  left: 55, top: 44, width: 40, height: 16 },  // pine forest line, right side
+        { color: "brown",  left: 45, top: 76, width: 42, height: 18 },  // wooden dock, bottom center
+        { color: "gray",   left: 30, top: 18, width: 45, height: 22 },  // mountain rock face, center
+        { color: "pink",   left: 30, top: 88, width: 12, height: 10 }   // wildflowers, bottom left
+      ]
+    },
+    {
+      // Rainforest waterfall: macaw, toucan, sloth, bromeliad
+      file: "background3.png",
+      zones: [
+        { color: "blue",   left: 0,  top: 22, width: 22, height: 14 },  // macaw wing feathers, upper left
+        { color: "orange", left: 0,  top: 36, width: 20, height: 14 },  // macaw underside, upper left
+        { color: "white",  left: 35, top: 45, width: 25, height: 18 },  // waterfall, center
+        { color: "green",  left: 70, top: 65, width: 28, height: 18 },  // foliage, lower right
+        { color: "brown",  left: 82, top: 38, width: 16, height: 20 },  // sloth fur, right side
+        { color: "gray",   left: 36, top: 76, width: 30, height: 14 },  // wet stream rocks, lower center
+        { color: "pink",   left: 0,  top: 82, width: 28, height: 16 }   // bromeliad flower, bottom left
+      ]
+    }
+  ];
+
   const prompts = [
     { color: "blue", text: "Find something blue." },
     { color: "orange", text: "Find something orange." },
@@ -207,20 +305,63 @@
 
   let round = 0;
   let activePrompts = [];
+  let currentBackground = null;
+  let lastBackgroundFile = null; // avoids repeating the same photo back-to-back
 
   const promptEl = document.getElementById("prompt");
   const feedbackEl = document.getElementById("feedback");
   const completeEl = document.getElementById("complete");
+  const exitConfirmEl = document.getElementById("exitConfirm");
   const stageEl = document.getElementById("stage");
 
   function shuffle(array) {
-    return array.sort(() => Math.random() - 0.5);
+    const copy = [...array];
+    for (let i = copy.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [copy[i], copy[j]] = [copy[j], copy[i]];
+    }
+    return copy;
+  }
+
+  function pickBackground() {
+    if (backgrounds.length === 1) return backgrounds[0];
+    let choice;
+    do {
+      choice = backgrounds[Math.floor(Math.random() * backgrounds.length)];
+    } while (choice.file === lastBackgroundFile);
+    return choice;
+  }
+
+  function renderZones() {
+    // Clear any previously rendered zones (keep the overlay div)
+    stageEl.querySelectorAll(".zone").forEach(el => el.remove());
+
+    currentBackground.zones.forEach(zoneData => {
+      const zone = document.createElement("div");
+      zone.className = "zone";
+      zone.dataset.color = zoneData.color;
+      zone.style.left = zoneData.left + "%";
+      zone.style.top = zoneData.top + "%";
+      zone.style.width = zoneData.width + "%";
+      zone.style.height = zoneData.height + "%";
+      zone.setAttribute("role", "button");
+      zone.setAttribute("aria-label", "Tap this area");
+      zone.addEventListener("click", onZoneClick);
+      stageEl.appendChild(zone);
+    });
   }
 
   function startGame() {
-    activePrompts = shuffle([...prompts]).slice(0, 5);
+    currentBackground = pickBackground();
+    lastBackgroundFile = currentBackground.file;
+    stageEl.style.backgroundImage = `url("${currentBackground.file}")`;
+
+    renderZones();
+
+    activePrompts = shuffle(prompts).slice(0, 5);
     round = 0;
     completeEl.style.display = "none";
+    exitConfirmEl.style.display = "none";
     feedbackEl.textContent = "";
     updatePrompt();
   }
@@ -232,8 +373,7 @@
   function showRipple(x, y) {
     const ripple = document.createElement("div");
     ripple.className = "ripple";
-    
-    // Calculate ripple position relative to the image stage instead of entire screen
+
     const rect = stageEl.getBoundingClientRect();
     ripple.style.left = (x - rect.left) + "px";
     ripple.style.top = (y - rect.top) + "px";
@@ -248,36 +388,49 @@
     }
   }
 
-  document.querySelectorAll(".zone").forEach(zone => {
-    zone.addEventListener("click", e => {
-      const neededColor = activePrompts[round].color;
-      const tappedColor = zone.dataset.color;
+  function onZoneClick(e) {
+    const zone = e.currentTarget;
+    const neededColor = activePrompts[round].color;
+    const tappedColor = zone.dataset.color;
 
-      if (tappedColor === neededColor) {
-        showRipple(e.clientX, e.clientY);
-        gentleVibrate();
+    if (tappedColor === neededColor) {
+      showRipple(e.clientX, e.clientY);
+      gentleVibrate();
 
-        feedbackEl.textContent = "Nice. Notice the color.";
+      feedbackEl.textContent = "Nice. Notice the color.";
 
-        setTimeout(() => {
-          round++;
+      setTimeout(() => {
+        round++;
 
-          if (round >= activePrompts.length) {
-            completeEl.style.display = "flex";
-          } else {
-            feedbackEl.textContent = "";
-            updatePrompt();
-          }
-        }, 900);
+        if (round >= activePrompts.length) {
+          completeEl.style.display = "flex";
+        } else {
+          feedbackEl.textContent = "";
+          updatePrompt();
+        }
+      }, 900);
 
-      } else {
-        feedbackEl.textContent = "Keep looking slowly.";
-      }
-    });
-  });
+    } else {
+      feedbackEl.textContent = "Keep looking slowly.";
+    }
+  }
 
   function restartGame() {
     startGame();
+  }
+
+  function confirmExit() {
+    exitConfirmEl.style.display = "flex";
+  }
+
+  function cancelExit() {
+    exitConfirmEl.style.display = "none";
+  }
+
+  function doExit() {
+    // Hook this up to whatever navigation your app uses to leave the game
+    // (e.g. window.location.href = "/home" or a message to a parent app shell).
+    exitConfirmEl.style.display = "none";
   }
 
   startGame();
