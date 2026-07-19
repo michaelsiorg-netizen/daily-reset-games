@@ -33,6 +33,26 @@
     justify-content: space-between;
   }
 
+  .top-row {
+    width: 100%;
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .exitButton {
+    background: rgba(255,255,255,0.12);
+    border: none;
+    color: #ffffff;
+    font-size: 14px;
+    cursor: pointer;
+    padding: 6px 12px;
+    border-radius: 12px;
+  }
+
+  .exitButton:hover, .exitButton:focus-visible {
+    background: rgba(255,255,255,0.22);
+  }
+
   .header-group {
     text-align: center;
     width: 100%;
@@ -148,6 +168,15 @@
     to { transform: translateX(-50%) rotate(-135deg) scale(1.06) skewX(3deg); }
   }
 
+  @media (prefers-reduced-motion: reduce) {
+    .flame {
+      animation: none;
+    }
+    .fire, .card {
+      transition: opacity 0.25s ease !important;
+    }
+  }
+
   .water-splash {
     position: absolute;
     font-size: 48px;
@@ -161,6 +190,13 @@
     0% { transform: translate(-50%, -30%) scale(0.5); opacity: 0; }
     30% { transform: translate(-50%, -60%) scale(1.3); opacity: 1; }
     100% { transform: translate(-50%, -90%) scale(1.6); opacity: 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .water-splash {
+      animation: none;
+      opacity: 0;
+    }
   }
 
   .interactive-container {
@@ -225,15 +261,25 @@
     transform: scale(0.96);
   }
 
-  .action-btn.quench {
-    background: #38bdf8;
-    color: #0369a1;
+  .action-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  .action-btn:focus-visible {
+    outline: 3px solid #ffffff;
+    outline-offset: 2px;
   }
 
   .action-btn.discard {
     background: rgba(255, 255, 255, 0.15);
     color: #ffffff;
     border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  .action-btn.dampen {
+    background: #38bdf8;
+    color: #0369a1;
   }
 
   .feedback {
@@ -244,6 +290,25 @@
     line-height: 1.4;
     opacity: 0.9;
     padding: 0 8px;
+  }
+
+  .continue-btn {
+    width: 100%;
+    max-width: 360px;
+    border: none;
+    border-radius: 999px;
+    padding: 12px 24px;
+    font-size: 15px;
+    font-weight: 600;
+    background: #ffffff;
+    color: #1e293b;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+    cursor: pointer;
+  }
+
+  .continue-btn:focus-visible {
+    outline: 3px solid #38bdf8;
+    outline-offset: 2px;
   }
 
   .button-primary {
@@ -288,12 +353,66 @@
     line-height: 1.5;
     color: #475569;
   }
+
+  .end-stats {
+    font-size: 15px;
+    font-weight: 600;
+    color: #0369a1;
+    background: #e0f2fe;
+    border-radius: 14px;
+    padding: 10px 16px;
+    display: inline-block;
+    margin-bottom: 14px;
+  }
+
+  .exit-confirm-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    z-index: 30;
+  }
+
+  .exit-confirm-card {
+    width: 100%;
+    max-width: 320px;
+    border-radius: 24px;
+    background: rgba(255,255,255,0.97);
+    color: #1e293b;
+    padding: 28px 22px;
+    text-align: center;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+  }
+
+  .exit-confirm-card h2 {
+    margin-top: 0;
+    font-size: 20px;
+  }
+
+  .secondary-btn {
+    width: 100%;
+    border: none;
+    border-radius: 999px;
+    padding: 12px 20px;
+    font-size: 15px;
+    font-weight: 600;
+    background: #e2e8f0;
+    color: #1e293b;
+    cursor: pointer;
+    margin-top: 10px;
+  }
 </style>
 </head>
 
 <body>
 
 <div class="game" id="startScreen">
+  <div class="top-row">
+    <button class="exitButton" onclick="confirmExit()" aria-label="Exit game">&times; Exit</button>
+  </div>
   <div class="header-group" style="margin-top: auto;">
     <h1>Extinguish the Fire</h1>
     <p class="subtitle">
@@ -317,6 +436,9 @@
 </div>
 
 <div class="game hidden" id="gameScreen">
+  <div class="top-row">
+    <button class="exitButton" onclick="confirmExit()" aria-label="Exit game">&times; Exit</button>
+  </div>
   <div class="header-group">
     <h1>Cool the Fire</h1>
     <div class="score" id="scoreText">Fire Intensity: 5</div>
@@ -340,19 +462,22 @@
     </div>
 
     <div class="action-buttons">
-      <button class="action-btn discard" onclick="chooseAction('fuel')">✕ Discard</button>
-      <button class="action-btn dampen" onclick="chooseAction('water')">💧 Dampen</button>
+      <button class="action-btn discard" id="discardBtn" onclick="chooseAction('discard')">✕ Discard</button>
+      <button class="action-btn dampen" id="dampenBtn" onclick="chooseAction('dampen')">💧 Dampen</button>
     </div>
 
-    <div class="feedback" id="feedback">
+    <div class="feedback" id="feedback" aria-live="polite">
       Is this thought water that cools, or fuel that burns?
     </div>
+
+    <button class="continue-btn hidden" id="continueBtn" onclick="nextCard()">Continue</button>
   </div>
-  <div></div> </div>
+</div>
 
 <div class="game hidden" id="endScreen">
   <div class="end-card">
     <h2>Fire Extinguished.</h2>
+    <div class="end-stats" id="endStats"></div>
     <p>
       The thoughts we validate can either build a wildfire or let it pass safely.
     </p>
@@ -364,7 +489,23 @@
   <button class="button-primary" onclick="restartGame()">Practice Again</button>
 </div>
 
+<div class="exit-confirm-overlay" id="exitConfirm">
+  <div class="exit-confirm-card">
+    <h2>Leave the game?</h2>
+    <p>Your current session progress won't be saved.</p>
+    <button class="button-primary" onclick="doExit()">Yes, exit</button>
+    <button class="secondary-btn" onclick="cancelExit()">Stay</button>
+  </div>
+</div>
+
 <script>
+/*
+  Each thought is either "water" (a thought that helps cool anger down,
+  correctly handled with Dampen) or "fuel" (a thought that feeds anger,
+  correctly handled with Discard). Every thought carries its own
+  feedback explaining why, regardless of whether the player got it
+  right, so each round is a teaching moment either way.
+*/
 const thoughts = [
   { text: "I can pause before reacting.", type: "water", feedback: "Excellent. Taking a pause separates impulse from intentional action." },
   { text: "One slow breath first.", type: "water", feedback: "Perfect. Slowing down your biology calms the nervous system directly." },
@@ -380,16 +521,29 @@ const thoughts = [
   { text: "I'll show them.", type: "fuel", feedback: "That's fuel. Retaliation replaces resolving the tension with fueling it." }
 ];
 
+// Maps each thought type to the action that correctly handles it.
+const correctActionFor = {
+  water: "dampen",
+  fuel: "discard"
+};
+
 let deck = [];
 let currentThought = null;
 let fireLevel = 5;
 let isAnimating = false;
+let attempts = 0;
+let correctCount = 0;
 
 const card = document.getElementById("thoughtCard");
 const fireArea = document.getElementById("fireArea");
 const fire = document.getElementById("fire");
 const feedback = document.getElementById("feedback");
 const scoreText = document.getElementById("scoreText");
+const discardBtn = document.getElementById("discardBtn");
+const dampenBtn = document.getElementById("dampenBtn");
+const continueBtn = document.getElementById("continueBtn");
+const endStats = document.getElementById("endStats");
+const exitConfirm = document.getElementById("exitConfirm");
 
 function startGame() {
   document.getElementById("startScreen").classList.add("hidden");
@@ -407,12 +561,18 @@ function resetSession() {
   deck = shuffle([...thoughts]);
   fireLevel = 5;
   isAnimating = false;
+  attempts = 0;
+  correctCount = 0;
   feedback.textContent = "Is this thought water that cools, or fuel that burns?";
+  continueBtn.classList.add("hidden");
+  setButtonsEnabled(true);
   updateFire();
   nextCard();
 }
 
 function nextCard() {
+  continueBtn.classList.add("hidden");
+
   if (fireLevel <= 0) {
     setTimeout(endGame, 400);
     return;
@@ -427,6 +587,8 @@ function nextCard() {
   card.style.transform = "scale(1) translateY(0)";
   card.style.opacity = "1";
   isAnimating = false;
+  setButtonsEnabled(true);
+  feedback.textContent = "Is this thought water that cools, or fuel that burns?";
 }
 
 function updateFire() {
@@ -435,31 +597,37 @@ function updateFire() {
   scoreText.textContent = `Fire Intensity: ${fireLevel}`;
 }
 
+function setButtonsEnabled(enabled) {
+  discardBtn.disabled = !enabled;
+  dampenBtn.disabled = !enabled;
+}
+
 function chooseAction(actionType) {
   if (isAnimating || !currentThought) return;
   isAnimating = true;
+  setButtonsEnabled(false);
 
-  const isCorrect = currentThought.type === actionType;
+  attempts += 1;
+  const isCorrect = correctActionFor[currentThought.type] === actionType;
+  if (isCorrect) correctCount += 1;
 
-  if (actionType === "water") {
+  if (actionType === "dampen") {
     if (isCorrect) {
       fireLevel--;
-      showSplash("💧");
+      showSplash("\uD83D\uDCA7");
       card.style.transform = "translateY(-40px) scale(0.8)";
     } else {
       fireLevel = Math.min(7, fireLevel + 1);
-      showSplash("🔥");
+      showSplash("\uD83D\uDD25");
       card.style.transform = "translateY(20px) scale(1.05)";
       vibrate(100);
     }
-  } else { // User selected 'discard'
+  } else { // actionType === "discard"
     if (isCorrect) {
-      // Discarded fuel successfully
       card.style.transform = "translateX(-150%) rotate(-15deg)";
     } else {
-      // Discarded water mistakenly
       fireLevel = Math.min(7, fireLevel + 1);
-      showSplash("🔥");
+      showSplash("\uD83D\uDD25");
       card.style.transform = "translateX(150%) rotate(15deg)";
       vibrate(100);
     }
@@ -469,7 +637,8 @@ function chooseAction(actionType) {
   card.style.opacity = "0";
   updateFire();
 
-  setTimeout(nextCard, 1200);
+  continueBtn.classList.remove("hidden");
+  continueBtn.focus();
 }
 
 function showSplash(symbol) {
@@ -486,16 +655,36 @@ function showSplash(symbol) {
 function endGame() {
   document.getElementById("gameScreen").classList.add("hidden");
   document.getElementById("endScreen").classList.remove("hidden");
+  endStats.textContent = `${correctCount} of ${attempts} thoughts sorted correctly`;
 }
 
 function shuffle(array) {
-  return array.sort(() => Math.random() - 0.5);
+  const copy = [...array];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
 }
 
 function vibrate(ms) {
   if (navigator.vibrate) {
     navigator.vibrate(ms);
   }
+}
+
+function confirmExit() {
+  exitConfirm.style.display = "flex";
+}
+
+function cancelExit() {
+  exitConfirm.style.display = "none";
+}
+
+function doExit() {
+  // Hook this up to whatever navigation your app uses to leave the game
+  // (e.g. window.location.href = "/home" or a message to a parent app shell).
+  exitConfirm.style.display = "none";
 }
 </script>
 
