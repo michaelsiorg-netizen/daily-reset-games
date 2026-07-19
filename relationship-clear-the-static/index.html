@@ -30,6 +30,18 @@ body {
   overflow: hidden;
 }
 
+#staticOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0.32;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.5 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+  transition: opacity 0.6s ease;
+}
+
 #headerCard {
   position: relative;
   margin: 16px 16px 0;
@@ -124,11 +136,27 @@ p {
 }
 
 .item.static {
-  color: #8E99A8;
+  color: #637081;
 }
 
 .item:active {
   transform: scale(0.94);
+}
+
+.item.flicker-in {
+  animation: staticFlickerIn 0.5s steps(1) 1;
+}
+
+@keyframes staticFlickerIn {
+  0%   { opacity: 0; }
+  10%  { opacity: 1; }
+  18%  { opacity: 0.15; }
+  26%  { opacity: 1; }
+  34%  { opacity: 0.25; }
+  44%  { opacity: 1; }
+  55%  { opacity: 0.4; }
+  68%  { opacity: 1; }
+  100% { opacity: 1; }
 }
 
 #legend {
@@ -208,6 +236,8 @@ button {
 <body>
 <div id="game">
 
+  <div id="staticOverlay"></div>
+
   <div id="headerCard">
     <div class="headerTopRow">
       <button class="exitButton" onclick="confirmExit()" aria-label="Exit game">&times; Exit</button>
@@ -265,6 +295,10 @@ const startScreen = document.getElementById("startScreen");
 const endScreen = document.getElementById("endScreen");
 const finalScore = document.getElementById("finalScore");
 const exitConfirm = document.getElementById("exitConfirm");
+const staticOverlay = document.getElementById("staticOverlay");
+
+const STATIC_OVERLAY_MAX_OPACITY = 0.32;
+const STATIC_OVERLAY_CLEAR_SCORE = 12;
 
 const helpfulItems = [
   "Pause",
@@ -313,13 +347,17 @@ const staticFeedback = [
 ];
 
 let score = 0;
+let bestScore = 0;
 let time = 30;
 let gameRunning = false;
 let spawnInterval = null;
 let timerInterval = null;
+let activeItems = [];
+let driftFrame = null;
 
 function startGame() {
   score = 0;
+  bestScore = 0;
   time = 30;
   gameRunning = true;
 
@@ -327,8 +365,10 @@ function startGame() {
   timeEl.textContent = time;
   feedbackText.textContent = "";
   feedbackText.className = "";
+  updateStaticOverlay();
 
   document.querySelectorAll(".item").forEach(item => item.remove());
+  activeItems = [];
 
   startScreen.classList.add("hidden");
   endScreen.classList.add("hidden");
@@ -343,6 +383,16 @@ function startGame() {
       endGame();
     }
   }, 1000);
+
+  startDriftLoop();
+}
+
+function updateStaticOverlay() {
+  if (score > bestScore) {
+    bestScore = score;
+  }
+  const intensity = Math.max(0, 1 - bestScore / STATIC_OVERLAY_CLEAR_SCORE);
+  staticOverlay.style.opacity = (STATIC_OVERLAY_MAX_OPACITY * intensity).toFixed(3);
 }
 
 function getSpawnBounds(itemWidth, itemHeight) {
@@ -362,7 +412,7 @@ function spawnItem() {
   if (!gameRunning) return;
 
   const item = document.createElement("div");
-  item.className = "item";
+  item.className = "item flicker-in";
 
   const isHelpful = Math.random() > 0.38;
   const text = isHelpful
@@ -373,27 +423,109 @@ function spawnItem() {
   item.dataset.type = isHelpful ? "helpful" : "static";
   item.classList.add(isHelpful ? "helpful" : "static");
 
+  item.addEventListener("animationend", () => item.classList.remove("flicker-in"), { once: true });
+
   const rootStyle = getComputedStyle(document.documentElement);
   const itemWidth = parseFloat(rootStyle.getPropertyValue("--item-width"));
   const itemHeight = parseFloat(rootStyle.getPropertyValue("--item-height"));
 
   const bounds = getSpawnBounds(itemWidth, itemHeight);
-  const x = bounds.minX + Math.random() * Math.max(0, bounds.maxX - bounds.minX);
-  const y = bounds.minY + Math.random() * Math.max(0, bounds.maxY - bounds.minY);
 
-  item.style.left = x + "px";
-  item.style.top = y + "px";
+  const state = {
+    el: item,
+    bounds,
+    baseX: bounds.minX + Math.random() * Math.max(0, bounds.maxX - bounds.minX),
+    baseY: bounds.minY + Math.random() * Math.max(0, bounds.maxY - bounds.minY),
+    jitterX: 0,
+    jitterY: 0,
+    jitterTimer: 0
+  };
+
+  // Gentle base drift, like Calm Catch's bounce physics, but with a small
+  // stepped jitter re-rolled every ~80-200ms layered on top (see
+  // startDriftLoop) so the motion reads as signal interference rather than
+  // smooth calm movement.
+  const angle = Math.random() * Math.PI * 2;
+  const speed = 0.35 + Math.random() * 0.3;
+  state.vx = Math.cos(angle) * speed;
+  state.vy = Math.sin(angle) * speed;
+
+  item.style.left = state.baseX + "px";
+  item.style.top = state.baseY + "px";
 
   item.onclick = () => handleTap(item);
 
   game.appendChild(item);
+  activeItems.push(state);
 
   setTimeout(() => {
     if (item.parentNode) {
+      untrackItem(item);
       item.style.opacity = "0";
       setTimeout(() => item.remove(), 200);
     }
   }, 5000);
+}
+
+function untrackItem(item) {
+  const index = activeItems.findIndex(state => state.el === item);
+  if (index !== -1) {
+    activeItems.splice(index, 1);
+  }
+}
+
+function startDriftLoop() {
+  if (driftFrame) return;
+
+  let lastTime = performance.now();
+
+  const tick = (now) => {
+    const dt = Math.min(now - lastTime, 50);
+    const step = dt / 16.67;
+    lastTime = now;
+
+    activeItems.forEach(state => {
+      state.baseX += state.vx * step;
+      state.baseY += state.vy * step;
+
+      if (state.baseX < state.bounds.minX) {
+        state.baseX = state.bounds.minX;
+        state.vx *= -1;
+      } else if (state.baseX > state.bounds.maxX) {
+        state.baseX = state.bounds.maxX;
+        state.vx *= -1;
+      }
+
+      if (state.baseY < state.bounds.minY) {
+        state.baseY = state.bounds.minY;
+        state.vy *= -1;
+      } else if (state.baseY > state.bounds.maxY) {
+        state.baseY = state.bounds.maxY;
+        state.vy *= -1;
+      }
+
+      state.jitterTimer -= dt;
+      if (state.jitterTimer <= 0) {
+        state.jitterX = (Math.random() - 0.5) * 6;
+        state.jitterY = (Math.random() - 0.5) * 6;
+        state.jitterTimer = 80 + Math.random() * 140;
+      }
+
+      state.el.style.left = (state.baseX + state.jitterX) + "px";
+      state.el.style.top = (state.baseY + state.jitterY) + "px";
+    });
+
+    driftFrame = requestAnimationFrame(tick);
+  };
+
+  driftFrame = requestAnimationFrame(tick);
+}
+
+function stopDriftLoop() {
+  if (driftFrame) {
+    cancelAnimationFrame(driftFrame);
+    driftFrame = null;
+  }
 }
 
 function handleTap(item) {
@@ -412,7 +544,9 @@ function handleTap(item) {
   }
 
   scoreEl.textContent = score;
+  updateStaticOverlay();
 
+  untrackItem(item);
   item.style.opacity = "0";
   item.style.transform = "scale(0.75)";
   setTimeout(() => item.remove(), 120);
@@ -422,8 +556,10 @@ function endGame() {
   gameRunning = false;
   clearInterval(spawnInterval);
   clearInterval(timerInterval);
+  stopDriftLoop();
 
   document.querySelectorAll(".item").forEach(item => item.remove());
+  activeItems = [];
 
   finalScore.textContent = "Final Score: " + score;
   endScreen.classList.remove("hidden");
@@ -441,7 +577,9 @@ function doExit() {
   gameRunning = false;
   clearInterval(spawnInterval);
   clearInterval(timerInterval);
+  stopDriftLoop();
   document.querySelectorAll(".item").forEach(item => item.remove());
+  activeItems = [];
 
   exitConfirm.classList.add("hidden");
   endScreen.classList.add("hidden");
