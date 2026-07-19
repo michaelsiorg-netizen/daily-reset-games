@@ -36,6 +36,25 @@ body {
 
 #headerCard {
   padding: 14px 12px;
+  position: relative;
+}
+
+.exitButton {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: #8E99A8;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 10px;
+}
+
+.exitButton:hover, .exitButton:focus-visible {
+  background: #EEF4F8;
+  color: #4A6FA5;
 }
 
 h1 {
@@ -84,6 +103,7 @@ p {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  overflow-y: auto;
 }
 
 .choiceButton {
@@ -102,11 +122,25 @@ p {
   border-left: 5px solid #8E99A8;
   transition: background-color 0.2s ease, color 0.2s ease, border-left-color 0.2s ease;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.choiceButton:focus-visible {
+  outline: 3px solid #4A6FA5;
+  outline-offset: 2px;
 }
 
 .choiceButton:disabled {
   opacity: 0.95;
   cursor: default;
+}
+
+.choiceIcon {
+  font-size: 18px;
+  flex-shrink: 0;
+  visibility: hidden;
 }
 
 .choiceGreen {
@@ -115,22 +149,35 @@ p {
   border-left-color: #1E533C !important;
 }
 
+.choiceGreen .choiceIcon {
+  visibility: visible;
+}
+
 .choiceRed {
   background: #A94442 !important;
   color: white !important;
   border-left-color: #732D2C !important;
 }
 
-#feedbackText {
-  text-align: center;
-  font-size: 18px;
-  font-weight: bold;
-  min-height: 44px;
-  line-height: 1.25;
+.choiceRed .choiceIcon {
+  visibility: visible;
+}
+
+#feedbackCard {
+  padding: 14px 16px;
+  min-height: 64px;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 0 10px;
+  gap: 10px;
+}
+
+#feedbackText {
+  text-align: center;
+  font-size: 17px;
+  font-weight: bold;
+  line-height: 1.3;
 }
 
 .greenFeedback {
@@ -139,6 +186,22 @@ p {
 
 .redFeedback {
   color: #A94442;
+}
+
+.continueButton {
+  background: #4A6FA5;
+  color: white;
+  border: none;
+  border-radius: 16px;
+  padding: 10px 22px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.continueButton:focus-visible {
+  outline: 3px solid #2E2E2E;
+  outline-offset: 2px;
 }
 
 #startScreen, #endScreen {
@@ -169,8 +232,25 @@ p {
   cursor: pointer;
 }
 
+.startButton:focus-visible {
+  outline: 3px solid #2E2E2E;
+  outline-offset: 2px;
+}
+
 .hidden {
   display: none !important;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 @media (max-height: 700px) {
@@ -182,7 +262,8 @@ p {
   #scenarioText { font-size: 19px; }
   #questionText { font-size: 16px; }
   .choiceButton { min-height: 48px; font-size: 14px; padding: 8px 12px; }
-  #feedbackText { font-size: 16px; min-height: 34px; }
+  #feedbackCard { min-height: 54px; padding: 10px 12px; }
+  #feedbackText { font-size: 15px; }
 }
 </style>
 </head>
@@ -191,34 +272,46 @@ p {
 <div id="game">
 
   <div id="headerCard" class="card">
+    <button class="exitButton" onclick="confirmExit()" aria-label="Exit game">&times; Exit</button>
     <h1>Red Light / Green Light</h1>
-    <p>Anger wants speed. Practice pausing before you react.</p>
+    <p>Strong feelings want speed. Practice pausing before you react.</p>
     <div class="stats">
       <div>Score: <span id="score">0</span></div>
-      <div>Round: <span id="round">1</span>/10</div>
+      <div>Round: <span id="round">1</span>/<span id="totalRounds">10</span></div>
     </div>
   </div>
 
   <div id="scenarioCard" class="card">
-    <div id="scenarioText">Loading...</div>
+    <div id="scenarioText" aria-live="polite">Loading...</div>
   </div>
 
   <div id="questionText">Which response gets the green light?</div>
 
-  <div id="choices">
-    <button class="choiceButton" onclick="chooseAnswer(0)" id="choice0">Loading...</button>
-    <button class="choiceButton" onclick="chooseAnswer(1)" id="choice1">Loading...</button>
-    <button class="choiceButton" onclick="chooseAnswer(2)" id="choice2">Loading...</button>
-    <button class="choiceButton" onclick="chooseAnswer(3)" id="choice3">Loading...</button>
+  <div id="choices" role="group" aria-label="Choose a response">
+    <button class="choiceButton" onclick="chooseAnswer(0)" id="choice0">
+      <span class="choiceIcon" id="icon0"></span><span id="text0">Loading...</span>
+    </button>
+    <button class="choiceButton" onclick="chooseAnswer(1)" id="choice1">
+      <span class="choiceIcon" id="icon1"></span><span id="text1">Loading...</span>
+    </button>
+    <button class="choiceButton" onclick="chooseAnswer(2)" id="choice2">
+      <span class="choiceIcon" id="icon2"></span><span id="text2">Loading...</span>
+    </button>
+    <button class="choiceButton" onclick="chooseAnswer(3)" id="choice3">
+      <span class="choiceIcon" id="icon3"></span><span id="text3">Loading...</span>
+    </button>
   </div>
 
-  <div id="feedbackText"></div>
+  <div id="feedbackCard" class="card hidden">
+    <div id="feedbackText" aria-live="polite"></div>
+    <button class="continueButton hidden" id="continueButton" onclick="nextRound()">Continue</button>
+  </div>
 
   <div id="startScreen">
     <div class="card modalCard">
       <h1>Red Light / Green Light</h1>
       <p>Strong emotions can make reacting feel urgent.</p>
-      <p>Choose the response that creates a pause and moves things forward.</p>
+      <p>Choose the response that creates a pause and moves things forward. Each answer explains why it helps or doesn't &mdash; take your time.</p>
       <button class="startButton" onclick="startGame()">Start</button>
     </div>
   </div>
@@ -227,21 +320,230 @@ p {
     <div class="card modalCard">
       <h1>Great Work</h1>
       <p id="finalScore"></p>
-      <p>You practiced creating space between anger and action.</p>
+      <p>You practiced creating space between a strong feeling and what you do next. That pause gets easier with repetition.</p>
       <button class="startButton" onclick="startGame()">Play Again</button>
+    </div>
+  </div>
+
+  <div id="exitConfirm" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;z-index:30;padding:24px;">
+    <div class="card modalCard">
+      <h1 style="font-size:22px;">Leave the game?</h1>
+      <p>Your current round progress won't be saved.</p>
+      <button class="startButton" onclick="doExit()">Yes, exit</button>
+      <button class="continueButton" style="margin-top:10px;background:#8E99A8;" onclick="cancelExit()">Stay</button>
     </div>
   </div>
 
 </div>
 
 <script>
+/*
+  Data structure notes:
+  Each round has a scenario and 4 choices. Every choice (not just the
+  correct one) carries its own feedback explaining WHY it does or
+  doesn't help, so every pick is a teaching moment, not just the
+  "wrong" ones. Correct answers are deliberately varied across
+  strategies (pausing, naming the emotion, seeking clarification,
+  taking space, self-compassion, assertive communication, physical
+  regulation) rather than always "breathe and wait," so players
+  build a broader toolkit instead of pattern-matching one phrase.
+*/
+const rounds = [
+  {
+    scenario: "You receive a text that feels rude.",
+    choices: [
+      { text: "Reply immediately while angry.", correct: false,
+        feedback: "Replying in the heat of the moment often says more about the feeling than the situation." },
+      { text: "Put the phone down and take a breath first.", correct: true,
+        feedback: "A pause lets you respond on purpose instead of on impulse." },
+      { text: "Send a long paragraph you might regret.", correct: false,
+        feedback: "Over-explaining in anger rarely lands the way it's intended to." },
+      { text: "Screenshot it and vent to several people.", correct: false,
+        feedback: "This can spread the conflict wider without resolving anything." }
+    ]
+  },
+  {
+    scenario: "Someone cuts you off in traffic.",
+    choices: [
+      { text: "Chase them and honk repeatedly.", correct: false,
+        feedback: "This raises the stakes of a moment that will be over in seconds." },
+      { text: "Call them names out loud.", correct: false,
+        feedback: "It vents the feeling but doesn't change the situation or how you feel after." },
+      { text: "Name the feeling silently: “I'm angry right now.”", correct: true,
+        feedback: "Naming a feeling calms the body's alarm response and creates distance from it." },
+      { text: "Replay it angrily for the next hour.", correct: false,
+        feedback: "Rehearsing anger tends to extend it rather than release it." }
+    ]
+  },
+  {
+    scenario: "Your partner says, \"We need to talk.\"",
+    choices: [
+      { text: "Assume the worst immediately.", correct: false,
+        feedback: "Jumping to the worst-case story can create anxiety before you even know what's happening." },
+      { text: "Ask when they'd like to talk and stay curious.", correct: true,
+        feedback: "Curiosity keeps you gathering information instead of reacting to a guess." },
+      { text: "Send several anxious or angry texts.", correct: false,
+        feedback: "This can escalate a conversation that hasn't even started yet." },
+      { text: "Shut down and ignore them.", correct: false,
+        feedback: "Avoidance delays the discomfort but usually doesn't resolve it." }
+    ]
+  },
+  {
+    scenario: "A coworker criticizes your work.",
+    choices: [
+      { text: "Defend yourself before they finish talking.", correct: false,
+        feedback: "Jumping in early can mean you miss what they're actually saying." },
+      { text: "Send a passive-aggressive email later.", correct: false,
+        feedback: "Indirect responses tend to create more confusion than clarity." },
+      { text: "Ask a clarifying question about what they mean.", correct: true,
+        feedback: "Questions slow the moment down and often reveal the feedback is more workable than it first felt." },
+      { text: "Decide they're attacking you personally.", correct: false,
+        feedback: "Taking it as a personal attack can turn feedback into a bigger conflict than it needs to be." }
+    ]
+  },
+  {
+    scenario: "You feel yourself getting heated during an argument.",
+    choices: [
+      { text: "Talk louder so they understand.", correct: false,
+        feedback: "Volume rarely helps a message land better." },
+      { text: "Ask for a short break before continuing.", correct: true,
+        feedback: "A brief pause lets both people return to the conversation calmer and clearer." },
+      { text: "Bring up everything they've ever done wrong.", correct: false,
+        feedback: "Widening the argument usually makes the original issue harder to solve." },
+      { text: "Say something hurtful to win.", correct: false,
+        feedback: "Winning the moment this way often costs more in the relationship afterward." }
+    ]
+  },
+  {
+    scenario: "Someone disagrees with you online.",
+    choices: [
+      { text: "Write an insulting reply.", correct: false,
+        feedback: "This usually escalates without changing anyone's mind." },
+      { text: "Keep arguing until they admit you're right.", correct: false,
+        feedback: "Trying to force agreement online rarely works and can cost you time and peace." },
+      { text: "Pause and decide if responding is worth it.", correct: true,
+        feedback: "Not every disagreement needs your energy \u2014 choosing is a form of control." },
+      { text: "Take it personally and spiral.", correct: false,
+        feedback: "A stranger's opinion doesn't have to define your day." }
+    ]
+  },
+  {
+    scenario: "You feel disrespected in a conversation.",
+    choices: [
+      { text: "Make a threat.", correct: false,
+        feedback: "Threats tend to escalate a situation rather than resolve the disrespect." },
+      { text: "Interrupt and attack their character.", correct: false,
+        feedback: "This shifts the conversation from the issue to a personal fight." },
+      { text: "Say, \"I need a minute before I respond.\"", correct: true,
+        feedback: "Naming your need out loud is assertive and buys you the pause without shutting the other person out." },
+      { text: "Walk away calmly without explanation.", correct: false,
+        feedback: "Walking away can be healthy, but leaving no explanation can leave the other person confused or worried \u2014 a short heads-up helps." }
+    ]
+  },
+  {
+    scenario: "A friend cancels plans last minute.",
+    choices: [
+      { text: "Send an angry guilt-trip text.", correct: false,
+        feedback: "Guilt-tripping can damage trust even if the disappointment is valid." },
+      { text: "Assume they don't care about you.", correct: false,
+        feedback: "One cancellation rarely tells the whole story about how someone feels about you." },
+      { text: "Notice the disappointment before responding.", correct: true,
+        feedback: "Acknowledging the feeling first helps you respond thoughtfully instead of reactively." },
+      { text: "Cut them off immediately.", correct: false,
+        feedback: "Ending a friendship over one moment removes the chance to hear their side." }
+    ]
+  },
+  {
+    scenario: "You made a mistake and feel frustrated with yourself.",
+    choices: [
+      { text: "Call yourself stupid.", correct: false,
+        feedback: "Harsh self-talk tends to make mistakes harder to recover from, not easier." },
+      { text: "Throw the whole task away.", correct: false,
+        feedback: "Abandoning the work doesn't fix the mistake, it just avoids it." },
+      { text: "Talk to yourself the way you'd talk to a friend.", correct: true,
+        feedback: "Self-compassion after a mistake makes it easier to actually fix it and move on." },
+      { text: "Work faster while frustrated.", correct: false,
+        feedback: "Rushing while frustrated often leads to more mistakes, not fewer." }
+    ]
+  },
+  {
+    scenario: "Someone says something that feels unfair.",
+    choices: [
+      { text: "React instantly.", correct: false,
+        feedback: "An instant reaction is often driven by the feeling, not the facts." },
+      { text: "Ask, \"Can you explain what you mean?\"", correct: true,
+        feedback: "Clarifying what someone meant can prevent a misunderstanding from becoming a conflict." },
+      { text: "Assume they meant to hurt you.", correct: false,
+        feedback: "Assuming the worst intention can create conflict that wasn't actually there." },
+      { text: "Bring up unrelated problems.", correct: false,
+        feedback: "This can make the original issue harder to actually resolve." }
+    ]
+  },
+  {
+    scenario: "You're irritated and notice your body feels tense.",
+    choices: [
+      { text: "Keep pushing through it.", correct: false,
+        feedback: "Ignoring physical tension often means it builds instead of easing." },
+      { text: "Take one slow breath and relax your shoulders.", correct: true,
+        feedback: "Your body often needs to settle before your mind can think clearly." },
+      { text: "Use the tension as proof you're right.", correct: false,
+        feedback: "Physical tension is information about your nervous system, not evidence about the argument." },
+      { text: "Pick a fight to release it.", correct: false,
+        feedback: "This can turn your own tension into someone else's problem." }
+    ]
+  },
+  {
+    scenario: "You want to send a message to prove your point.",
+    choices: [
+      { text: "Send it while your heart is racing.", correct: false,
+        feedback: "A racing heart is often a sign the message is coming from urgency, not clarity." },
+      { text: "Wait ten minutes and reread it first.", correct: true,
+        feedback: "A short delay gives your thinking brain time to catch up with your feelings." },
+      { text: "Add a few sharper comments first.", correct: false,
+        feedback: "Sharpening the message under strong emotion tends to escalate rather than persuade." },
+      { text: "Send several messages quickly.", correct: false,
+        feedback: "Multiple rapid messages can come across as more urgent or intense than you mean." }
+    ]
+  },
+  {
+    scenario: "Someone interrupts you while you're talking.",
+    choices: [
+      { text: "Snap at them immediately.", correct: false,
+        feedback: "Snapping can turn a small interruption into a bigger conflict." },
+      { text: "Say, \"I want to finish my thought.\"", correct: true,
+        feedback: "This is assertive, not aggressive \u2014 it states your need clearly without attacking." },
+      { text: "Stop talking and shut down.", correct: false,
+        feedback: "Going silent can leave your actual point unheard." },
+      { text: "Interrupt them back, louder.", correct: false,
+        feedback: "Matching the interruption usually just escalates who's talking over whom." }
+    ]
+  },
+  {
+    scenario: "You feel blamed for something that went wrong.",
+    choices: [
+      { text: "Blame them back right away.", correct: false,
+        feedback: "Trading blame usually escalates the conflict instead of solving the problem." },
+      { text: "Take a breath and ask what they need from you.", correct: true,
+        feedback: "This keeps you grounded and shifts the conversation toward solving the actual problem." },
+      { text: "Deny everything automatically.", correct: false,
+        feedback: "An automatic denial can shut down a conversation before you've even heard them out." },
+      { text: "Point out their tone instead of the issue.", correct: false,
+        feedback: "Focusing on tone can sidestep the actual concern being raised." }
+    ]
+  }
+];
+
 const scenarioText = document.getElementById("scenarioText");
+const feedbackCard = document.getElementById("feedbackCard");
 const feedbackText = document.getElementById("feedbackText");
+const continueButton = document.getElementById("continueButton");
 const scoreEl = document.getElementById("score");
 const roundEl = document.getElementById("round");
+const totalRoundsEl = document.getElementById("totalRounds");
 const startScreen = document.getElementById("startScreen");
 const endScreen = document.getElementById("endScreen");
 const finalScore = document.getElementById("finalScore");
+const exitConfirm = document.getElementById("exitConfirm");
 
 const choiceButtons = [
   document.getElementById("choice0"),
@@ -250,162 +552,7 @@ const choiceButtons = [
   document.getElementById("choice3")
 ];
 
-const rounds = [
-  {
-    scenario: "You receive a text that feels rude.",
-    choices: [
-      "Reply immediately while angry.",
-      "Put the phone down and take a breath.",
-      "Send a long paragraph you might regret.",
-      "Screenshot it and complain to everyone."
-    ],
-    correct: 1,
-    feedback: "Green light. A pause helps you respond instead of react."
-  },
-  {
-    scenario: "Someone cuts you off in traffic.",
-    choices: [
-      "Chase them and honk.",
-      "Call them names out loud.",
-      "Take a breath and keep driving.",
-      "Replay it angrily for the next hour."
-    ],
-    correct: 2,
-    feedback: "Green light. Letting go protects your peace."
-  },
-  {
-    scenario: "Your partner says, “We need to talk.”",
-    choices: [
-      "Assume the worst immediately.",
-      "Ask when they want to talk and stay curious.",
-      "Send several anxious or angry texts.",
-      "Shut down and ignore them."
-    ],
-    correct: 1,
-    feedback: "Green light. Curiosity gives you more information."
-  },
-  {
-    scenario: "A coworker criticizes your work.",
-    choices: [
-      "Defend yourself before they finish.",
-      "Send a passive-aggressive email.",
-      "Ask a clarifying question.",
-      "Decide they are attacking you."
-    ],
-    correct: 2,
-    feedback: "Green light. Questions slow down reactivity."
-  },
-  {
-    scenario: "You feel yourself getting heated during an argument.",
-    choices: [
-      "Talk louder so they understand.",
-      "Take a short break before continuing.",
-      "Bring up everything they have ever done.",
-      "Say something hurtful to win."
-    ],
-    correct: 1,
-    feedback: "Green light. Taking space can protect the relationship."
-  },
-  {
-    scenario: "Someone disagrees with you online.",
-    choices: [
-      "Write an insulting reply.",
-      "Keep arguing until they admit you are right.",
-      "Pause and decide if responding is worth it.",
-      "Take it personally and spiral."
-    ],
-    correct: 2,
-    feedback: "Green light. Not every trigger needs a response."
-  },
-  {
-    scenario: "You feel disrespected in a conversation.",
-    choices: [
-      "Make a threat.",
-      "Interrupt and attack their character.",
-      "Say, “I need a minute before I respond.”",
-      "Walk away without saying anything and slam the door."
-    ],
-    correct: 2,
-    feedback: "Green light. Naming the pause is a skill."
-  },
-  {
-    scenario: "A friend cancels plans last minute.",
-    choices: [
-      "Send an angry guilt-trip text.",
-      "Assume they do not care about you.",
-      "Notice the disappointment before responding.",
-      "Cut them off immediately."
-    ],
-    correct: 2,
-    feedback: "Green light. Feelings deserve attention before action."
-  },
-  {
-    scenario: "You made a mistake and feel frustrated with yourself.",
-    choices: [
-      "Call yourself stupid.",
-      "Throw the whole task away.",
-      "Pause and choose the next repair step.",
-      "Work faster while angry."
-    ],
-    correct: 2,
-    feedback: "Green light. Repair works better than self-attack."
-  },
-  {
-    scenario: "Someone says something that feels unfair.",
-    choices: [
-      "React instantly.",
-      "Ask, “Can you explain what you mean?”",
-      "Assume they meant to hurt you.",
-      "Bring up unrelated problems."
-    ],
-    correct: 1,
-    feedback: "Green light. Clarifying can prevent escalation."
-  },
-  {
-    scenario: "You are irritated and your body feels tense.",
-    choices: [
-      "Keep pushing through it.",
-      "Take one slow breath and relax your shoulders.",
-      "Use the tension as proof you are right.",
-      "Pick a fight to release it."
-    ],
-    correct: 1,
-    feedback: "Green light. Your body often needs the pause first."
-  },
-  {
-    scenario: "You want to send a message to prove your point.",
-    choices: [
-      "Send it while your heart is racing.",
-      "Wait 10 minutes and reread it first.",
-      "Add a few sharper comments.",
-      "Send multiple messages quickly."
-    ],
-    correct: 1,
-    feedback: "Green light. Delay gives wisdom time to catch up."
-  },
-  {
-    scenario: "Someone interrupts you.",
-    choices: [
-      "Snap at them immediately.",
-      "Say, “I want to finish my thought.”",
-      "Stop listening completely.",
-      "Interrupt them back louder."
-    ],
-    correct: 1,
-    feedback: "Green light. Assertive is different from aggressive."
-  },
-  {
-    scenario: "You feel blamed for something.",
-    choices: [
-      "Blame them back.",
-      "Take a breath and ask what they need from you.",
-      "Deny everything automatically.",
-      "Attack their tone."
-    ],
-    correct: 1,
-    feedback: "Green light. A pause helps you stay grounded."
-  }
-];
+const ROUNDS_PER_GAME = 10;
 
 let gameRounds = [];
 let currentRound = null;
@@ -420,13 +567,18 @@ function startGame() {
 
   scoreEl.textContent = score;
   roundEl.textContent = round;
+  totalRoundsEl.textContent = Math.min(ROUNDS_PER_GAME, rounds.length);
+
+  feedbackCard.classList.add("hidden");
   feedbackText.textContent = "";
   feedbackText.className = "";
+  continueButton.classList.add("hidden");
 
   startScreen.classList.add("hidden");
   endScreen.classList.add("hidden");
+  exitConfirm.classList.add("hidden");
 
-  gameRounds = shuffle([...rounds]).slice(0, 10);
+  gameRounds = shuffle([...rounds]).slice(0, Math.min(ROUNDS_PER_GAME, rounds.length));
   showRound();
 }
 
@@ -436,19 +588,24 @@ function showRound() {
 
   scenarioText.textContent = currentRound.scenario;
   roundEl.textContent = round;
+
+  feedbackCard.classList.add("hidden");
   feedbackText.textContent = "";
   feedbackText.className = "";
+  continueButton.classList.add("hidden");
 
-  const shuffledChoices = currentRound.choices.map((text, index) => ({
-    text,
+  const shuffledChoices = currentRound.choices.map((choice, index) => ({
+    ...choice,
     originalIndex: index
   }));
 
   shuffle(shuffledChoices);
 
   choiceButtons.forEach((button, index) => {
-    button.textContent = shuffledChoices[index].text;
-    button.dataset.originalIndex = shuffledChoices[index].originalIndex;
+    const data = shuffledChoices[index];
+    document.getElementById("text" + index).textContent = data.text;
+    document.getElementById("icon" + index).textContent = "";
+    button.dataset.originalIndex = data.originalIndex;
     button.disabled = false;
     button.className = "choiceButton";
   });
@@ -461,42 +618,67 @@ function chooseAnswer(buttonIndex) {
 
   const selectedButton = choiceButtons[buttonIndex];
   const selectedOriginalIndex = Number(selectedButton.dataset.originalIndex);
+  const selectedChoice = currentRound.choices[selectedOriginalIndex];
 
   choiceButtons.forEach(button => {
     button.disabled = true;
   });
 
-  if (selectedOriginalIndex === currentRound.correct) {
+  feedbackCard.classList.remove("hidden");
+  continueButton.classList.remove("hidden");
+
+  if (selectedChoice.correct) {
     score += 1;
     scoreEl.textContent = score;
     selectedButton.classList.add("choiceGreen");
-    feedbackText.textContent = currentRound.feedback;
+    document.getElementById("icon" + buttonIndex).textContent = "\u2713";
+    feedbackText.textContent = "Green light \u2014 " + selectedChoice.feedback;
     feedbackText.className = "greenFeedback";
   } else {
     selectedButton.classList.add("choiceRed");
-    feedbackText.textContent = "Red light. Anger often wants speed. Try creating a pause.";
+    document.getElementById("icon" + buttonIndex).textContent = "\u2717";
+    feedbackText.textContent = "Not quite \u2014 " + selectedChoice.feedback;
     feedbackText.className = "redFeedback";
 
-    choiceButtons.forEach(button => {
-      if (Number(button.dataset.originalIndex) === currentRound.correct) {
+    choiceButtons.forEach((button, idx) => {
+      const originalIdx = Number(button.dataset.originalIndex);
+      if (currentRound.choices[originalIdx].correct) {
         button.classList.add("choiceGreen");
+        document.getElementById("icon" + idx).textContent = "\u2713";
       }
     });
   }
 
-  setTimeout(() => {
-    if (round >= 10) {
-      endGame();
-    } else {
-      round += 1;
-      showRound();
-    }
-  }, 1400);
+  continueButton.focus();
+}
+
+function nextRound() {
+  if (round >= gameRounds.length) {
+    endGame();
+  } else {
+    round += 1;
+    showRound();
+  }
 }
 
 function endGame() {
-  finalScore.textContent = "Final Score: " + score + " / 10";
+  finalScore.textContent = "Final Score: " + score + " / " + gameRounds.length;
   endScreen.classList.remove("hidden");
+}
+
+function confirmExit() {
+  exitConfirm.classList.remove("hidden");
+}
+
+function cancelExit() {
+  exitConfirm.classList.add("hidden");
+}
+
+function doExit() {
+  // Hook this up to whatever navigation your app uses to leave the game
+  // (e.g. window.location.href = "/home" or a message to a parent app shell).
+  exitConfirm.classList.add("hidden");
+  startScreen.classList.remove("hidden");
 }
 
 function shuffle(array) {
