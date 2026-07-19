@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Thought Sort</title>
 
 <style>
@@ -16,7 +16,7 @@ html, body {
   overflow: hidden;
   position: fixed;
   overscroll-behavior: none;
-  touch-action: none;
+  touch-action: manipulation;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
@@ -24,7 +24,7 @@ html, body {
   width: 100%;
   height: 100vh;
   overflow: hidden;
-  touch-action: none;
+  touch-action: manipulation;
 }
 
 #game {
@@ -618,10 +618,14 @@ function shuffle(array) {
   return array;
 }
 
+// Only block touch scrolling while a card is actively being dragged -
+// otherwise this would also block pinch-zoom on the rest of the screen.
 document.addEventListener(
   "touchmove",
   function (e) {
-    e.preventDefault();
+    if (dragging) {
+      e.preventDefault();
+    }
   },
   { passive: false }
 );
