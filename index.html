@@ -55,6 +55,27 @@
     font-weight: bold;
   }
 
+  .headerTopRow {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: -6px;
+  }
+
+  .exitButton {
+    background: none;
+    border: none;
+    font-size: 15px;
+    color: #8E99A8;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 10px;
+  }
+
+  .exitButton:hover, .exitButton:focus-visible {
+    background: #EEF4F8;
+    color: #4A6FA5;
+  }
+
   .item {
     position: absolute;
     font-size: 46px;
@@ -121,6 +142,9 @@
 <div id="game">
 
   <div class="header">
+    <div class="headerTopRow">
+      <button class="exitButton" onclick="confirmExit()" aria-label="Exit game">&times; Exit</button>
+    </div>
     <h1>Calm Catch</h1>
     <div class="sub">Tap calming objects. Avoid stress objects.</div>
     <div class="stats">
@@ -149,6 +173,15 @@
     </div>
   </div>
 
+  <div id="exitConfirm" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;z-index:30;padding:24px;">
+    <div class="card">
+      <h2 style="font-size:22px;">Leave the game?</h2>
+      <p>Your current progress won't be saved.</p>
+      <button onclick="doExit()">Yes, exit</button>
+      <button style="margin-top:10px;background:#8E99A8;" onclick="cancelExit()">Stay</button>
+    </div>
+  </div>
+
 </div>
 
 <script>
@@ -158,18 +191,26 @@
   const startScreen = document.getElementById("startScreen");
   const endScreen = document.getElementById("endScreen");
   const finalScore = document.getElementById("finalScore");
+  const exitConfirm = document.getElementById("exitConfirm");
 
   const calmItems = ["🌳", "☁️", "🌊", "🌻", "🦋", "🌙", "⭐", "🍃"];
   const stressItems = ["⏰", "⚠️", "😠", "🔥", "💢"];
+
+  const ITEM_SIZE = 64;
+  const HEADER_CLEARANCE = 145;
+  const BOTTOM_MARGIN = 16;
 
   let score = 0;
   let time = 30;
   let gameRunning = false;
   let spawnInterval;
   let timerInterval;
+  let activeItems = [];
+  let driftFrame = null;
 
   function startGame() {
     document.querySelectorAll(".item").forEach(item => item.remove());
+    activeItems = [];
 
     score = 0;
     time = 30;
@@ -190,6 +231,8 @@
         endGame();
       }
     }, 1000);
+
+    startDriftLoop();
   }
 
   function spawnItem() {
@@ -205,48 +248,166 @@
 
     item.textContent = emoji;
 
-    const x = Math.random() * (window.innerWidth - 80);
-    const y = 145 + Math.random() * (window.innerHeight - 230);
+    const bounds = {
+      minX: 0,
+      maxX: window.innerWidth - ITEM_SIZE,
+      minY: HEADER_CLEARANCE,
+      maxY: window.innerHeight - ITEM_SIZE - BOTTOM_MARGIN
+    };
 
-    item.style.left = x + "px";
-    item.style.top = y + "px";
+    const state = {
+      el: item,
+      x: bounds.minX + Math.random() * (bounds.maxX - bounds.minX),
+      y: bounds.minY + Math.random() * (bounds.maxY - bounds.minY),
+      bounds,
+      isCalm
+    };
+
+    // Gentle random direction for every item. Calm items drift slow and
+    // smooth; stress items start faster and pick up occasional jitter
+    // (see startDriftLoop) so they read as more agitated.
+    const angle = Math.random() * Math.PI * 2;
+    const speed = isCalm ? 0.35 + Math.random() * 0.3 : 0.9 + Math.random() * 0.6;
+    state.vx = Math.cos(angle) * speed;
+    state.vy = Math.sin(angle) * speed;
+
+    item.style.left = state.x + "px";
+    item.style.top = state.y + "px";
 
     item.onclick = () => {
-  if (isCalm) {
-    score += 1;
+      if (isCalm) {
+        score += 1;
 
-    if (navigator.vibrate) {
-      navigator.vibrate([20]);
-    }
+        if (navigator.vibrate) {
+          navigator.vibrate([20]);
+        }
 
-  } else {
-    score = Math.max(0, score - 2);
+      } else {
+        score = Math.max(0, score - 2);
 
-    if (navigator.vibrate) {
-      navigator.vibrate([80, 50, 80]);
-    }
-  }
+        if (navigator.vibrate) {
+          navigator.vibrate([80, 50, 80]);
+        }
+      }
 
-  scoreEl.textContent = score;
-  item.remove();
-};
+      scoreEl.textContent = score;
+      removeItem(state);
+    };
 
     game.appendChild(item);
+    activeItems.push(state);
 
     setTimeout(() => {
-      item.remove();
+      removeItem(state);
     }, 4000);
+  }
+
+  function removeItem(state) {
+    const index = activeItems.indexOf(state);
+    if (index !== -1) {
+      activeItems.splice(index, 1);
+    }
+    state.el.remove();
+  }
+
+  function startDriftLoop() {
+    if (driftFrame) return;
+
+    let lastTime = performance.now();
+
+    const tick = (now) => {
+      const step = Math.min(now - lastTime, 50) / 16.67;
+      lastTime = now;
+
+      activeItems.forEach(state => {
+        if (!state.isCalm && Math.random() < 0.03) {
+          const jitterAngle = Math.random() * Math.PI * 2;
+          const jitterStrength = 0.5;
+          state.vx += Math.cos(jitterAngle) * jitterStrength;
+          state.vy += Math.sin(jitterAngle) * jitterStrength;
+
+          const maxSpeed = 2;
+          const currentSpeed = Math.hypot(state.vx, state.vy);
+          if (currentSpeed > maxSpeed) {
+            state.vx = (state.vx / currentSpeed) * maxSpeed;
+            state.vy = (state.vy / currentSpeed) * maxSpeed;
+          }
+        }
+
+        state.x += state.vx * step;
+        state.y += state.vy * step;
+
+        if (state.x < state.bounds.minX) {
+          state.x = state.bounds.minX;
+          state.vx *= -1;
+        } else if (state.x > state.bounds.maxX) {
+          state.x = state.bounds.maxX;
+          state.vx *= -1;
+        }
+
+        if (state.y < state.bounds.minY) {
+          state.y = state.bounds.minY;
+          state.vy *= -1;
+        } else if (state.y > state.bounds.maxY) {
+          state.y = state.bounds.maxY;
+          state.vy *= -1;
+        }
+
+        state.el.style.left = state.x + "px";
+        state.el.style.top = state.y + "px";
+      });
+
+      driftFrame = requestAnimationFrame(tick);
+    };
+
+    driftFrame = requestAnimationFrame(tick);
+  }
+
+  function stopDriftLoop() {
+    if (driftFrame) {
+      cancelAnimationFrame(driftFrame);
+      driftFrame = null;
+    }
   }
 
   function endGame() {
     gameRunning = false;
     clearInterval(spawnInterval);
     clearInterval(timerInterval);
+    stopDriftLoop();
 
     document.querySelectorAll(".item").forEach(item => item.remove());
+    activeItems = [];
 
     finalScore.textContent = "Final Score: " + score;
     endScreen.classList.remove("hidden");
+  }
+
+  function confirmExit() {
+    exitConfirm.classList.remove("hidden");
+  }
+
+  function cancelExit() {
+    exitConfirm.classList.add("hidden");
+  }
+
+  function doExit() {
+    gameRunning = false;
+    clearInterval(spawnInterval);
+    clearInterval(timerInterval);
+    stopDriftLoop();
+
+    document.querySelectorAll(".item").forEach(item => item.remove());
+    activeItems = [];
+
+    score = 0;
+    time = 30;
+    scoreEl.textContent = score;
+    timeEl.textContent = time;
+
+    exitConfirm.classList.add("hidden");
+    endScreen.classList.add("hidden");
+    startScreen.classList.remove("hidden");
   }
 </script>
 </body>
