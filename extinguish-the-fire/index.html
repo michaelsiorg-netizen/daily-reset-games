@@ -682,9 +682,10 @@ function cancelExit() {
 }
 
 function doExit() {
-  // Hook this up to whatever navigation your app uses to leave the game
-  // (e.g. window.location.href = "/home" or a message to a parent app shell).
   exitConfirm.style.display = "none";
+  document.getElementById("gameScreen").classList.add("hidden");
+  document.getElementById("endScreen").classList.add("hidden");
+  document.getElementById("startScreen").classList.remove("hidden");
 }
 </script>
 
