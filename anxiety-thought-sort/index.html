@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
 <title>Thought Sort</title>
 
 <style>
@@ -16,7 +16,7 @@ html, body {
   overflow: hidden;
   position: fixed;
   overscroll-behavior: none;
-  touch-action: manipulation;
+  touch-action: none;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
@@ -24,7 +24,7 @@ html, body {
   width: 100%;
   height: 100vh;
   overflow: hidden;
-  touch-action: manipulation;
+  touch-action: none;
 }
 
 #game {
@@ -89,6 +89,12 @@ p {
   font-size: 22px;
   font-weight: bold;
   color: #4A6FA5;
+}
+
+#cardStage {
+  overflow: hidden;
+  transition: max-height 0.35s ease, margin 0.35s ease;
+  max-height: 220px;
 }
 
 #thoughtCard {
@@ -286,8 +292,10 @@ button.primaryButton:focus-visible {
     </div>
   </div>
 
-  <div id="thoughtCard" class="card" tabindex="0" role="group" aria-label="Current thought to sort">
-    <div id="thoughtText" aria-live="polite">Loading...</div>
+  <div id="cardStage">
+    <div id="thoughtCard" class="card" tabindex="0" role="group" aria-label="Current thought to sort">
+      <div id="thoughtText" aria-live="polite">Loading...</div>
+    </div>
   </div>
 
   <div id="feedbackCard" class="card hidden">
@@ -387,6 +395,7 @@ const thoughts = [
     feedback: "This puts you back in the driver's seat instead of on autopilot." }
 ];
 
+const cardStage = document.getElementById("cardStage");
 const thoughtCard = document.getElementById("thoughtCard");
 const thoughtText = document.getElementById("thoughtText");
 const feedbackCard = document.getElementById("feedbackCard");
@@ -454,6 +463,7 @@ function resetCard() {
   thoughtCard.style.transition = "transform 0.2s ease-out, opacity 0.3s ease";
   thoughtCard.style.transform = "translate(0px, 0px) rotate(0deg) scale(1)";
   thoughtCard.style.opacity = "1";
+  cardStage.style.maxHeight = "220px";
 
   unhelpfulZone.className = "drop-zone";
   helpfulZone.className = "drop-zone";
@@ -560,6 +570,7 @@ function chooseAnswer(choice) {
     thoughtCard.style.transform = "translate(-150px, 120px) rotate(-15deg) scale(0.8)";
   }
   thoughtCard.style.opacity = "0";
+  cardStage.style.maxHeight = "0px";
 
   feedbackCard.classList.remove("hidden");
   continueButton.classList.remove("hidden");
@@ -618,14 +629,10 @@ function shuffle(array) {
   return array;
 }
 
-// Only block touch scrolling while a card is actively being dragged -
-// otherwise this would also block pinch-zoom on the rest of the screen.
 document.addEventListener(
   "touchmove",
   function (e) {
-    if (dragging) {
-      e.preventDefault();
-    }
+    e.preventDefault();
   },
   { passive: false }
 );
