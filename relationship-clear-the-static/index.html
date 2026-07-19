@@ -8,6 +8,11 @@
 <style>
 * { box-sizing: border-box; }
 
+:root {
+  --item-width: 94px;
+  --item-height: 64px;
+}
+
 body {
   margin: 0;
   font-family: Arial, sans-serif;
@@ -26,10 +31,8 @@ body {
 }
 
 #headerCard {
-  position: absolute;
-  top: 16px;
-  left: 16px;
-  right: 16px;
+  position: relative;
+  margin: 16px 16px 0;
   background: white;
   border-radius: 26px;
   box-shadow: 0 6px 20px rgba(0,0,0,0.10);
@@ -80,10 +83,8 @@ p {
 }
 
 #feedbackText {
-  position: absolute;
-  top: 168px;
-  left: 18px;
-  right: 18px;
+  position: relative;
+  margin: 10px 18px 0;
   min-height: 34px;
   text-align: center;
   font-size: 18px;
@@ -101,8 +102,8 @@ p {
 
 .item {
   position: absolute;
-  min-width: 94px;
-  min-height: 64px;
+  min-width: var(--item-width);
+  min-height: var(--item-height);
   padding: 10px 12px;
   border-radius: 24px;
   background: white;
@@ -115,7 +116,7 @@ p {
   font-weight: bold;
   user-select: none;
   z-index: 5;
-  transition: transform 0.15s ease, opacity 0.15s ease;
+  transition: transform 0.15s ease, opacity 0.2s ease;
 }
 
 .item.helpful {
@@ -184,14 +185,16 @@ button {
 }
 
 @media (max-height: 700px) {
+  :root {
+    --item-width: 86px;
+    --item-height: 56px;
+  }
   #headerCard { padding: 12px 10px; }
   h1 { font-size: 27px; }
   p { font-size: 14px; }
   .stats { font-size: 17px; }
-  #feedbackText { top: 145px; font-size: 16px; }
+  #feedbackText { font-size: 16px; }
   .item {
-    min-width: 86px;
-    min-height: 56px;
     font-size: 16px;
   }
   #legend {
@@ -330,7 +333,7 @@ function startGame() {
   startScreen.classList.add("hidden");
   endScreen.classList.add("hidden");
 
-  spawnInterval = setInterval(spawnItem, 1300);
+  spawnInterval = setInterval(spawnItem, 1700);
 
   timerInterval = setInterval(() => {
     time--;
@@ -340,6 +343,19 @@ function startGame() {
       endGame();
     }
   }, 1000);
+}
+
+function getSpawnBounds(itemWidth, itemHeight) {
+  const margin = 12;
+  const headerBottom = feedbackText.getBoundingClientRect().bottom;
+  const legendTop = document.getElementById("legend").getBoundingClientRect().top;
+
+  return {
+    minX: margin,
+    maxX: window.innerWidth - itemWidth - margin,
+    minY: headerBottom + margin,
+    maxY: legendTop - itemHeight - margin
+  };
 }
 
 function spawnItem() {
@@ -357,12 +373,13 @@ function spawnItem() {
   item.dataset.type = isHelpful ? "helpful" : "static";
   item.classList.add(isHelpful ? "helpful" : "static");
 
-  const maxX = window.innerWidth - 120;
-  const minY = 210;
-  const maxY = window.innerHeight - 160;
+  const rootStyle = getComputedStyle(document.documentElement);
+  const itemWidth = parseFloat(rootStyle.getPropertyValue("--item-width"));
+  const itemHeight = parseFloat(rootStyle.getPropertyValue("--item-height"));
 
-  const x = Math.max(12, Math.random() * maxX);
-  const y = minY + Math.random() * Math.max(80, maxY - minY);
+  const bounds = getSpawnBounds(itemWidth, itemHeight);
+  const x = bounds.minX + Math.random() * Math.max(0, bounds.maxX - bounds.minX);
+  const y = bounds.minY + Math.random() * Math.max(0, bounds.maxY - bounds.minY);
 
   item.style.left = x + "px";
   item.style.top = y + "px";
@@ -374,9 +391,9 @@ function spawnItem() {
   setTimeout(() => {
     if (item.parentNode) {
       item.style.opacity = "0";
-      setTimeout(() => item.remove(), 150);
+      setTimeout(() => item.remove(), 200);
     }
-  }, 3600);
+  }, 5000);
 }
 
 function handleTap(item) {
