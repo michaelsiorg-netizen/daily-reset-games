@@ -50,6 +50,13 @@
     50% { opacity: 1; transform: scale(1.5); }
   }
 
+  @media (prefers-reduced-motion: reduce) {
+    .tiny-star {
+      animation: none;
+      opacity: 0.5;
+    }
+  }
+
   .moon {
     position: absolute;
     top: 6%;
@@ -73,6 +80,27 @@
     opacity: 0.9;
     pointer-events: none;
     z-index: 8;
+  }
+
+  .top-row {
+    position: absolute;
+    top: 14px;
+    right: 16px;
+    z-index: 15;
+  }
+
+  .exitButton {
+    background: rgba(255,255,255,0.1);
+    border: none;
+    color: #ffffff;
+    font-size: 14px;
+    cursor: pointer;
+    padding: 6px 12px;
+    border-radius: 12px;
+  }
+
+  .exitButton:hover, .exitButton:focus-visible {
+    background: rgba(255,255,255,0.2);
   }
 
   .panel {
@@ -106,26 +134,63 @@
     text-shadow: 0 0 10px rgba(255,216,117,0.4);
   }
 
+  /* Ambient shooting stars - purely decorative, non-interactive,
+     streak across the sky periodically regardless of gameplay. */
+  .ambient-shoot {
+    position: absolute;
+    z-index: 3;
+    pointer-events: none;
+  }
+
+  .ambient-shoot .head {
+    position: absolute;
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: #ffffff;
+    box-shadow: 0 0 8px 2px rgba(255,255,255,0.8);
+  }
+
+  .ambient-shoot .tail {
+    position: absolute;
+    top: 1px;
+    left: 1px;
+    height: 2px;
+    width: 90px;
+    background: linear-gradient(to left, rgba(255,255,255,0.9), transparent);
+    transform-origin: left center;
+    border-radius: 2px;
+  }
+
+  /* Interactive falling items */
   .falling-item {
     position: absolute;
     z-index: 6;
-    padding: 12px 20px;
-    border-radius: 30px;
     text-align: center;
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 500;
     color: #fff;
     cursor: pointer;
-    animation: drift 7s linear forwards;
-    transition: transform 0.2s ease, opacity 0.3s ease;
-    will-change: transform, opacity;
+    animation-timing-function: linear;
+    animation-fill-mode: forwards;
   }
 
   .good {
-    background: rgba(255, 255, 255, 0.08);
-    border: 1px solid rgba(255, 225, 150, 0.3);
-    box-shadow: 0 4px 20px rgba(255, 220, 120, 0.15), inset 0 0 12px rgba(255,255,255,0.05);
-    text-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
+    padding: 6px 10px;
+    color: #fff9e8;
+    text-shadow: 0 0 10px rgba(255, 235, 180, 0.9), 0 0 22px rgba(255, 216, 117, 0.5);
+    font-weight: 600;
+  }
+
+  .good .tail {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    height: 3px;
+    width: 70px;
+    background: linear-gradient(to left, rgba(255, 235, 180, 0.9), transparent);
+    filter: blur(0.5px);
+    z-index: -1;
   }
 
   .thought {
@@ -133,23 +198,38 @@
     border: 1px solid rgba(255, 255, 255, 0.1);
     color: rgba(255, 255, 255, 0.5);
     box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    padding: 12px 20px;
+    border-radius: 30px;
   }
 
-  @keyframes drift {
+  @keyframes shoot {
     0% {
-      transform: translateY(-20px) translateX(0) scale(0.95);
+      transform: translate(0, 0) scale(0.95);
       opacity: 0;
     }
-    15% {
+    12% {
       opacity: 1;
     }
     85% {
       opacity: 1;
     }
     100% {
-      transform: translateY(75vh) translateX(var(--drift)) scale(1);
+      transform: translate(var(--dx), var(--dy)) scale(1);
       opacity: 0;
     }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .falling-item {
+      animation-name: fadeOnly !important;
+    }
+  }
+
+  @keyframes fadeOnly {
+    0% { opacity: 0; }
+    15% { opacity: 1; }
+    85% { opacity: 1; }
+    100% { opacity: 0; }
   }
 
   .message {
@@ -232,7 +312,7 @@
     color: rgba(255,255,255,0.85);
   }
 
-  button {
+  button.primary {
     margin-top: 24px;
     width: 100%;
     border: none;
@@ -246,13 +326,38 @@
     cursor: pointer;
     transition: opacity 0.2s ease;
   }
-  
-  button:active {
+
+  button.primary:active {
     opacity: 0.8;
+  }
+
+  button.secondary {
+    margin-top: 10px;
+    width: 100%;
+    border: none;
+    border-radius: 999px;
+    padding: 12px 20px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #fff;
+    background: rgba(255,255,255,0.12);
+    cursor: pointer;
   }
 
   .hidden {
     display: none !important;
+  }
+
+  #exitConfirm {
+    position: absolute;
+    inset: 0;
+    z-index: 40;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(4, 9, 18, 0.85);
+    backdrop-filter: blur(8px);
   }
 </style>
 </head>
@@ -262,22 +367,26 @@
   <div class="moon"></div>
   <svg id="constellation"></svg>
 
+  <div class="top-row">
+    <button class="exitButton" onclick="confirmExit()" aria-label="Exit game">&times; Exit</button>
+  </div>
+
   <div class="panel">
     <h1>Gather the Stars</h1>
     <div class="subtitle">Tap what is still meaningful. Let heavy thoughts pass.</div>
-    <div id="progress" class="progress">☆☆☆☆☆☆☆☆☆☆</div>
+    <div id="progress" class="progress" aria-live="polite">☆☆☆☆☆☆</div>
   </div>
 
-  <div id="message" class="message"></div>
+  <div id="message" class="message" aria-live="polite"></div>
   <div class="mountains"></div>
 
   <div id="startScreen">
     <div class="card">
       <h2>Gather the Stars</h2>
       <p>Some nights feel dark.</p>
-      <p>Tap the glowing stars that represent what is still meaningful to you.</p>
-      <p>Let the heavy, dim thoughts drift away cleanly.</p>
-      <button onclick="startGame()">Begin</button>
+      <p>Tap the shooting stars that represent what is still meaningful to you.</p>
+      <p>Let the heavy, dim thoughts drift down and pass.</p>
+      <button class="primary" onclick="startGame()">Begin</button>
     </div>
   </div>
 
@@ -286,7 +395,16 @@
       <h2>Nice noticing</h2>
       <p><strong>Even on difficult nights, there are still stars worth noticing.</strong></p>
       <p>Hope often grows by acknowledging what is still here.</p>
-      <button onclick="restartGame()">Play Again</button>
+      <button class="primary" onclick="restartGame()">Play Again</button>
+    </div>
+  </div>
+
+  <div id="exitConfirm">
+    <div class="card">
+      <h2 style="font-size:20px;">Leave the game?</h2>
+      <p>Your current progress won't be saved.</p>
+      <button class="primary" onclick="doExit()">Yes, exit</button>
+      <button class="secondary" onclick="cancelExit()">Stay</button>
     </div>
   </div>
 </div>
@@ -298,6 +416,9 @@
   const constellation = document.getElementById("constellation");
   const startScreen = document.getElementById("startScreen");
   const endScreen = document.getElementById("endScreen");
+  const exitConfirm = document.getElementById("exitConfirm");
+
+  const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   const goodStars = [
     "Hope", "Family", "Friends", "Nature", "Kindness",
@@ -318,8 +439,9 @@
   ];
 
   let collected = 0;
-  let needed = 10;
+  let needed = 6; // recalculated per game to match the chosen constellation's real length
   let spawnInterval;
+  let ambientTimeout;
   let chosenShape = [];
   let messageTimeout;
 
@@ -337,15 +459,19 @@
   function startGame() {
     startScreen.classList.add("hidden");
     endScreen.classList.add("hidden");
+    exitConfirm.style.display = "none";
 
     collected = 0;
     chosenShape = constellationShapes[Math.floor(Math.random() * constellationShapes.length)];
+    needed = chosenShape.length; // fixes the old mismatch where "needed" was hardcoded to 10 but shapes only had 6-7 points
 
-    progress.textContent = "☆☆☆☆☆☆☆☆☆☆";
+    progress.textContent = "☆".repeat(needed);
     constellation.innerHTML = "";
 
     spawnInterval = setInterval(spawnItem, 1400);
     spawnItem();
+
+    scheduleAmbientShootingStar();
   }
 
   function spawnItem() {
@@ -358,24 +484,60 @@
     const item = document.createElement("div");
     item.className = "falling-item " + (isGood ? "good" : "thought");
 
-    item.textContent = isGood
+    const label = document.createElement("span");
+    label.textContent = isGood
       ? goodStars[Math.floor(Math.random() * goodStars.length)]
       : heavyThoughts[Math.floor(Math.random() * heavyThoughts.length)];
+    item.appendChild(label);
 
-    item.style.left = Math.random() * 60 + 10 + "%";
-    item.style.top = "12%"; 
-    item.style.setProperty("--drift", (Math.random() * 60 - 30) + "px");
+    if (isGood) {
+      // Meaningful words streak diagonally across the sky like a
+      // shooting star, with a trailing comet tail.
+      const fromLeft = Math.random() > 0.5;
+      const startXPct = fromLeft ? -15 : 115;
+      const endXPct = fromLeft ? 115 : -15;
+      const startYPct = 12 + Math.random() * 38; // upper-to-mid sky
+      const dyPct = 10 + Math.random() * 18; // shallow downward slope
+      const duration = 3.1 + Math.random() * 1.4;
 
-    // Unified interactive handling for frictionless touch responses
+      item.style.left = startXPct + "%";
+      item.style.top = startYPct + "%";
+
+      const dxPx = (endXPct - startXPct) / 100 * window.innerWidth;
+      const dyPx = dyPct / 100 * window.innerHeight;
+      const angleDeg = Math.atan2(dyPx, dxPx) * (180 / Math.PI);
+
+      item.style.setProperty("--dx", (endXPct - startXPct) + "vw");
+      item.style.setProperty("--dy", dyPct + "vh");
+      item.style.animationName = prefersReducedMotion ? "fadeOnly" : "shoot";
+      item.style.animationDuration = (prefersReducedMotion ? 2.2 : duration) + "s";
+
+      const tail = document.createElement("div");
+      tail.className = "tail";
+      tail.style.transform = `translate(-50%, -50%) rotate(${angleDeg + 180}deg)`;
+      item.insertBefore(tail, label);
+    } else {
+      // Heavy thoughts sink slowly and dimly, with no bright tail -
+      // the visual opposite of a shooting star.
+      const startXPct = 15 + Math.random() * 55;
+      item.style.left = startXPct + "%";
+      item.style.top = "10%";
+      item.style.setProperty("--dx", (Math.random() * 10 - 5) + "vw");
+      item.style.setProperty("--dy", "62vh");
+      item.style.animationName = prefersReducedMotion ? "fadeOnly" : "shoot";
+      item.style.animationDuration = (prefersReducedMotion ? 2.2 : 8) + "s";
+    }
+
     const handleInteraction = (e) => {
       e.preventDefault();
-      if (item.classList.contains('interacted')) return;
-      item.classList.add('interacted');
+      if (item.classList.contains("interacted")) return;
+      item.classList.add("interacted");
 
       if (isGood) {
         collectStar(item);
       } else {
         showMessage("Notice the thought... then let it pass.");
+        item.style.transition = "opacity 0.3s ease";
         item.style.opacity = "0";
         setTimeout(() => item.remove(), 300);
       }
@@ -384,7 +546,7 @@
     item.addEventListener("touchstart", handleInteraction, { passive: false });
     item.addEventListener("click", handleInteraction);
     item.addEventListener("animationend", () => item.remove());
-    
+
     game.appendChild(item);
   }
 
@@ -393,8 +555,9 @@
     progress.textContent = "★".repeat(collected) + "☆".repeat(needed - collected);
 
     drawConstellation();
+    item.style.transition = "opacity 0.2s ease, transform 0.2s ease";
     item.style.opacity = "0";
-    item.style.transform = "scale(0.5)";
+    item.style.transform += " scale(0.5)";
     setTimeout(() => item.remove(), 200);
 
     showMessage("That still matters.");
@@ -441,8 +604,53 @@
     }, 1500);
   }
 
+  function scheduleAmbientShootingStar() {
+    if (prefersReducedMotion) return;
+
+    const delay = 4000 + Math.random() * 4000;
+    ambientTimeout = setTimeout(() => {
+      spawnAmbientShootingStar();
+      scheduleAmbientShootingStar();
+    }, delay);
+  }
+
+  function spawnAmbientShootingStar() {
+    const fromLeft = Math.random() > 0.5;
+    const startXPct = fromLeft ? -5 : 105;
+    const endXPct = fromLeft ? 105 : -5;
+    const startYPct = 5 + Math.random() * 30;
+    const dyPct = 8 + Math.random() * 12;
+    const duration = 1 + Math.random() * 0.6;
+
+    const dxPx = (endXPct - startXPct) / 100 * window.innerWidth;
+    const dyPx = dyPct / 100 * window.innerHeight;
+    const angleDeg = Math.atan2(dyPx, dxPx) * (180 / Math.PI);
+
+    const shootEl = document.createElement("div");
+    shootEl.className = "ambient-shoot";
+    shootEl.style.left = startXPct + "%";
+    shootEl.style.top = startYPct + "%";
+    shootEl.style.setProperty("--dx", (endXPct - startXPct) + "vw");
+    shootEl.style.setProperty("--dy", dyPct + "vh");
+    shootEl.style.animation = `shoot ${duration}s linear forwards`;
+
+    const head = document.createElement("div");
+    head.className = "head";
+
+    const tail = document.createElement("div");
+    tail.className = "tail";
+    tail.style.transform = `rotate(${angleDeg + 180}deg)`;
+
+    shootEl.appendChild(tail);
+    shootEl.appendChild(head);
+    shootEl.addEventListener("animationend", () => shootEl.remove());
+
+    game.appendChild(shootEl);
+  }
+
   function endGame() {
     clearInterval(spawnInterval);
+    clearTimeout(ambientTimeout);
     document.querySelectorAll(".falling-item").forEach(item => item.remove());
 
     while (collected < needed) {
@@ -457,6 +665,19 @@
 
   function restartGame() {
     startGame();
+  }
+
+  function confirmExit() {
+    exitConfirm.style.display = "flex";
+  }
+
+  function cancelExit() {
+    exitConfirm.style.display = "none";
+  }
+
+  function doExit() {
+    // Hook this up to whatever navigation your app uses to leave the game.
+    exitConfirm.style.display = "none";
   }
 
   createTinyStars();
