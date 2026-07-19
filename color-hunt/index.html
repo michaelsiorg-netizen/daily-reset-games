@@ -148,6 +148,17 @@
     z-index: 20;
   }
 
+  #startScreen {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(0,0,0,0.5);
+    z-index: 22;
+  }
+
   #exitConfirm {
     position: absolute;
     inset: 0;
@@ -231,6 +242,14 @@
     </div>
   </div>
 
+  <div id="startScreen">
+    <div class="complete-card">
+      <h1>Color Hunt</h1>
+      <p>Look around the scene and tap what matches each prompt. Take your time - there's no rush.</p>
+      <button class="primaryButton" onclick="beginGame()">Start</button>
+    </div>
+  </div>
+
   <div id="exitConfirm">
     <div class="complete-card">
       <h1 style="font-size:22px;">Leave the game?</h1>
@@ -306,6 +325,7 @@
   const feedbackEl = document.getElementById("feedback");
   const completeEl = document.getElementById("complete");
   const exitConfirmEl = document.getElementById("exitConfirm");
+  const startScreenEl = document.getElementById("startScreen");
   const stageEl = document.getElementById("stage");
 
   function shuffle(array) {
@@ -411,6 +431,11 @@
     }
   }
 
+  function beginGame() {
+    startScreenEl.style.display = "none";
+    startGame();
+  }
+
   function restartGame() {
     startGame();
   }
@@ -424,14 +449,15 @@
   }
 
   function doExit() {
-    // This game has no separate instructions splash screen, so
-    // "returning to the start" means resetting the round/score and
-    // picking a fresh background, same as starting over.
+    // Return to the instructions/start screen rather than jumping
+    // straight into a new photo.
     exitConfirmEl.style.display = "none";
-    startGame();
+    completeEl.style.display = "none";
+    startScreenEl.style.display = "flex";
   }
 
-  startGame();
+  // The game now waits for the Start button (beginGame) rather than
+  // starting automatically, so the player sees instructions first.
 </script>
 </body>
 </html>
