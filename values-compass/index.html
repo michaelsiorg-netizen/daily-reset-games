@@ -122,16 +122,6 @@
     margin-bottom: 24px;
   }
 
-  .progress-text {
-    font-size: 13px;
-    text-align: center;
-    margin-bottom: 8px;
-    color: #2B6CB0;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-
   .progress-bar-bg {
     width: 100%;
     height: 7px;
@@ -322,24 +312,36 @@
     display: none !important;
   }
 
+  .header-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding-bottom: 14px;
+    margin-bottom: 18px;
+    border-bottom: 1px solid #E2E8F0;
+  }
+
+  .header-title {
+    font-size: 18px;
+    font-weight: 800;
+    color: #2B6CB0;
+  }
+
   .exitButton {
-    position: fixed;
-    top: 14px;
-    right: 14px;
-    background: rgba(255, 255, 255, 0.9);
-    border: 1px solid #E2E8F0;
-    color: #718096;
-    font-size: 14px;
+    background: rgba(43, 108, 176, 0.08);
+    border: none;
+    color: #2B6CB0;
+    font-size: 13px;
+    font-weight: 600;
     cursor: pointer;
     padding: 6px 12px;
     border-radius: 12px;
-    z-index: 25;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    white-space: nowrap;
   }
 
   .exitButton:hover, .exitButton:focus-visible {
-    background: #F7FAFC;
-    color: #2B6CB0;
+    background: rgba(43, 108, 176, 0.15);
   }
 
   .exit-confirm-overlay {
@@ -374,9 +376,12 @@
 
 <body>
 
-<button class="exitButton" onclick="confirmExit()" aria-label="Exit game">&times; Exit</button>
-
 <div class="game">
+
+  <div class="header-bar">
+    <div class="header-title" id="headerTitle">Values Compass</div>
+    <button class="exitButton" onclick="confirmExit()" aria-label="Exit game">&times; Exit</button>
+  </div>
 
   <div id="startScreen">
     <div class="compass">
@@ -391,7 +396,6 @@
 
   <div id="choiceScreen" class="hidden">
     <div class="progress-container">
-      <div class="progress-text" id="progressText"></div>
       <div class="progress-bar-bg">
         <div class="progress-bar-fill" id="progressBar"></div>
       </div>
@@ -744,6 +748,7 @@ let selectedQuestions = [];
 let selectedValueKey = null;
 let selectedActionText = "";
 const questionsPerGame = 12;
+const headerTitle = document.getElementById("headerTitle");
 
 function startGame() {
   scores = {};
@@ -774,14 +779,17 @@ function showScreen(screenId) {
 
   screens.forEach(id => document.getElementById(id).classList.add("hidden"));
   document.getElementById(screenId).classList.remove("hidden");
+
+  if (screenId !== "choiceScreen") {
+    headerTitle.textContent = "Values Compass";
+  }
 }
 
 function loadQuestion() {
   const question = selectedQuestions[currentQuestion];
   const progressPercent = (currentQuestion / selectedQuestions.length) * 100;
 
-  document.getElementById("progressText").textContent =
-    `Question ${currentQuestion + 1} of ${selectedQuestions.length}`;
+  headerTitle.textContent = `Question ${currentQuestion + 1} of ${selectedQuestions.length}`;
 
   document.getElementById("progressBar").style.width = `${progressPercent}%`;
   document.getElementById("questionText").textContent = question.text;
