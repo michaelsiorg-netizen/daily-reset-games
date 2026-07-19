@@ -34,7 +34,7 @@ html, body {
   padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 14px;
 }
 
 .card {
@@ -46,6 +46,25 @@ html, body {
 
 #headerCard {
   padding: 20px 16px;
+  position: relative;
+}
+
+.exitButton {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: #8E99A8;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 10px;
+}
+
+.exitButton:hover, .exitButton:focus-visible {
+  background: #EEF4F8;
+  color: #4A6FA5;
 }
 
 h1 {
@@ -72,7 +91,7 @@ p {
 
 #thoughtCard {
   padding: 28px 18px;
-  min-height: 140px;
+  min-height: 130px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -87,36 +106,62 @@ p {
   cursor: grabbing;
 }
 
+#thoughtCard:focus-visible {
+  outline: 3px solid #4A6FA5;
+  outline-offset: 3px;
+}
+
 #thoughtText {
-  font-size: 24px;
+  font-size: 23px;
   font-weight: bold;
   line-height: 1.3;
   color: #2C3E50;
 }
 
+#feedbackCard {
+  padding: 14px 16px;
+  min-height: 56px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
 #feedbackText {
   text-align: center;
-  font-size: 22px;
+  font-size: 16px;
   font-weight: bold;
-  min-height: 30px;
-  margin-top: -4px;
-  margin-bottom: -4px;
-  transition: all 0.2s ease;
+  line-height: 1.3;
 }
 
 .correct {
   color: #2E7D5B;
-  transform: scale(1.05);
 }
 
 .incorrect {
   color: #A94442;
-  transform: scale(1.05);
+}
+
+.continueButton {
+  background: #4A6FA5;
+  color: white;
+  border: none;
+  border-radius: 16px;
+  padding: 10px 22px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.continueButton:focus-visible {
+  outline: 3px solid #2E2E2E;
+  outline-offset: 2px;
 }
 
 #spacer {
   flex: 1;
-  min-height: 20px;
+  min-height: 8px;
 }
 
 .drop-area {
@@ -127,7 +172,7 @@ p {
 
 .drop-zone {
   flex: 1;
-  min-height: 115px;
+  min-height: 110px;
   border-radius: 24px;
   color: white;
   display: flex;
@@ -135,19 +180,24 @@ p {
   justify-content: center;
   text-align: center;
   padding: 14px;
-  font-size: 22px;
+  font-size: 20px;
   font-weight: bold;
   box-shadow: 0 5px 16px rgba(0,0,0,0.12);
   transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), filter 0.2s ease, opacity 0.2s ease;
   cursor: pointer;
 }
 
+.drop-zone:focus-visible {
+  outline: 3px solid #2E2E2E;
+  outline-offset: 3px;
+}
+
 .drop-zone small {
   display: block;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: normal;
   margin-top: 6px;
-  opacity: 0.8;
+  opacity: 0.85;
 }
 
 #unhelpfulZone {
@@ -158,7 +208,6 @@ p {
   background: #4A6FA5;
 }
 
-/* Visual states for drag targeting */
 .drop-zone.active-target {
   transform: scale(1.06);
   filter: brightness(1.1);
@@ -169,7 +218,12 @@ p {
   transform: scale(0.96);
 }
 
-button {
+.drop-zone.disabled-zone {
+  opacity: 0.5;
+  cursor: default;
+}
+
+button.primaryButton {
   background: #4A6FA5;
   color: white;
   border: none;
@@ -183,8 +237,13 @@ button {
   transition: background 0.2s, transform 0.1s;
 }
 
-button:active {
+button.primaryButton:active {
   transform: scale(0.98);
+}
+
+button.primaryButton:focus-visible {
+  outline: 3px solid #2E2E2E;
+  outline-offset: 2px;
 }
 
 #startScreen, #endScreen {
@@ -214,29 +273,33 @@ button:active {
 <div id="game">
 
   <div id="headerCard" class="card">
+    <button class="exitButton" onclick="confirmExit()" aria-label="Exit game">&times; Exit</button>
     <h1>Thought Sort</h1>
-    <p>Drag each thought into the category that fits best, or tap the zones directly.</p>
+    <p>Drag each thought into the category that fits best, or tap/select a zone directly.</p>
     <div class="stats">
       <div>Score: <span id="score">0</span></div>
-      <div>Round: <span id="round">1</span>/10</div>
+      <div>Round: <span id="round">1</span>/<span id="totalRounds">10</span></div>
     </div>
   </div>
 
-  <div id="thoughtCard" class="card">
-    <div id="thoughtText">Loading...</div>
+  <div id="thoughtCard" class="card" tabindex="0" role="group" aria-label="Current thought to sort">
+    <div id="thoughtText" aria-live="polite">Loading...</div>
   </div>
 
-  <div id="feedbackText"></div>
+  <div id="feedbackCard" class="card hidden">
+    <div id="feedbackText" aria-live="polite"></div>
+    <button class="continueButton hidden" id="continueButton" onclick="nextRound()">Continue</button>
+  </div>
 
   <div id="spacer"></div>
 
   <div class="drop-area">
-    <div id="unhelpfulZone" class="drop-zone">
-      <div>Unhelpful<br>Thought<small>Drag or Tap</small></div>
+    <div id="unhelpfulZone" class="drop-zone" role="button" tabindex="0" aria-label="Sort as unhelpful thought">
+      <div>Unhelpful<br>Thought<small>Drag, tap, or select + Enter</small></div>
     </div>
 
-    <div id="helpfulZone" class="drop-zone">
-      <div>Helpful<br>Thought<small>Drag or Tap</small></div>
+    <div id="helpfulZone" class="drop-zone" role="button" tabindex="0" aria-label="Sort as helpful thought">
+      <div>Helpful<br>Thought<small>Drag, tap, or select + Enter</small></div>
     </div>
   </div>
 
@@ -244,8 +307,8 @@ button:active {
     <div class="card modalCard">
       <h1>Thought Sort</h1>
       <p>Anxiety can make thoughts feel like facts.</p>
-      <p>Practice noticing thoughts and sorting them gently.</p>
-      <button onclick="startGame()">Start</button>
+      <p>Practice noticing thoughts and sorting them gently. Each round explains why a thought tends to help or hurt.</p>
+      <button class="primaryButton" onclick="startGame()">Start</button>
     </div>
   </div>
 
@@ -254,46 +317,88 @@ button:active {
       <h1>Great Work</h1>
       <p id="finalScore"></p>
       <p>You practiced noticing thoughts instead of automatically believing them.</p>
-      <button onclick="startGame()">Play Again</button>
+      <button class="primaryButton" onclick="startGame()">Play Again</button>
+    </div>
+  </div>
+
+  <div id="exitConfirm" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;z-index:30;padding:24px;">
+    <div class="card modalCard">
+      <h1 style="font-size:22px;">Leave the game?</h1>
+      <p>Your current round progress won't be saved.</p>
+      <button class="primaryButton" onclick="doExit()">Yes, exit</button>
+      <button class="continueButton" style="margin-top:10px;background:#8E99A8;" onclick="cancelExit()">Stay</button>
     </div>
   </div>
 
 </div>
 
 <script>
+/*
+  Each thought now carries a short "why" explanation, shown after the
+  player sorts it, so every round teaches the specific cognitive
+  pattern involved (catastrophizing, mind-reading, all-or-nothing
+  thinking, etc.) rather than a generic "nice noticing" / "pause and
+  check" line regardless of content.
+*/
+const thoughts = [
+  { text: "What if everything goes wrong?", type: "unhelpful",
+    feedback: "This is catastrophizing \u2014 jumping to the worst possible outcome without evidence." },
+  { text: "I can pause before reacting.", type: "helpful",
+    feedback: "This creates space between a feeling and an action." },
+  { text: "A thought is not the same as a fact.", type: "helpful",
+    feedback: "This is a core reminder \u2014 thoughts are mental events, not guaranteed truths." },
+  { text: "I need to figure this out right now.", type: "unhelpful",
+    feedback: "This urgency pressure often comes from anxiety, not from an actual emergency." },
+  { text: "I can take one small step.", type: "helpful",
+    feedback: "Breaking things into small steps makes overwhelming tasks more workable." },
+  { text: "Everyone probably thinks I failed.", type: "unhelpful",
+    feedback: "This is mind-reading \u2014 assuming you know what others think without evidence." },
+  { text: "I can return to the present moment.", type: "helpful",
+    feedback: "Anchoring to the present interrupts spirals about the past or future." },
+  { text: "I always mess things up.", type: "unhelpful",
+    feedback: "This is all-or-nothing thinking \u2014 one mistake becomes \u201calways.\u201d" },
+  { text: "This feeling is uncomfortable, but it can pass.", type: "helpful",
+    feedback: "This acknowledges discomfort without treating it as permanent or dangerous." },
+  { text: "If I feel anxious, something must be wrong.", type: "unhelpful",
+    feedback: "This is emotional reasoning \u2014 treating a feeling as proof of an outside threat." },
+  { text: "I can notice my body and breathe slowly.", type: "helpful",
+    feedback: "Physical regulation often calms the mind faster than trying to think your way out." },
+  { text: "I have to be certain before I move forward.", type: "unhelpful",
+    feedback: "Demanding certainty first often leads to stalling, since certainty rarely fully arrives." },
+  { text: "I can handle this one moment at a time.", type: "helpful",
+    feedback: "Shrinking the timeline to \u201cthis moment\u201d makes hard things more manageable." },
+  { text: "My mind is predicting danger, not proving danger.", type: "helpful",
+    feedback: "This separates the brain's alarm system from actual evidence of a threat." },
+  { text: "If they do not respond, they must be upset with me.", type: "unhelpful",
+    feedback: "This fills a gap in information with the worst explanation, without checking first." },
+  { text: "I can check the evidence before assuming.", type: "helpful",
+    feedback: "Looking for evidence slows down an assumption before it becomes a belief." },
+  { text: "This anxiety means I cannot cope.", type: "unhelpful",
+    feedback: "This treats a feeling as a verdict on your ability, rather than a temporary state." },
+  { text: "I do not have to solve every thought.", type: "helpful",
+    feedback: "Not every thought needs a response \u2014 some can just be noticed and left alone." },
+  { text: "Something bad is definitely going to happen.", type: "unhelpful",
+    feedback: "This treats a prediction as a certainty, which is rarely something a thought can actually know." },
+  { text: "I can slow down and choose my next step.", type: "helpful",
+    feedback: "This puts you back in the driver's seat instead of on autopilot." }
+];
+
 const thoughtCard = document.getElementById("thoughtCard");
 const thoughtText = document.getElementById("thoughtText");
+const feedbackCard = document.getElementById("feedbackCard");
 const feedbackText = document.getElementById("feedbackText");
+const continueButton = document.getElementById("continueButton");
 const scoreEl = document.getElementById("score");
 const roundEl = document.getElementById("round");
+const totalRoundsEl = document.getElementById("totalRounds");
 const startScreen = document.getElementById("startScreen");
 const endScreen = document.getElementById("endScreen");
 const finalScore = document.getElementById("finalScore");
 const helpfulZone = document.getElementById("helpfulZone");
 const unhelpfulZone = document.getElementById("unhelpfulZone");
+const exitConfirm = document.getElementById("exitConfirm");
 
-const thoughts = [
-  { text: "What if everything goes wrong?", type: "unhelpful" },
-  { text: "I can pause before reacting.", type: "helpful" },
-  { text: "A thought is not the same as a fact.", type: "helpful" },
-  { text: "I need to figure this out right now.", type: "unhelpful" },
-  { text: "I can take one small step.", type: "helpful" },
-  { text: "Everyone probably thinks I failed.", type: "unhelpful" },
-  { text: "I can return to the present moment.", type: "helpful" },
-  { text: "I always mess things up.", type: "unhelpful" },
-  { text: "This feeling is uncomfortable, but it can pass.", type: "helpful" },
-  { text: "If I feel anxious, something must be wrong.", type: "unhelpful" },
-  { text: "I can notice my body and breathe slowly.", type: "helpful" },
-  { text: "I have to be certain before I move forward.", type: "unhelpful" },
-  { text: "I can handle this one moment at a time.", type: "helpful" },
-  { text: "My mind is predicting danger, not proving danger.", type: "helpful" },
-  { text: "If they do not respond, they must be upset with me.", type: "unhelpful" },
-  { text: "I can check the evidence before assuming.", type: "helpful" },
-  { text: "This anxiety means I cannot cope.", type: "unhelpful" },
-  { text: "I do not have to solve every thought.", type: "helpful" },
-  { text: "Something bad is definitely going to happen.", type: "unhelpful" },
-  { text: "I can slow down and choose my next step.", type: "helpful" }
-];
+const ROUNDS_PER_GAME = 10;
 
 let gameThoughts = [];
 let currentThought = null;
@@ -311,13 +416,18 @@ function startGame() {
 
   scoreEl.textContent = score;
   roundEl.textContent = round;
+  totalRoundsEl.textContent = Math.min(ROUNDS_PER_GAME, thoughts.length);
+
+  feedbackCard.classList.add("hidden");
   feedbackText.textContent = "";
   feedbackText.className = "";
+  continueButton.classList.add("hidden");
 
   startScreen.classList.add("hidden");
   endScreen.classList.add("hidden");
+  exitConfirm.classList.add("hidden");
 
-  gameThoughts = shuffle([...thoughts]).slice(0, 10);
+  gameThoughts = shuffle([...thoughts]).slice(0, Math.min(ROUNDS_PER_GAME, thoughts.length));
   showThought();
 }
 
@@ -326,31 +436,61 @@ function showThought() {
   currentThought = gameThoughts[round - 1];
   thoughtText.textContent = currentThought.text;
   roundEl.textContent = round;
+
+  feedbackCard.classList.add("hidden");
   feedbackText.textContent = "";
   feedbackText.className = "";
+  continueButton.classList.add("hidden");
+
+  setZonesEnabled(true);
   resetCard();
 }
 
 function resetCard() {
-  // Clear any structural inline transition styles so manual drags remain snap-fast
   thoughtCard.style.transition = "transform 0.2s ease-out, opacity 0.3s ease";
   thoughtCard.style.transform = "translate(0px, 0px) rotate(0deg) scale(1)";
   thoughtCard.style.opacity = "1";
-  
+
   unhelpfulZone.className = "drop-zone";
   helpfulZone.className = "drop-zone";
 }
 
-// Tap-to-sort option for simplified usability
+function setZonesEnabled(enabled) {
+  [helpfulZone, unhelpfulZone].forEach(zone => {
+    if (enabled) {
+      zone.classList.remove("disabled-zone");
+      zone.setAttribute("tabindex", "0");
+    } else {
+      zone.classList.add("disabled-zone");
+      zone.setAttribute("tabindex", "-1");
+    }
+  });
+}
+
+// Tap-to-sort
 helpfulZone.addEventListener("pointerdown", () => { if (acceptingInput && !dragging) chooseAnswer("helpful"); });
 unhelpfulZone.addEventListener("pointerdown", () => { if (acceptingInput && !dragging) chooseAnswer("unhelpful"); });
+
+// Keyboard support: focus a zone and press Enter/Space to sort the current thought there
+helpfulZone.addEventListener("keydown", (e) => {
+  if ((e.key === "Enter" || e.key === " ") && acceptingInput) {
+    e.preventDefault();
+    chooseAnswer("helpful");
+  }
+});
+unhelpfulZone.addEventListener("keydown", (e) => {
+  if ((e.key === "Enter" || e.key === " ") && acceptingInput) {
+    e.preventDefault();
+    chooseAnswer("unhelpful");
+  }
+});
 
 thoughtCard.addEventListener("pointerdown", function(e) {
   if (!acceptingInput) return;
   dragging = true;
   startX = e.clientX;
   startY = e.clientY;
-  thoughtCard.style.transition = "none"; // Drop transitions for absolute tracking feel
+  thoughtCard.style.transition = "none";
   thoughtCard.setPointerCapture(e.pointerId);
 });
 
@@ -358,12 +498,10 @@ thoughtCard.addEventListener("pointermove", function(e) {
   if (!dragging || !acceptingInput) return;
   const moveX = e.clientX - startX;
   const moveY = e.clientY - startY;
-  
-  // Calculate a slight rotation based on horizontal drag distance
+
   const rotateDeg = moveX * 0.04;
   thoughtCard.style.transform = `translate(${moveX}px, ${moveY}px) rotate(${rotateDeg}deg) scale(0.98)`;
 
-  // Live element detection to highlight targets dynamically during a drag
   const cardRect = thoughtCard.getBoundingClientRect();
   const centerX = cardRect.left + cardRect.width / 2;
   const centerY = cardRect.top + cardRect.height / 2;
@@ -404,45 +542,64 @@ thoughtCard.addEventListener("pointerup", function(e) {
 });
 
 function chooseAnswer(choice) {
+  if (!acceptingInput) return;
   acceptingInput = false;
 
-  // Visual clean up for target states
   unhelpfulZone.className = "drop-zone";
   helpfulZone.className = "drop-zone";
+  setZonesEnabled(false);
 
-  // Provide animated slide out to target zone if tapped instead of dragged
   thoughtCard.style.transition = "transform 0.4s ease-in, opacity 0.3s ease";
   if (choice === "helpful") {
     thoughtCard.style.transform = "translate(150px, 120px) rotate(15deg) scale(0.8)";
   } else {
     thoughtCard.style.transform = "translate(-150px, 120px) rotate(-15deg) scale(0.8)";
   }
+  thoughtCard.style.opacity = "0";
+
+  feedbackCard.classList.remove("hidden");
+  continueButton.classList.remove("hidden");
 
   if (choice === currentThought.type) {
     score += 1;
     scoreEl.textContent = score;
-    feedbackText.textContent = "Nice noticing.";
+    feedbackText.textContent = "Nice noticing \u2014 " + currentThought.feedback;
     feedbackText.className = "correct";
   } else {
-    feedbackText.textContent = "Pause and check the thought.";
+    feedbackText.textContent = "Worth a second look \u2014 " + currentThought.feedback;
     feedbackText.className = "incorrect";
   }
 
-  thoughtCard.style.opacity = "0";
+  continueButton.focus();
+}
 
-  setTimeout(() => {
-    if (round >= 10) {
-      endGame();
-    } else {
-      round += 1;
-      showThought();
-    }
-  }, 900);
+function nextRound() {
+  if (round >= gameThoughts.length) {
+    endGame();
+  } else {
+    round += 1;
+    showThought();
+  }
 }
 
 function endGame() {
-  finalScore.textContent = "Final Score: " + score + " / 10";
+  finalScore.textContent = "Final Score: " + score + " / " + gameThoughts.length;
   endScreen.classList.remove("hidden");
+}
+
+function confirmExit() {
+  exitConfirm.classList.remove("hidden");
+}
+
+function cancelExit() {
+  exitConfirm.classList.add("hidden");
+}
+
+function doExit() {
+  // Hook this up to whatever navigation your app uses to leave the game
+  // (e.g. window.location.href = "/home" or a message to a parent app shell).
+  exitConfirm.classList.add("hidden");
+  startScreen.classList.remove("hidden");
 }
 
 function isInside(x, y, rect) {
