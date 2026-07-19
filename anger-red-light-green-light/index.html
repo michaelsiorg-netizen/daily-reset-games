@@ -638,11 +638,13 @@ function chooseAnswer(buttonIndex) {
     document.getElementById("icon" + buttonIndex).textContent = "\u2713";
     feedbackText.textContent = "Green light \u2014 " + selectedChoice.feedback;
     feedbackText.className = "greenFeedback";
+    vibrate(35);
   } else {
     selectedButton.classList.add("choiceRed");
     document.getElementById("icon" + buttonIndex).textContent = "\u2717";
     feedbackText.textContent = "Not quite \u2014 " + selectedChoice.feedback;
     feedbackText.className = "redFeedback";
+    vibrate(100);
 
     choiceButtons.forEach((button, idx) => {
       const originalIdx = Number(button.dataset.originalIndex);
@@ -691,6 +693,12 @@ function shuffle(array) {
     [array[i], array[j]] = [array[j], array[i]];
   }
   return array;
+}
+
+function vibrate(ms) {
+  if (navigator.vibrate) {
+    navigator.vibrate(ms);
+  }
 }
 </script>
 </body>

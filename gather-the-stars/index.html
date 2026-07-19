@@ -551,6 +551,7 @@
       if (isGood) {
         collectStar(item);
       } else {
+        vibrate(100);
         showMessage("Notice the thought... then let it pass.");
         item.style.transition = "opacity 0.3s ease";
         item.style.opacity = "0";
@@ -568,6 +569,7 @@
   function collectStar(item) {
     collected++;
     progress.textContent = "★".repeat(collected) + "☆".repeat(needed - collected);
+    vibrate(35);
 
     drawConstellation();
     item.style.transition = "opacity 0.2s ease, transform 0.2s ease";
@@ -688,6 +690,12 @@
     // confirmation step.
     endScreen.classList.add("hidden");
     startScreen.classList.remove("hidden");
+  }
+
+  function vibrate(ms) {
+    if (navigator.vibrate) {
+      navigator.vibrate(ms);
+    }
   }
 
   function confirmExit() {
