@@ -409,11 +409,12 @@
   const BULLET_SPEED = 9;
   const FIRE_COOLDOWN = 180;
   const HIT_RADIUS = 32;
+  const MAX_ON_SCREEN = 6;
 
   const waves = [
-    { duration: 16000, spawnInterval: 1300, stressRatio: 0.35 },
-    { duration: 16000, spawnInterval: 1000, stressRatio: 0.48 },
-    { duration: 16000, spawnInterval: 780, stressRatio: 0.60 }
+    { duration: 16000, spawnInterval: 1800, stressRatio: 0.35 },
+    { duration: 16000, spawnInterval: 1550, stressRatio: 0.48 },
+    { duration: 16000, spawnInterval: 1300, stressRatio: 0.60 }
   ];
 
   let score = 0;
@@ -566,6 +567,7 @@
 
   function spawnEnemy(wave) {
     if (!gameRunning) return;
+    if (activeEnemies.length >= MAX_ON_SCREEN) return;
 
     const el = document.createElement("div");
     el.className = "item";
