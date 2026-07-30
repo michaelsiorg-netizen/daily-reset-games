@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<title>Emotional Check-In Wheel</title>
+
+<style>
+  :root {
+    --accent-dark: #D97BA8;
+    --accent-light: #B79CDB;
+  }
+
+  * {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    position: fixed;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: #F7F9FB;
+    color: #2e2e2e;
+    touch-action: manipulation;
+  }
+
+  #game {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  .screen {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    text-align: center;
+  }
+
+  .card {
+    background: rgba(255, 255, 255, 0.96);
+    border-radius: 24px;
+    padding: 28px 24px;
+    max-width: 340px;
+    width: 90vw;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.1);
+  }
+
+  .title {
+    font-size: 24px;
+    font-weight: 800;
+    margin-bottom: 8px;
+    color: var(--accent-dark);
+  }
+
+  .instructions {
+    font-size: 15px;
+    line-height: 1.4;
+    color: #555;
+  }
+
+  .primary-btn {
+    border: none;
+    background: var(--accent-dark);
+    color: white;
+    padding: 14px 30px;
+    font-size: 17px;
+    font-weight: 700;
+    border-radius: 999px;
+    margin-top: 20px;
+    cursor: pointer;
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.12);
+  }
+
+  .primary-btn:disabled {
+    opacity: 0.6;
+  }
+
+  .secondary-btn {
+    border: none;
+    background: #8E99A8;
+    color: white;
+    padding: 12px 26px;
+    font-size: 15px;
+    font-weight: 700;
+    border-radius: 999px;
+    margin-top: 10px;
+    cursor: pointer;
+  }
+
+  /* Wheel screen */
+  #wheelScreen {
+    justify-content: flex-start;
+    padding-top: 16px;
+    padding-bottom: 24px;
+  }
+
+  .top-box {
+    width: 100%;
+    max-width: 420px;
+    padding: 16px;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+    flex-shrink: 0;
+  }
+
+  .top-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: -6px;
+  }
+
+  .exitButton {
+    background: none;
+    border: none;
+    font-size: 14px;
+    color: #8E99A8;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 10px;
+  }
+
+  .exitButton:hover, .exitButton:focus-visible {
+    background: rgba(0, 0, 0, 0.05);
+    color: var(--accent-dark);
+  }
+
+  .wheel-area {
+    position: relative;
+    flex: 1;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .wheel-wrap {
+    position: relative;
+    width: min(78vw, 300px, 42vh);
+    height: min(78vw, 300px, 42vh);
+  }
+
+  #wheelSvg {
+    width: 100%;
+    height: 100%;
+    display: block;
+    border-radius: 50%;
+    filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.18));
+    transform: rotate(0deg);
+    transition: transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99);
+  }
+
+  .wheel-label {
+    fill: #ffffff;
+    font-size: 10.5px;
+    font-weight: 700;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    paint-order: stroke fill;
+    stroke: rgba(0, 0, 0, 0.35);
+    stroke-width: 2.5px;
+    stroke-linejoin: round;
+  }
+
+  .pointer {
+    position: absolute;
+    top: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 14px solid transparent;
+    border-right: 14px solid transparent;
+    border-top: 22px solid var(--accent-dark);
+    z-index: 5;
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.25));
+  }
+
+  .spin-btn {
+    flex-shrink: 0;
+    margin-top: 8px;
+  }
+
+  /* Result screen */
+  .result-eyebrow {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #8E99A8;
+    margin-bottom: 10px;
+  }
+
+  .result-text {
+    font-size: 26px;
+    font-weight: 800;
+    line-height: 1.35;
+    color: #1a1a1a;
+  }
+
+  #exitConfirm {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 40;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    text-align: center;
+  }
+</style>
+</head>
+
+<body>
+<div id="game">
+
+  <div id="startScreen" class="screen">
+    <div class="card">
+      <div class="title">Emotional Check-In Wheel</div>
+      <div class="instructions">Spin the wheel. Do what it lands on.</div>
+      <button class="primary-btn" onclick="goToWheel()">Start</button>
+    </div>
+  </div>
+
+  <div id="wheelScreen" class="screen" style="display:none;">
+    <div class="top-box">
+      <div class="top-row">
+        <button class="exitButton" onclick="confirmExit()" aria-label="Exit game">&times; Exit</button>
+      </div>
+      <div class="title" style="font-size:20px;">Emotional Check-In Wheel</div>
+      <div class="instructions">Spin the wheel. Do what it lands on.</div>
+    </div>
+
+    <div class="wheel-area">
+      <div class="wheel-wrap">
+        <div class="pointer"></div>
+        <svg id="wheelSvg" viewBox="0 0 300 300"></svg>
+      </div>
+    </div>
+
+    <button id="spinBtn" class="primary-btn spin-btn" onclick="handleSpinTap()">Spin</button>
+  </div>
+
+  <div id="resultScreen" class="screen" style="display:none;">
+    <div class="card">
+      <div class="result-eyebrow">Do this now</div>
+      <div id="resultText" class="result-text" aria-live="polite"></div>
+      <button class="primary-btn" onclick="handleSpinAgain()">Spin Again</button>
+      <button class="secondary-btn" onclick="confirmExit()">Exit</button>
+    </div>
+  </div>
+
+  <div id="exitConfirm">
+    <div class="card">
+      <div class="title" style="font-size:22px;">Leave the game?</div>
+      <div class="instructions">Your current progress won't be saved.</div>
+      <button class="primary-btn" onclick="doExit()">Yes, exit</button>
+      <button class="secondary-btn" onclick="cancelExit()">Stay</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const SEGMENTS = [
+    "Name what you're feeling right now.",
+    "Text one person you trust.",
+    "Look at a photo that makes you smile.",
+    "Write one sentence about today.",
+    "Repeat one self-compassion phrase to yourself.",
+    "Take five slow breaths."
+  ];
+
+  const SEG_COUNT = SEGMENTS.length;
+  const SEG_ANGLE = 360 / SEG_COUNT;
+  const CX = 150, CY = 150;
+  const R = 130;
+  const TEXT_R = 84;
+  const SVG_NS = "http://www.w3.org/2000/svg";
+
+  const startScreen = document.getElementById("startScreen");
+  const wheelScreen = document.getElementById("wheelScreen");
+  const resultScreen = document.getElementById("resultScreen");
+  const exitConfirm = document.getElementById("exitConfirm");
+  const wheelSvg = document.getElementById("wheelSvg");
+  const spinBtn = document.getElementById("spinBtn");
+  const resultText = document.getElementById("resultText");
+
+  let lastIndex = null;
+  let currentRotation = 0;
+  let spinning = false;
+
+  function pickNext(lastIndex) {
+    let next;
+    do { next = Math.floor(Math.random() * 6); } while (next === lastIndex);
+    return next;
+  }
+
+  function polar(r, thetaDeg) {
+    const rad = thetaDeg * Math.PI / 180;
+    return { x: CX + r * Math.sin(rad), y: CY - r * Math.cos(rad) };
+  }
+
+  function wrapLabel(text, maxChars) {
+    const words = text.split(" ");
+    const lines = [];
+    let cur = "";
+    words.forEach(w => {
+      const trial = cur ? cur + " " + w : w;
+      if (trial.length > maxChars && cur) {
+        lines.push(cur);
+        cur = w;
+      } else {
+        cur = trial;
+      }
+    });
+    if (cur) lines.push(cur);
+    return lines;
+  }
+
+  function fitLabel(text) {
+    // Longer segment phrases (e.g. sleep-wheel) get a smaller font/tighter
+    // wrap so they stay inside their wedge instead of overflowing it.
+    return text.length > 50
+      ? { maxChars: 15, fontSize: 8.5, lineHeight: 10 }
+      : { maxChars: 14, fontSize: 10.5, lineHeight: 12 };
+  }
+
+  function buildWheel() {
+    for (let i = 0; i < SEG_COUNT; i++) {
+      const startA = i * SEG_ANGLE;
+      const endA = (i + 1) * SEG_ANGLE;
+      const p1 = polar(R, startA);
+      const p2 = polar(R, endA);
+
+      const path = document.createElementNS(SVG_NS, "path");
+      path.setAttribute(
+        "d",
+        `M ${CX} ${CY} L ${p1.x.toFixed(2)} ${p1.y.toFixed(2)} A ${R} ${R} 0 0 1 ${p2.x.toFixed(2)} ${p2.y.toFixed(2)} Z`
+      );
+      path.style.fill = i % 2 === 0 ? "var(--accent-dark)" : "var(--accent-light)";
+      path.setAttribute("stroke", "#ffffff");
+      path.setAttribute("stroke-width", "2");
+      wheelSvg.appendChild(path);
+
+      const centerA = startA + SEG_ANGLE / 2;
+      const pos = polar(TEXT_R, centerA);
+      let rotateA = centerA - 90;
+      const norm = ((rotateA % 360) + 360) % 360;
+      if (norm > 90 && norm < 270) rotateA += 180;
+
+      const text = document.createElementNS(SVG_NS, "text");
+      text.setAttribute("x", pos.x.toFixed(2));
+      text.setAttribute("y", pos.y.toFixed(2));
+      text.setAttribute("transform", `rotate(${rotateA.toFixed(2)} ${pos.x.toFixed(2)} ${pos.y.toFixed(2)})`);
+      text.setAttribute("text-anchor", "middle");
+      text.setAttribute("class", "wheel-label");
+
+      const fit = fitLabel(SEGMENTS[i]);
+      text.style.fontSize = fit.fontSize + "px";
+      const lines = wrapLabel(SEGMENTS[i], fit.maxChars);
+      const lineHeight = fit.lineHeight;
+      const startDy = -((lines.length - 1) * lineHeight) / 2;
+      lines.forEach((line, idx) => {
+        const tspan = document.createElementNS(SVG_NS, "tspan");
+        tspan.setAttribute("x", pos.x.toFixed(2));
+        tspan.setAttribute("dy", idx === 0 ? startDy : lineHeight);
+        tspan.textContent = line;
+        text.appendChild(tspan);
+      });
+
+      wheelSvg.appendChild(text);
+    }
+  }
+
+  function showScreen(el) {
+    [startScreen, wheelScreen, resultScreen].forEach(s => {
+      s.style.display = "none";
+      s.style.opacity = "";
+      s.style.transition = "";
+    });
+    el.style.display = "flex";
+  }
+
+  function crossFadeToResult() {
+    wheelScreen.style.transition = "opacity 0.25s ease";
+    resultScreen.style.transition = "opacity 0.25s ease";
+    resultScreen.style.display = "flex";
+    resultScreen.style.opacity = "0";
+    void resultScreen.offsetWidth;
+    wheelScreen.style.opacity = "0";
+    resultScreen.style.opacity = "1";
+    setTimeout(() => {
+      wheelScreen.style.display = "none";
+      wheelScreen.style.opacity = "";
+      wheelScreen.style.transition = "";
+    }, 260);
+  }
+
+  function goToWheel() {
+    spinBtn.disabled = false;
+    showScreen(wheelScreen);
+  }
+
+  function handleSpinTap() {
+    spin();
+  }
+
+  function handleSpinAgain() {
+    spinBtn.disabled = false;
+    showScreen(wheelScreen);
+    spin();
+  }
+
+  function spin() {
+    if (spinning) return;
+    spinning = true;
+    spinBtn.disabled = true;
+
+    const targetIndex = pickNext(lastIndex);
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    if (reduced) {
+      landOnResult(targetIndex, true);
+      return;
+    }
+
+    const segCenter = targetIndex * SEG_ANGLE + SEG_ANGLE / 2;
+    const desiredMod = (360 - segCenter) % 360;
+    const currentMod = ((currentRotation % 360) + 360) % 360;
+
+    let delta = desiredMod - currentMod;
+    if (delta <= 0) delta += 360;
+
+    const extraSpins = 5 + Math.floor(Math.random() * 3); // 5, 6, or 7
+    const newRotation = currentRotation + delta + extraSpins * 360;
+
+    let settled = false;
+    const settle = () => {
+      if (settled) return;
+      settled = true;
+      wheelSvg.removeEventListener("transitionend", onEnd);
+      currentRotation = newRotation;
+      landOnResult(targetIndex, false);
+    };
+
+    const onEnd = (e) => {
+      if (e.propertyName !== "transform") return;
+      settle();
+    };
+    wheelSvg.addEventListener("transitionend", onEnd);
+
+    // Two rAFs force a style flush before changing the transform, so a
+    // same-tick "wheel screen just became visible" + "rotate" never gets
+    // coalesced into a skipped transition (which would mean no transitionend).
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        wheelSvg.style.transform = `rotate(${newRotation}deg)`;
+        setTimeout(settle, 4400); // safety net if transitionend is ever missed
+      });
+    });
+  }
+
+  function landOnResult(targetIndex, wasReduced) {
+    lastIndex = targetIndex;
+    spinning = false;
+
+    if (navigator.vibrate) navigator.vibrate(35);
+
+    resultText.textContent = SEGMENTS[targetIndex];
+
+    if (wasReduced) {
+      crossFadeToResult();
+    } else {
+      showScreen(resultScreen);
+    }
+  }
+
+  function confirmExit() {
+    exitConfirm.style.display = "flex";
+  }
+
+  function cancelExit() {
+    exitConfirm.style.display = "none";
+  }
+
+  function doExit() {
+    exitConfirm.style.display = "none";
+    lastIndex = null;
+    spinning = false;
+    spinBtn.disabled = false;
+    showScreen(startScreen);
+  }
+
+  buildWheel();
+</script>
+
+</body>
+</html>
