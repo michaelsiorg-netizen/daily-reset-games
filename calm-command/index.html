@@ -17,7 +17,7 @@
     padding: 0;
     width: 100%;
     height: 100vh;
-    height: 100dvh;
+    height: 100svh;
     overflow: hidden;
     position: fixed;
     overscroll-behavior: none;
@@ -31,7 +31,7 @@
     position: relative;
     width: 100vw;
     height: 100vh;
-    height: 100dvh;
+    height: 100svh;
     overflow: hidden;
     background: linear-gradient(180deg, #16233a 0%, #223c58 50%, #2f5068 100%);
   }
@@ -408,6 +408,11 @@
   const ITEM_SIZE = 64;
   const HEADER_CLEARANCE = 100;
   const SHIP_HALF = 28;
+  // Distance from the bottom of the screen to the ship's fixed Y position.
+  // Chosen so the ship's bottom edge clears the Fire button's top edge by
+  // a real margin (~24px) instead of the ~4px gap the old value (130) left,
+  // which is what forced getShipMaxX() to eat into horizontal travel.
+  const SHIP_Y_OFFSET = 150;
   const FIRE_BUTTON_PADDING = 16;
   const BULLET_WIDTH = 8;
   const BULLET_SPEED = 9;
@@ -515,10 +520,19 @@
   }
 
   function getShipMaxX() {
-    // Keep the ship's right edge clear of the Fire button, with a safe
-    // margin equal to the button's width plus some breathing room - the
-    // ship can never drift into the space reserved for the button.
+    // The Fire button only occupies a small circle in the bottom-right
+    // corner. Only restrict horizontal travel if the ship's row (it never
+    // moves vertically during play) could actually reach into the
+    // button's vertical footprint - otherwise the ship is free to use the
+    // full screen width. This keeps the restriction scoped to the small
+    // area the button really occupies instead of carving out a wide strip
+    // across the whole width.
     const fireRect = fireButton.getBoundingClientRect();
+    const shipBottom = shipY + SHIP_HALF;
+    const rowOverlapsButton = shipBottom + FIRE_BUTTON_PADDING > fireRect.top;
+    if (!rowOverlapsButton) {
+      return window.innerWidth - SHIP_HALF;
+    }
     return Math.max(SHIP_HALF, fireRect.left - FIRE_BUTTON_PADDING - SHIP_HALF);
   }
 
@@ -546,6 +560,41 @@
   window.addEventListener("pointermove", onPointerMove);
   window.addEventListener("pointerup", onPointerUp);
   window.addEventListener("pointercancel", onPointerUp);
+
+  // Belt-and-suspenders against iOS Safari's rubber-band/bounce scroll:
+  // touch-action:none and overscroll-behavior:none on html/body are not
+  // reliably sufficient on their own on iOS, so also block the default
+  // touchmove action directly. Ship dragging uses Pointer Events above,
+  // which still fire normally alongside this.
+  document.addEventListener("touchmove", (e) => {
+    e.preventDefault();
+  }, { passive: false });
+
+  // Diagnostics: log scrollHeight vs viewport height so we can confirm
+  // on-device (via remote inspector) whether anything is actually
+  // overflowing the locked-down layout, and whether the visual viewport
+  // is shifting/resizing during gameplay (e.g. from browser chrome
+  // animating), which can look like the page scrolling.
+  function logViewportDebug(label) {
+    console.log(
+      "[CalmCommand viewport]", label,
+      "| innerWidth=" + window.innerWidth,
+      "innerHeight=" + window.innerHeight,
+      "| visualViewport.height=" + (window.visualViewport ? window.visualViewport.height.toFixed(1) : "n/a"),
+      "visualViewport.offsetTop=" + (window.visualViewport ? window.visualViewport.offsetTop.toFixed(1) : "n/a"),
+      "| docEl.scrollHeight=" + document.documentElement.scrollHeight,
+      "body.scrollHeight=" + document.body.scrollHeight,
+      "game.scrollHeight=" + game.scrollHeight,
+      "| docEl.scrollTop=" + document.documentElement.scrollTop,
+      "body.scrollTop=" + document.body.scrollTop
+    );
+  }
+  window.addEventListener("load", () => logViewportDebug("load"));
+  window.addEventListener("resize", () => logViewportDebug("resize"));
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener("resize", () => logViewportDebug("visualViewport-resize"));
+    window.visualViewport.addEventListener("scroll", () => logViewportDebug("visualViewport-scroll"));
+  }
 
   fireButton.addEventListener("pointerdown", (e) => {
     e.stopPropagation();
@@ -809,8 +858,11 @@
     endScreen.classList.add("hidden");
     exitConfirm.style.display = "none";
 
+    // shipY must be set before getShipMaxX() runs, since the max-X
+    // calculation depends on the ship's vertical clearance above the
+    // Fire button.
+    shipY = window.innerHeight - SHIP_Y_OFFSET;
     shipX = clamp(window.innerWidth / 2, SHIP_HALF, getShipMaxX());
-    shipY = window.innerHeight - 130;
     shipEl.style.left = shipX + "px";
     shipEl.style.top = shipY + "px";
 
@@ -848,7 +900,7 @@
 
   window.addEventListener("resize", () => {
     if (!gameRunning) return;
-    shipY = window.innerHeight - 130;
+    shipY = window.innerHeight - SHIP_Y_OFFSET;
     shipEl.style.top = shipY + "px";
     shipX = clamp(shipX, SHIP_HALF, getShipMaxX());
     shipEl.style.left = shipX + "px";
