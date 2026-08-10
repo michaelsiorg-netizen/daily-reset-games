@@ -438,7 +438,7 @@
 
   let shipX = 0;
   let shipY = 0;
-  let dragging = false;
+  let dragPointerId = null;
   let lastFireTime = 0;
 
   let audioCtx = null;
@@ -543,17 +543,23 @@
 
   function onPointerDown(e) {
     if (!gameRunning) return;
-    dragging = true;
+    // Only track one drag finger at a time. If a drag is already active,
+    // ignore any other pointer touching down on the play field so it
+    // can't hijack or add a second, conflicting drag.
+    if (dragPointerId !== null) return;
+    dragPointerId = e.pointerId;
+    playField.setPointerCapture(e.pointerId);
     updateShipX(e.clientX);
   }
 
   function onPointerMove(e) {
-    if (!dragging) return;
+    if (e.pointerId !== dragPointerId) return;
     updateShipX(e.clientX);
   }
 
-  function onPointerUp() {
-    dragging = false;
+  function onPointerUp(e) {
+    if (e.pointerId !== dragPointerId) return;
+    dragPointerId = null;
   }
 
   playField.addEventListener("pointerdown", onPointerDown);
