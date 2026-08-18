@@ -1,0 +1,145 @@
+<!-- Daily Message loading screen for the Daily Reset Adalo WebView. Rotation anchor date: 2026-08-18 (local). -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<title>Daily Message</title>
+<style>
+  :root {
+    color-scheme: light;
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    width: 100%;
+    overflow: hidden; /* no scrollbars */
+    background: transparent; /* let Adalo's mountain background show through */
+  }
+
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    padding:
+      max(20px, env(safe-area-inset-top))
+      max(20px, env(safe-area-inset-right))
+      max(20px, env(safe-area-inset-bottom))
+      max(20px, env(safe-area-inset-left));
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+
+  .card {
+    max-width: 560px;
+    width: 100%;
+    background: rgba(255, 255, 255, 0.85);
+    border-radius: 24px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+    padding: clamp(24px, 6vw, 44px);
+    box-sizing: border-box;
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+    animation: fadeIn 0.7s ease-out forwards;
+  }
+
+  .message {
+    margin: 0;
+    text-align: center;
+    color: #333333; /* dark charcoal, not pure black */
+    font-size: clamp(1.1rem, 4.5vw, 1.75rem);
+    line-height: 1.5;
+    font-weight: 500;
+    word-wrap: break-word;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px) scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .card {
+      animation: none;
+      opacity: 1;
+      transform: none;
+    }
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <p class="message" id="message"></p>
+  </div>
+
+  <script>
+    // Short, on-tone fallback shown only if messages.json can't be fetched/parsed.
+    var FALLBACK_MESSAGE = "Take a breath. You've got this.";
+
+    // Fixed anchor date for the rotation. This is the date this page was built.
+    // Message index advances by exactly 1 per local calendar day starting here,
+    // then wraps around after 100 messages.
+    var ANCHOR_DATE = new Date(2026, 7, 18); // 2026-08-18 (month is 0-indexed: 7 = August)
+    var TOTAL_MESSAGES = 100;
+    var MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+    // Returns a 0-based index (0..TOTAL_MESSAGES-1) for "today", using the
+    // device's LOCAL calendar date so the message changes at local midnight.
+    // Never goes negative even if the device clock is set before the anchor date.
+    function getTodayIndex() {
+      var now = new Date();
+      var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      var anchor = new Date(ANCHOR_DATE.getFullYear(), ANCHOR_DATE.getMonth(), ANCHOR_DATE.getDate());
+      var daysElapsed = Math.round((today.getTime() - anchor.getTime()) / MS_PER_DAY);
+      return ((daysElapsed % TOTAL_MESSAGES) + TOTAL_MESSAGES) % TOTAL_MESSAGES;
+    }
+
+    // Optional ?day=N (1-100) query param for QA previewing. Only used when
+    // present and valid; never affects real users who omit it.
+    function getPreviewIndex() {
+      var params = new URLSearchParams(window.location.search);
+      var day = parseInt(params.get('day'), 10);
+      if (!isNaN(day) && day >= 1 && day <= TOTAL_MESSAGES) {
+        return day - 1;
+      }
+      return null;
+    }
+
+    function showMessage(text) {
+      document.getElementById('message').textContent = text;
+    }
+
+    function init(messages) {
+      var index;
+      var previewIndex = getPreviewIndex();
+      if (previewIndex !== null) {
+        index = previewIndex;
+      } else {
+        index = getTodayIndex();
+      }
+      var text = (Array.isArray(messages) && messages[index]) ? messages[index] : FALLBACK_MESSAGE;
+      showMessage(text);
+    }
+
+    fetch('./messages.json')
+      .then(function (res) {
+        if (!res.ok) throw new Error('Bad response');
+        return res.json();
+      })
+      .then(function (data) {
+        init(data);
+      })
+      .catch(function () {
+        showMessage(FALLBACK_MESSAGE);
+      });
+  </script>
+</body>
+</html>
