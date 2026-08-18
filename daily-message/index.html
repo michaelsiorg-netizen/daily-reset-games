@@ -32,6 +32,41 @@
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   }
 
+  /* Icon + card, stacked and vertically balanced within the (now taller) WebView. */
+  .wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    max-width: 560px;
+    /* Shrinks on short/landscape viewports (vh) and narrow ones (vw) alike. */
+    gap: clamp(14px, 3.5vh, 26px);
+  }
+
+  .icon {
+    width: clamp(56px, min(20vw, 18vh), 120px);
+    aspect-ratio: 1 / 1;
+    flex-shrink: 0;
+    opacity: 0;
+    transform: translateY(8px) scale(0.94);
+    animation: iconFadeIn 0.6s ease-out forwards;
+  }
+
+  .icon svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Sun + horizon + rays glow in slightly after/within the icon's own fade-in. */
+  .sun-group {
+    opacity: 0;
+    filter: brightness(0.55) saturate(0.6);
+    transform-origin: 50px 56px;
+    animation: sunGlow 0.9s ease-out 0.08s forwards;
+  }
+
   .card {
     max-width: 560px;
     width: 100%;
@@ -43,6 +78,8 @@
     opacity: 0;
     transform: translateY(10px) scale(0.98);
     animation: fadeIn 0.7s ease-out forwards;
+    /* Starts ~250ms after the icon begins, so it reads as one sequence. */
+    animation-delay: 0.25s;
   }
 
   .message {
@@ -53,6 +90,28 @@
     line-height: 1.5;
     font-weight: 500;
     word-wrap: break-word;
+  }
+
+  @keyframes iconFadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(8px) scale(0.94);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  @keyframes sunGlow {
+    from {
+      opacity: 0.3;
+      filter: brightness(0.5) saturate(0.5);
+    }
+    to {
+      opacity: 1;
+      filter: brightness(1) saturate(1);
+    }
   }
 
   @keyframes fadeIn {
@@ -67,17 +126,56 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
+    .icon,
+    .sun-group,
     .card {
       animation: none;
       opacity: 1;
       transform: none;
+      filter: none;
     }
   }
 </style>
 </head>
 <body>
-  <div class="card">
-    <p class="message" id="message"></p>
+  <div class="wrap">
+    <div class="icon" aria-hidden="true">
+      <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" focusable="false">
+        <defs>
+          <linearGradient id="ringGrad" gradientUnits="userSpaceOnUse" x1="6" y1="6" x2="94" y2="94">
+            <stop offset="0%" stop-color="#5EEAD4"/>
+            <stop offset="100%" stop-color="#22C55E"/>
+          </linearGradient>
+          <linearGradient id="sunGrad" gradientUnits="userSpaceOnUse" x1="28" y1="39" x2="72" y2="56">
+            <stop offset="0%" stop-color="#2DD4BF"/>
+            <stop offset="100%" stop-color="#16A34A"/>
+          </linearGradient>
+        </defs>
+
+        <!-- Segmented "reset" ring with a small arrowhead marker -->
+        <circle cx="50" cy="50" r="44" fill="none" stroke="url(#ringGrad)"
+          stroke-width="3.5" stroke-linecap="round" stroke-dasharray="6 5"/>
+        <g transform="rotate(55 50 50)">
+          <polygon points="50,3 60,8 50,13" fill="url(#ringGrad)"/>
+        </g>
+
+        <!-- Rising sun: horizon line, domed sun, short rays -->
+        <g class="sun-group">
+          <line x1="28" y1="56" x2="72" y2="56" stroke="url(#sunGrad)"
+            stroke-width="3" stroke-linecap="round"/>
+          <path d="M39,56 A11 11 0 0 1 61,56 Z" fill="url(#sunGrad)"/>
+          <line x1="39.6" y1="50" x2="35.3" y2="47.5" stroke="url(#sunGrad)" stroke-width="2.6" stroke-linecap="round"/>
+          <line x1="44" y1="45.6" x2="41.5" y2="41.3" stroke="url(#sunGrad)" stroke-width="2.6" stroke-linecap="round"/>
+          <line x1="50" y1="44" x2="50" y2="39" stroke="url(#sunGrad)" stroke-width="2.6" stroke-linecap="round"/>
+          <line x1="56" y1="45.6" x2="58.5" y2="41.3" stroke="url(#sunGrad)" stroke-width="2.6" stroke-linecap="round"/>
+          <line x1="60.4" y1="50" x2="64.7" y2="47.5" stroke="url(#sunGrad)" stroke-width="2.6" stroke-linecap="round"/>
+        </g>
+      </svg>
+    </div>
+
+    <div class="card">
+      <p class="message" id="message"></p>
+    </div>
   </div>
 
   <script>
