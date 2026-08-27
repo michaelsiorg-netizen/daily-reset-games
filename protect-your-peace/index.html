@@ -1,0 +1,1079 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<title>Protect Your Peace</title>
+
+<style>
+  * {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100vh;
+    height: 100svh;
+    overflow: hidden;
+    position: fixed;
+    overscroll-behavior: none;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    touch-action: none;
+    background: #16233a;
+    color: #ffffff;
+  }
+
+  #game {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    height: 100svh;
+    overflow: hidden;
+    background: linear-gradient(180deg, #16233a 0%, #223c58 50%, #2f5068 100%);
+  }
+
+  .top-row {
+    position: absolute;
+    top: 14px;
+    left: 16px;
+    right: 16px;
+    z-index: 15;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+
+  .header-text {
+    text-align: center;
+    flex: 1;
+  }
+
+  h1 {
+    margin: 4px 0 2px;
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+
+  .subtitle {
+    font-size: 13px;
+    opacity: 0.8;
+    max-width: 280px;
+    margin: 0 auto 8px;
+    line-height: 1.3;
+  }
+
+  .stats-row {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+  }
+
+  .pill {
+    font-size: 13px;
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.15);
+    padding: 5px 14px;
+    border-radius: 20px;
+    display: inline-block;
+  }
+
+  .exitButton {
+    background: rgba(255, 255, 255, 0.12);
+    border: none;
+    color: #ffffff;
+    font-size: 14px;
+    cursor: pointer;
+    padding: 6px 12px;
+    border-radius: 12px;
+  }
+
+  .exitButton:hover, .exitButton:focus-visible {
+    background: rgba(255, 255, 255, 0.22);
+  }
+
+  .spacer {
+    width: 62px;
+  }
+
+  #playField {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+  }
+
+  .item {
+    position: absolute;
+    font-size: 40px;
+    width: 64px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: white;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+    z-index: 5;
+  }
+
+  .item.pop {
+    animation: popOut 0.26s ease forwards;
+  }
+
+  .item.wrong {
+    animation: wrongShake 0.36s ease;
+    background: #ffd8d8;
+  }
+
+  @keyframes popOut {
+    0% { transform: scale(1); opacity: 1; }
+    40% { transform: scale(1.3); opacity: 1; }
+    100% { transform: scale(0.2); opacity: 0; }
+  }
+
+  @keyframes wrongShake {
+    0% { transform: translateX(0); }
+    25% { transform: translateX(-8px); }
+    50% { transform: translateX(8px); }
+    75% { transform: translateX(-5px); }
+    100% { transform: translateX(0); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .item.pop {
+      animation: popFade 0.26s ease forwards;
+    }
+    .item.wrong {
+      animation: none;
+    }
+  }
+
+  @keyframes popFade {
+    to { opacity: 0; }
+  }
+
+  #ship {
+    position: absolute;
+    width: 56px;
+    height: 56px;
+    transform: translate(-50%, -50%);
+    z-index: 6;
+    pointer-events: none;
+    filter: drop-shadow(0 0 10px rgba(127, 209, 255, 0.65));
+  }
+
+  #ship .ship-body {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(160deg, #8fc6ff, #4a6fa5);
+    clip-path: polygon(50% 0%, 88% 100%, 50% 78%, 12% 100%);
+  }
+
+  .bullet {
+    position: absolute;
+    width: 8px;
+    height: 22px;
+    border-radius: 4px;
+    background: linear-gradient(#ffffff, #7fd1ff);
+    box-shadow: 0 0 8px rgba(127, 209, 255, 0.8);
+    z-index: 6;
+    pointer-events: none;
+  }
+
+  #fireButton {
+    position: fixed;
+    bottom: 22px;
+    right: 22px;
+    width: 76px;
+    height: 76px;
+    border-radius: 50%;
+    border: none;
+    background: #ffd875;
+    color: #16233a;
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+    z-index: 12;
+    touch-action: none;
+  }
+
+  #fireButton:active {
+    transform: scale(0.94);
+  }
+
+  #hitFlash {
+    position: absolute;
+    inset: 0;
+    background: rgba(255, 60, 60, 0.35);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 8;
+    transition: opacity 0.15s ease;
+  }
+
+  #hitFlash.show {
+    opacity: 1;
+    transition: none;
+  }
+
+  #phaseBanner {
+    position: absolute;
+    top: 42%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 30px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    color: #ffd875;
+    text-shadow: 0 0 16px rgba(255, 216, 117, 0.6);
+    z-index: 14;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+  }
+
+  #phaseBanner.show {
+    opacity: 1;
+  }
+
+  #startScreen, #endScreen {
+    position: absolute;
+    inset: 0;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    text-align: center;
+    background: rgba(4, 9, 18, 0.85);
+  }
+
+  .card {
+    max-width: 340px;
+    padding: 30px 24px;
+    border-radius: 24px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+  }
+
+  .card h2 {
+    margin: 0 0 14px;
+    font-size: 24px;
+    font-weight: 700;
+  }
+
+  .card p {
+    margin: 10px 0;
+    font-size: 14px;
+    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.85);
+  }
+
+  .legend {
+    font-size: 15px;
+  }
+
+  .legend .stress {
+    color: #ff9d9d;
+  }
+
+  .legend .calm {
+    color: #9fd6ff;
+  }
+
+  button.primary {
+    margin-top: 20px;
+    width: 100%;
+    border: none;
+    border-radius: 999px;
+    padding: 14px 20px;
+    font-size: 16px;
+    font-weight: 700;
+    color: #16233a;
+    background: #ffd875;
+    box-shadow: 0 4px 15px rgba(255, 216, 117, 0.3);
+    cursor: pointer;
+  }
+
+  button.secondary {
+    margin-top: 10px;
+    width: 100%;
+    border: none;
+    border-radius: 999px;
+    padding: 12px 20px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #fff;
+    background: rgba(255, 255, 255, 0.12);
+    cursor: pointer;
+  }
+
+  .hidden {
+    display: none !important;
+  }
+
+  #exitConfirm {
+    position: absolute;
+    inset: 0;
+    z-index: 40;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(4, 9, 18, 0.85);
+  }
+</style>
+</head>
+
+<body>
+<div id="game">
+
+  <div id="hitFlash"></div>
+  <div id="playField">
+    <div id="ship"><div class="ship-body"></div></div>
+  </div>
+
+  <div id="phaseBanner"></div>
+
+  <div class="top-row">
+    <div class="spacer"></div>
+    <div class="header-text">
+      <h1>Protect Your Peace</h1>
+      <div class="stats-row">
+        <div class="pill">Time: <span id="timeLeft">45</span>s</div>
+        <div class="pill">Calm: <span id="calmCount">0</span></div>
+      </div>
+    </div>
+    <button class="exitButton" onclick="confirmExit()" aria-label="Exit game">&times; Exit</button>
+  </div>
+
+  <div id="startScreen">
+    <div class="card">
+      <h2>Protect Your Peace</h2>
+      <p>Calm is drifting out there, minding its own business. Stress is hunting it down. Shoot the stress before it reaches the calm.</p>
+      <p class="legend"><span class="stress">Shoot:</span> ⏰ ⚠️ 😠 🔥 💢</p>
+      <p class="legend"><span class="calm">Protect:</span> 🌳 ☁️ 🌊 🌻 🦋 🌙 ⭐ 🍃</p>
+      <p>Drag anywhere to fly your ship in any direction. Tap FIRE to shoot straight up. Survive 45 seconds with at least one calm left.</p>
+      <button class="primary" onclick="startGame()">Start</button>
+    </div>
+  </div>
+
+  <div id="endScreen" class="hidden">
+    <div class="card">
+      <h2 id="endTitle">Peace Protected</h2>
+      <p id="endMessage"></p>
+      <p id="finalScore"></p>
+      <button class="primary" onclick="startGame()">Play Again</button>
+    </div>
+  </div>
+
+  <div id="exitConfirm">
+    <div class="card">
+      <h2 style="font-size: 20px;">Leave the game?</h2>
+      <p>Your current progress won't be saved.</p>
+      <button class="primary" onclick="doExit()">Yes, exit</button>
+      <button class="secondary" onclick="cancelExit()">Stay</button>
+    </div>
+  </div>
+
+  <button id="fireButton" aria-label="Fire">FIRE</button>
+
+</div>
+
+<script>
+  const game = document.getElementById("game");
+  const playField = document.getElementById("playField");
+  const shipEl = document.getElementById("ship");
+  const timeLeftEl = document.getElementById("timeLeft");
+  const calmCountEl = document.getElementById("calmCount");
+  const phaseBanner = document.getElementById("phaseBanner");
+  const hitFlash = document.getElementById("hitFlash");
+  const startScreen = document.getElementById("startScreen");
+  const endScreen = document.getElementById("endScreen");
+  const endTitle = document.getElementById("endTitle");
+  const endMessage = document.getElementById("endMessage");
+  const finalScore = document.getElementById("finalScore");
+  const exitConfirm = document.getElementById("exitConfirm");
+  const fireButton = document.getElementById("fireButton");
+
+  const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  const calmItems = ["🌳", "☁️", "🌊", "🌻", "🦋", "🌙", "⭐", "🍃"];
+  const stressItems = ["⏰", "⚠️", "😠", "🔥", "💢"];
+
+  const ITEM_SIZE = 64;
+  const HEADER_CLEARANCE = 100;
+  const BOTTOM_MARGIN = 16;
+  const SHIP_HALF = 28;
+  // Ship's initial vertical placement on start - after that it's fully
+  // drag-controlled in both axes, this only seeds where it appears.
+  const SHIP_Y_OFFSET = 150;
+  const FIRE_BUTTON_PADDING = 16;
+  const BULLET_WIDTH = 8;
+  const BULLET_SPEED = 9;
+  const FIRE_COOLDOWN = 180;
+  const HIT_RADIUS = 32;   // bullet vs. stress emoji (shot kill)
+  const EAT_RADIUS = 42;   // stress vs. calm emoji (touch = eaten)
+  const FLEE_RADIUS = 160; // calm emoji notices a stress emoji within this distance and flees
+  const CALM_IDLE_MIN_SPEED = 0.25;
+  const CALM_IDLE_MAX_SPEED = 0.45;
+  const CALM_FLEE_SPEED = 2.0;
+  const STRESS_SEEK_MIN_SPEED = 1.2;
+  const STRESS_SEEK_MAX_SPEED = 1.6;
+  const MAX_STRESS_ON_SCREEN = 8;
+  const MATCH_DURATION = 45000;
+
+  // Three escalating phases by elapsed match time - only the stress spawn
+  // rate ramps up; seek speed stays constant across phases.
+  const phases = [
+    { start: 0, end: 15000, spawnInterval: 2200 },
+    { start: 15000, end: 30000, spawnInterval: 1500 },
+    { start: 30000, end: 45000, spawnInterval: 1000 }
+  ];
+
+  let score = 0;
+  let gameRunning = false;
+  let matchStartTime = 0;
+  let currentPhaseIndex = -1;
+  let spawnTimer = null;
+  let countdownTimer = null;
+  let phaseBannerTimer = null;
+  let gameLoopFrame = null;
+  let calmEmojis = [];
+  let stressEmojis = [];
+  let activeBullets = [];
+
+  let shipX = 0;
+  let shipY = 0;
+  let dragPointerId = null;
+  let lastFireTime = 0;
+
+  let audioCtx = null;
+
+  // Known limitation: control is drag-to-move + tap-to-fire only, with no
+  // keyboard-equivalent scheme - the same reflex-based accessibility gap
+  // as Calm Command and Growing Compassion's tap-to-select mechanic.
+
+  function ensureAudio() {
+    if (!audioCtx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      audioCtx = new AC();
+    }
+    if (audioCtx.state === "suspended") {
+      audioCtx.resume();
+    }
+  }
+
+  function tone(freq, duration, opts = {}) {
+    if (!audioCtx) return;
+    const { type = "sine", peak = 0.2, delay = 0, freqEnd = null } = opts;
+    const t0 = audioCtx.currentTime + delay;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, t0);
+    if (freqEnd) {
+      osc.frequency.exponentialRampToValueAtTime(freqEnd, t0 + duration);
+    }
+
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.exponentialRampToValueAtTime(peak, t0 + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
+
+    osc.connect(gain).connect(audioCtx.destination);
+    osc.start(t0);
+    osc.stop(t0 + duration + 0.02);
+  }
+
+  function playFireTone() {
+    tone(880, 0.09, { type: "triangle", peak: 0.15, freqEnd: 440 });
+  }
+
+  function playStressHitTone() {
+    tone(523, 0.09, { type: "sine", peak: 0.22 });
+    tone(784, 0.12, { type: "sine", peak: 0.22, delay: 0.06 });
+  }
+
+  function playEatenTone() {
+    tone(180, 0.18, { type: "sawtooth", peak: 0.18, freqEnd: 120 });
+  }
+
+  function playChime() {
+    tone(523, 0.14, { peak: 0.2, delay: 0 });
+    tone(659, 0.14, { peak: 0.2, delay: 0.15 });
+    tone(784, 0.22, { peak: 0.2, delay: 0.3 });
+  }
+
+  function playLoseTone() {
+    tone(392, 0.16, { type: "sawtooth", peak: 0.2, freqEnd: 220 });
+    tone(294, 0.22, { type: "sawtooth", peak: 0.2, freqEnd: 160, delay: 0.14 });
+  }
+
+  function vibrate(pattern) {
+    if (navigator.vibrate) {
+      navigator.vibrate(pattern);
+    }
+  }
+
+  function updateScore() {
+    // Score is kill-count flavor only - shown on the end screen, not tied
+    // to win/lose (which is decided purely by calm emojis surviving).
+  }
+
+  function updateCalmCount() {
+    calmCountEl.textContent = calmEmojis.length;
+  }
+
+  function flashScreen() {
+    hitFlash.classList.add("show");
+    requestAnimationFrame(() => {
+      hitFlash.classList.remove("show");
+    });
+  }
+
+  function clamp(value, min, max) {
+    return Math.min(Math.max(value, min), max);
+  }
+
+  function clampShipPosition(x, y) {
+    const clampedY = clamp(y, HEADER_CLEARANCE, window.innerHeight - SHIP_HALF - BOTTOM_MARGIN);
+    let clampedX = clamp(x, SHIP_HALF, window.innerWidth - SHIP_HALF);
+
+    // The Fire button only occupies a small circle in the bottom-right
+    // corner. Only push the ship out of it if it would actually overlap
+    // that footprint - otherwise the ship is free to roam the full field,
+    // including along the bottom edge to the left of the button.
+    const fireRect = fireButton.getBoundingClientRect();
+    const shipBottom = clampedY + SHIP_HALF;
+    const shipRight = clampedX + SHIP_HALF;
+    const rowOverlapsButton = shipBottom + FIRE_BUTTON_PADDING > fireRect.top;
+    const colOverlapsButton = shipRight + FIRE_BUTTON_PADDING > fireRect.left;
+
+    if (rowOverlapsButton && colOverlapsButton) {
+      clampedX = Math.max(SHIP_HALF, fireRect.left - FIRE_BUTTON_PADDING - SHIP_HALF);
+    }
+
+    return { x: clampedX, y: clampedY };
+  }
+
+  function updateShipPosition(clientX, clientY) {
+    const clamped = clampShipPosition(clientX, clientY);
+    shipX = clamped.x;
+    shipY = clamped.y;
+    shipEl.style.left = shipX + "px";
+    shipEl.style.top = shipY + "px";
+  }
+
+  function onPointerDown(e) {
+    if (!gameRunning) return;
+    // Only track one drag finger at a time. If a drag is already active,
+    // ignore any other pointer touching down on the play field so it
+    // can't hijack or add a second, conflicting drag.
+    if (dragPointerId !== null) return;
+    dragPointerId = e.pointerId;
+    playField.setPointerCapture(e.pointerId);
+    updateShipPosition(e.clientX, e.clientY);
+  }
+
+  function onPointerMove(e) {
+    if (e.pointerId !== dragPointerId) return;
+    updateShipPosition(e.clientX, e.clientY);
+  }
+
+  function onPointerUp(e) {
+    if (e.pointerId !== dragPointerId) return;
+    dragPointerId = null;
+  }
+
+  playField.addEventListener("pointerdown", onPointerDown);
+  window.addEventListener("pointermove", onPointerMove);
+  window.addEventListener("pointerup", onPointerUp);
+  window.addEventListener("pointercancel", onPointerUp);
+
+  // Belt-and-suspenders against iOS Safari's rubber-band/bounce scroll:
+  // touch-action:none and overscroll-behavior:none on html/body are not
+  // reliably sufficient on their own on iOS, so also block the default
+  // touchmove action directly. Ship dragging uses Pointer Events above,
+  // which still fire normally alongside this.
+  document.addEventListener("touchmove", (e) => {
+    e.preventDefault();
+  }, { passive: false });
+
+  // Diagnostics: log scrollHeight vs viewport height so we can confirm
+  // on-device (via remote inspector) whether anything is actually
+  // overflowing the locked-down layout, and whether the visual viewport
+  // is shifting/resizing during gameplay (e.g. from browser chrome
+  // animating), which can look like the page scrolling.
+  function logViewportDebug(label) {
+    console.log(
+      "[ProtectYourPeace viewport]", label,
+      "| innerWidth=" + window.innerWidth,
+      "innerHeight=" + window.innerHeight,
+      "| visualViewport.height=" + (window.visualViewport ? window.visualViewport.height.toFixed(1) : "n/a"),
+      "visualViewport.offsetTop=" + (window.visualViewport ? window.visualViewport.offsetTop.toFixed(1) : "n/a"),
+      "| docEl.scrollHeight=" + document.documentElement.scrollHeight,
+      "body.scrollHeight=" + document.body.scrollHeight,
+      "game.scrollHeight=" + game.scrollHeight,
+      "| docEl.scrollTop=" + document.documentElement.scrollTop,
+      "body.scrollTop=" + document.body.scrollTop
+    );
+  }
+  window.addEventListener("load", () => logViewportDebug("load"));
+  window.addEventListener("resize", () => logViewportDebug("resize"));
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener("resize", () => logViewportDebug("visualViewport-resize"));
+    window.visualViewport.addEventListener("scroll", () => logViewportDebug("visualViewport-scroll"));
+  }
+
+  fireButton.addEventListener("pointerdown", (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    fireBullet();
+  });
+
+  function fireBullet() {
+    if (!gameRunning) return;
+
+    const now = performance.now();
+    if (now - lastFireTime < FIRE_COOLDOWN) return;
+    lastFireTime = now;
+
+    const el = document.createElement("div");
+    el.className = "bullet";
+
+    // Always fires straight up from wherever the ship currently is.
+    const bulletState = {
+      el,
+      x: shipX,
+      y: shipY - SHIP_HALF - 12
+    };
+
+    el.style.left = (bulletState.x - BULLET_WIDTH / 2) + "px";
+    el.style.top = bulletState.y + "px";
+
+    playField.appendChild(el);
+    activeBullets.push(bulletState);
+    playFireTone();
+  }
+
+  function fieldBounds() {
+    return {
+      minX: 0,
+      maxX: window.innerWidth - ITEM_SIZE,
+      minY: HEADER_CLEARANCE,
+      maxY: window.innerHeight - ITEM_SIZE - BOTTOM_MARGIN
+    };
+  }
+
+  function randomEdgePosition() {
+    const b = fieldBounds();
+    const side = Math.floor(Math.random() * 4);
+    if (side === 0) return { x: b.minX + Math.random() * (b.maxX - b.minX), y: b.minY };
+    if (side === 1) return { x: b.minX + Math.random() * (b.maxX - b.minX), y: b.maxY };
+    if (side === 2) return { x: b.minX, y: b.minY + Math.random() * (b.maxY - b.minY) };
+    return { x: b.maxX, y: b.minY + Math.random() * (b.maxY - b.minY) };
+  }
+
+  function spawnCalmEmoji() {
+    const b = fieldBounds();
+    const el = document.createElement("div");
+    el.className = "item";
+    el.textContent = calmItems[Math.floor(Math.random() * calmItems.length)];
+
+    const angle = Math.random() * Math.PI * 2;
+    const speed = CALM_IDLE_MIN_SPEED + Math.random() * (CALM_IDLE_MAX_SPEED - CALM_IDLE_MIN_SPEED);
+
+    const state = {
+      el,
+      x: b.minX + Math.random() * (b.maxX - b.minX),
+      y: b.minY + Math.random() * (b.maxY - b.minY),
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed
+    };
+
+    el.style.left = state.x + "px";
+    el.style.top = state.y + "px";
+
+    playField.appendChild(el);
+    calmEmojis.push(state);
+  }
+
+  function initCalmEmojis() {
+    const count = 3 + Math.floor(Math.random() * 3); // 3-5
+    for (let i = 0; i < count; i++) spawnCalmEmoji();
+  }
+
+  function spawnStressEmoji() {
+    if (!gameRunning) return;
+    if (stressEmojis.length >= MAX_STRESS_ON_SCREEN) return;
+
+    const el = document.createElement("div");
+    el.className = "item";
+    el.textContent = stressItems[Math.floor(Math.random() * stressItems.length)];
+
+    const pos = randomEdgePosition();
+    const state = {
+      el,
+      x: pos.x,
+      y: pos.y,
+      vx: 0,
+      vy: 0,
+      speed: STRESS_SEEK_MIN_SPEED + Math.random() * (STRESS_SEEK_MAX_SPEED - STRESS_SEEK_MIN_SPEED)
+    };
+
+    el.style.left = state.x + "px";
+    el.style.top = state.y + "px";
+
+    playField.appendChild(el);
+    stressEmojis.push(state);
+  }
+
+  // Returns { state, dist, cx, cy } for the closest entry in `list` to
+  // (cx, cy), or null if the list is empty. Shared by both AIs: calm
+  // emojis use it to find the nearest threat, stress emojis use it to
+  // find the nearest target.
+  function findNearest(list, cx, cy) {
+    let best = null;
+    let bestDist = Infinity;
+    list.forEach(state => {
+      const sx = state.x + ITEM_SIZE / 2;
+      const sy = state.y + ITEM_SIZE / 2;
+      const d = Math.hypot(sx - cx, sy - cy);
+      if (d < bestDist) {
+        bestDist = d;
+        best = { state, dist: d, cx: sx, cy: sy };
+      }
+    });
+    return best;
+  }
+
+  function isTouching(aState, bState, radius) {
+    const ax = aState.x + ITEM_SIZE / 2;
+    const ay = aState.y + ITEM_SIZE / 2;
+    const bx = bState.x + ITEM_SIZE / 2;
+    const by = bState.y + ITEM_SIZE / 2;
+    const dx = ax - bx;
+    const dy = ay - by;
+    return (dx * dx + dy * dy) < radius * radius;
+  }
+
+  function collide(bullet, enemyState) {
+    const ex = enemyState.x + ITEM_SIZE / 2;
+    const ey = enemyState.y + ITEM_SIZE / 2;
+    const bx = bullet.x;
+    const by = bullet.y + BULLET_WIDTH;
+    const dx = ex - bx;
+    const dy = ey - by;
+    return (dx * dx + dy * dy) < HIT_RADIUS * HIT_RADIUS;
+  }
+
+  function resolveShot(state) {
+    state.el.classList.add("pop");
+    score += 1;
+    updateScore();
+    vibrate(35);
+    playStressHitTone();
+    setTimeout(() => state.el.remove(), 260);
+  }
+
+  function resolveEaten(calmState) {
+    calmState.el.classList.add("wrong");
+    vibrate([80, 50, 80]);
+    playEatenTone();
+    flashScreen();
+    setTimeout(() => calmState.el.remove(), 360);
+  }
+
+  function gameLoop(now) {
+    if (!gameLoopFrame) return;
+
+    const step = Math.min(now - (gameLoop.lastTime || now), 50) / 16.67;
+    gameLoop.lastTime = now;
+
+    const b = fieldBounds();
+    const calmRemovals = [];
+    const stressRemovals = [];
+    const bulletRemovals = [];
+
+    // Calm emoji AI: flee the nearest stress emoji if it's within
+    // FLEE_RADIUS, otherwise idle-drift. The idle direction only gets
+    // re-picked occasionally (and never under reduced motion) - the
+    // constant drift itself keeps going either way, same convention as
+    // Calm Command's stress-item jitter gating.
+    calmEmojis.forEach(state => {
+      const cx = state.x + ITEM_SIZE / 2;
+      const cy = state.y + ITEM_SIZE / 2;
+      const threat = findNearest(stressEmojis, cx, cy);
+
+      if (threat && threat.dist < FLEE_RADIUS) {
+        const dx = cx - threat.cx;
+        const dy = cy - threat.cy;
+        const dist = Math.max(1, Math.hypot(dx, dy));
+        state.vx = (dx / dist) * CALM_FLEE_SPEED;
+        state.vy = (dy / dist) * CALM_FLEE_SPEED;
+      } else if (!prefersReducedMotion && Math.random() < 0.02) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = CALM_IDLE_MIN_SPEED + Math.random() * (CALM_IDLE_MAX_SPEED - CALM_IDLE_MIN_SPEED);
+        state.vx = Math.cos(angle) * speed;
+        state.vy = Math.sin(angle) * speed;
+      }
+
+      state.x += state.vx * step;
+      state.y += state.vy * step;
+
+      if (state.x < b.minX) { state.x = b.minX; state.vx *= -1; }
+      else if (state.x > b.maxX) { state.x = b.maxX; state.vx *= -1; }
+      if (state.y < b.minY) { state.y = b.minY; state.vy *= -1; }
+      else if (state.y > b.maxY) { state.y = b.maxY; state.vy *= -1; }
+
+      state.el.style.left = state.x + "px";
+      state.el.style.top = state.y + "px";
+    });
+
+    // Stress emoji AI: continuously seek the nearest surviving calm
+    // emoji. Re-picking direction every frame is fine here (unlike the
+    // calm idle drift) since seeking is core gameplay motion, not a
+    // decorative flourish - no reduced-motion gating needed.
+    stressEmojis.forEach(state => {
+      const cx = state.x + ITEM_SIZE / 2;
+      const cy = state.y + ITEM_SIZE / 2;
+      const target = findNearest(calmEmojis, cx, cy);
+
+      if (target) {
+        const dx = target.cx - cx;
+        const dy = target.cy - cy;
+        const dist = Math.max(1, Math.hypot(dx, dy));
+        state.vx = (dx / dist) * state.speed;
+        state.vy = (dy / dist) * state.speed;
+
+        state.x += state.vx * step;
+        state.y += state.vy * step;
+
+        state.x = clamp(state.x, b.minX, b.maxX);
+        state.y = clamp(state.y, b.minY, b.maxY);
+      }
+
+      state.el.style.left = state.x + "px";
+      state.el.style.top = state.y + "px";
+    });
+
+    // Eating: a stress emoji touching a calm emoji consumes both -
+    // the calm emoji is eaten, and that stress emoji is spent doing it.
+    stressEmojis.forEach(stressState => {
+      if (stressRemovals.includes(stressState)) return;
+      for (const calmState of calmEmojis) {
+        if (calmRemovals.includes(calmState)) continue;
+        if (isTouching(stressState, calmState, EAT_RADIUS)) {
+          stressRemovals.push(stressState);
+          calmRemovals.push(calmState);
+          resolveEaten(calmState);
+          break;
+        }
+      }
+    });
+
+    // Bullets only ever threaten stress emojis - calm emojis are never a
+    // target and bullets simply pass through them.
+    activeBullets.forEach(bullet => {
+      bullet.y -= BULLET_SPEED * step;
+
+      if (bullet.y < HEADER_CLEARANCE - 40) {
+        bulletRemovals.push(bullet);
+        return;
+      }
+
+      for (const state of stressEmojis) {
+        if (stressRemovals.includes(state)) continue;
+        if (collide(bullet, state)) {
+          stressRemovals.push(state);
+          resolveShot(state);
+          bulletRemovals.push(bullet);
+          return;
+        }
+      }
+
+      bullet.el.style.top = bullet.y + "px";
+    });
+
+    if (calmRemovals.length) {
+      calmEmojis = calmEmojis.filter(s => !calmRemovals.includes(s));
+      updateCalmCount();
+    }
+    if (stressRemovals.length) {
+      stressEmojis = stressEmojis.filter(s => !stressRemovals.includes(s));
+    }
+    if (bulletRemovals.length) {
+      activeBullets = activeBullets.filter(bl => !bulletRemovals.includes(bl));
+      bulletRemovals.forEach(bl => bl.el.remove());
+    }
+
+    if (gameRunning && calmEmojis.length === 0) {
+      endMatch("lose");
+    }
+
+    gameLoopFrame = requestAnimationFrame(gameLoop);
+  }
+
+  function startGameLoop() {
+    if (gameLoopFrame) return;
+    gameLoop.lastTime = null;
+    gameLoopFrame = requestAnimationFrame(gameLoop);
+  }
+
+  function stopGameLoop() {
+    if (gameLoopFrame) {
+      cancelAnimationFrame(gameLoopFrame);
+      gameLoopFrame = null;
+    }
+  }
+
+  function showPhaseBanner(text) {
+    clearTimeout(phaseBannerTimer);
+    phaseBanner.textContent = text;
+    phaseBanner.classList.add("show");
+    phaseBannerTimer = setTimeout(() => {
+      phaseBanner.classList.remove("show");
+    }, 1100);
+  }
+
+  function enterPhase(index) {
+    currentPhaseIndex = index;
+    clearInterval(spawnTimer);
+    spawnTimer = setInterval(spawnStressEmoji, phases[index].spawnInterval);
+
+    if (index === 1) showPhaseBanner("Stress Rising");
+    if (index === 2) showPhaseBanner("Final Stretch!");
+  }
+
+  function updateMatchTimer() {
+    if (!gameRunning) return;
+
+    const elapsed = performance.now() - matchStartTime;
+    const remaining = Math.max(0, MATCH_DURATION - elapsed);
+    timeLeftEl.textContent = Math.ceil(remaining / 1000);
+
+    const phaseIndex = phases.findIndex(p => elapsed >= p.start && elapsed < p.end);
+    if (phaseIndex !== -1 && phaseIndex !== currentPhaseIndex) {
+      enterPhase(phaseIndex);
+    }
+
+    if (elapsed >= MATCH_DURATION) {
+      clearInterval(countdownTimer);
+      endMatch(calmEmojis.length > 0 ? "win" : "lose");
+    }
+  }
+
+  function endMatch(outcome) {
+    if (!gameRunning) return;
+    gameRunning = false;
+    clearInterval(spawnTimer);
+    clearInterval(countdownTimer);
+    clearTimeout(phaseBannerTimer);
+
+    if (outcome === "win") {
+      playChime();
+      endTitle.textContent = "Peace Protected";
+      endMessage.textContent = "The timer ran out and calm held its ground. Well guarded.";
+    } else {
+      playLoseTone();
+      vibrate([100, 60, 100, 60, 100]);
+      endTitle.textContent = "Peace Overwhelmed";
+      endMessage.textContent = "Stress got to all of them this time. Take a breath and try again.";
+    }
+
+    setTimeout(() => {
+      stopGameLoop();
+      document.querySelectorAll(".item, .bullet").forEach(el => el.remove());
+      calmEmojis = [];
+      stressEmojis = [];
+      activeBullets = [];
+
+      finalScore.textContent = "Stress cleared: " + score;
+      endScreen.classList.remove("hidden");
+    }, 900);
+  }
+
+  function startGame() {
+    ensureAudio();
+
+    document.querySelectorAll(".item, .bullet").forEach(el => el.remove());
+    calmEmojis = [];
+    stressEmojis = [];
+    activeBullets = [];
+
+    score = 0;
+    updateScore();
+    gameRunning = true;
+
+    startScreen.classList.add("hidden");
+    endScreen.classList.add("hidden");
+    exitConfirm.style.display = "none";
+
+    // shipY must be set before clampShipPosition() runs, since the clamp
+    // depends on the ship's current position relative to the Fire button.
+    const centered = clampShipPosition(window.innerWidth / 2, window.innerHeight - SHIP_Y_OFFSET);
+    shipX = centered.x;
+    shipY = centered.y;
+    shipEl.style.left = shipX + "px";
+    shipEl.style.top = shipY + "px";
+
+    initCalmEmojis();
+    updateCalmCount();
+    timeLeftEl.textContent = Math.ceil(MATCH_DURATION / 1000);
+
+    startGameLoop();
+
+    matchStartTime = performance.now();
+    currentPhaseIndex = -1;
+    countdownTimer = setInterval(updateMatchTimer, 200);
+    updateMatchTimer();
+  }
+
+  function confirmExit() {
+    exitConfirm.style.display = "flex";
+  }
+
+  function cancelExit() {
+    exitConfirm.style.display = "none";
+  }
+
+  function doExit() {
+    gameRunning = false;
+    clearInterval(spawnTimer);
+    clearInterval(countdownTimer);
+    clearTimeout(phaseBannerTimer);
+    stopGameLoop();
+
+    document.querySelectorAll(".item, .bullet").forEach(el => el.remove());
+    calmEmojis = [];
+    stressEmojis = [];
+    activeBullets = [];
+
+    score = 0;
+    updateScore();
+    timeLeftEl.textContent = Math.ceil(MATCH_DURATION / 1000);
+    calmCountEl.textContent = "0";
+
+    exitConfirm.style.display = "none";
+    endScreen.classList.add("hidden");
+    startScreen.classList.remove("hidden");
+  }
+
+  window.addEventListener("resize", () => {
+    if (!gameRunning) return;
+    const clamped = clampShipPosition(shipX, shipY);
+    shipX = clamped.x;
+    shipY = clamped.y;
+    shipEl.style.left = shipX + "px";
+    shipEl.style.top = shipY + "px";
+  });
+</script>
+</body>
+</html>
