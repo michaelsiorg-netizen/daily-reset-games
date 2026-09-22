@@ -33,6 +33,8 @@
     height: 100vh;
     height: 100svh;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
     background: linear-gradient(180deg, #16233a 0%, #223c58 50%, #2f5068 100%);
   }
 
@@ -101,9 +103,30 @@
   }
 
   #playField {
-    position: absolute;
-    inset: 0;
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
     z-index: 1;
+  }
+
+  /* Dedicated control zone below the play field. Kept outside #playField
+     entirely so the Fire buttons can never physically block the ship,
+     which is free-roaming (both axes) inside #playField's own bounds now
+     instead of the full viewport. Two redundant Fire buttons sit at
+     opposite edges (space-between) so either thumb can reach one without
+     crossing toward the other or into the play field. */
+  #controlBar {
+    position: relative;
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 22px;
+    padding-bottom: max(14px, env(safe-area-inset-bottom));
+    background: rgba(4, 9, 18, 0.25);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    z-index: 12;
   }
 
   .item {
@@ -184,10 +207,7 @@
     pointer-events: none;
   }
 
-  #fireButton {
-    position: fixed;
-    bottom: 22px;
-    right: 22px;
+  .fireButton {
     width: 76px;
     height: 76px;
     border-radius: 50%;
@@ -198,11 +218,11 @@
     font-weight: 800;
     letter-spacing: 0.5px;
     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
-    z-index: 12;
     touch-action: none;
+    flex-shrink: 0;
   }
 
-  #fireButton:active {
+  .fireButton:active {
     transform: scale(0.94);
   }
 
@@ -382,7 +402,10 @@
     </div>
   </div>
 
-  <button id="fireButton" aria-label="Fire">FIRE</button>
+  <div id="controlBar">
+    <button id="fireButtonLeft" class="fireButton" aria-label="Fire">FIRE</button>
+    <button id="fireButtonRight" class="fireButton" aria-label="Fire">FIRE</button>
+  </div>
 
 </div>
 
@@ -400,7 +423,10 @@
   const endMessage = document.getElementById("endMessage");
   const finalScore = document.getElementById("finalScore");
   const exitConfirm = document.getElementById("exitConfirm");
-  const fireButton = document.getElementById("fireButton");
+  const fireButtons = [
+    document.getElementById("fireButtonLeft"),
+    document.getElementById("fireButtonRight")
+  ];
 
   const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -411,10 +437,11 @@
   const HEADER_CLEARANCE = 100;
   const BOTTOM_MARGIN = 16;
   const SHIP_HALF = 28;
-  // Ship's initial vertical placement on start - after that it's fully
+  // Ship's initial vertical placement on start (relative to the play
+  // field's own height, not the window - the Fire buttons now live
+  // outside #playField in #controlBar) - after that it's fully
   // drag-controlled in both axes, this only seeds where it appears.
   const SHIP_Y_OFFSET = 150;
-  const FIRE_BUTTON_PADDING = 16;
   const BULLET_WIDTH = 8;
   const BULLET_SPEED = 9;
   const FIRE_COOLDOWN = 180;
@@ -542,24 +569,15 @@
     return Math.min(Math.max(value, min), max);
   }
 
+  function getPlayFieldHeight() {
+    return playField.clientHeight;
+  }
+
   function clampShipPosition(x, y) {
-    const clampedY = clamp(y, HEADER_CLEARANCE, window.innerHeight - SHIP_HALF - BOTTOM_MARGIN);
-    let clampedX = clamp(x, SHIP_HALF, window.innerWidth - SHIP_HALF);
-
-    // The Fire button only occupies a small circle in the bottom-right
-    // corner. Only push the ship out of it if it would actually overlap
-    // that footprint - otherwise the ship is free to roam the full field,
-    // including along the bottom edge to the left of the button.
-    const fireRect = fireButton.getBoundingClientRect();
-    const shipBottom = clampedY + SHIP_HALF;
-    const shipRight = clampedX + SHIP_HALF;
-    const rowOverlapsButton = shipBottom + FIRE_BUTTON_PADDING > fireRect.top;
-    const colOverlapsButton = shipRight + FIRE_BUTTON_PADDING > fireRect.left;
-
-    if (rowOverlapsButton && colOverlapsButton) {
-      clampedX = Math.max(SHIP_HALF, fireRect.left - FIRE_BUTTON_PADDING - SHIP_HALF);
-    }
-
+    // The Fire buttons live outside #playField now, so the ship is free
+    // to roam the full play field - no need to dodge them.
+    const clampedY = clamp(y, HEADER_CLEARANCE, getPlayFieldHeight() - SHIP_HALF - BOTTOM_MARGIN);
+    const clampedX = clamp(x, SHIP_HALF, window.innerWidth - SHIP_HALF);
     return { x: clampedX, y: clampedY };
   }
 
@@ -632,10 +650,16 @@
     window.visualViewport.addEventListener("scroll", () => logViewportDebug("visualViewport-scroll"));
   }
 
-  fireButton.addEventListener("pointerdown", (e) => {
-    e.stopPropagation();
-    e.preventDefault();
-    fireBullet();
+  // Two redundant Fire buttons (left/right edges of #controlBar), each
+  // with its own pointerdown listener so either thumb can fire
+  // independently. stopPropagation keeps taps on either button from ever
+  // being picked up as a ship-drag on #playField.
+  fireButtons.forEach(btn => {
+    btn.addEventListener("pointerdown", (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      fireBullet();
+    });
   });
 
   function fireBullet() {
@@ -668,7 +692,7 @@
       minX: 0,
       maxX: window.innerWidth - ITEM_SIZE,
       minY: HEADER_CLEARANCE,
-      maxY: window.innerHeight - ITEM_SIZE - BOTTOM_MARGIN
+      maxY: getPlayFieldHeight() - ITEM_SIZE - BOTTOM_MARGIN
     };
   }
 
@@ -1016,9 +1040,7 @@
     endScreen.classList.add("hidden");
     exitConfirm.style.display = "none";
 
-    // shipY must be set before clampShipPosition() runs, since the clamp
-    // depends on the ship's current position relative to the Fire button.
-    const centered = clampShipPosition(window.innerWidth / 2, window.innerHeight - SHIP_Y_OFFSET);
+    const centered = clampShipPosition(window.innerWidth / 2, getPlayFieldHeight() - SHIP_Y_OFFSET);
     shipX = centered.x;
     shipY = centered.y;
     shipEl.style.left = shipX + "px";
