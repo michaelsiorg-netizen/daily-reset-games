@@ -33,6 +33,8 @@
     height: 100vh;
     height: 100svh;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
     background: linear-gradient(180deg, #16233a 0%, #223c58 50%, #2f5068 100%);
   }
 
@@ -101,9 +103,30 @@
   }
 
   #playField {
-    position: absolute;
-    inset: 0;
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
     z-index: 1;
+  }
+
+  /* Dedicated control zone below the play field. Kept outside #playField
+     entirely so the Fire buttons can never visually or spatially overlap
+     gameplay (ship, enemies, bullets), which all live inside #playField's
+     own bounds now instead of the full viewport. Two redundant Fire
+     buttons sit at opposite edges (space-between) so either thumb can
+     reach one without crossing toward the other or into the play field. */
+  #controlBar {
+    position: relative;
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 22px;
+    padding-bottom: max(14px, env(safe-area-inset-bottom));
+    background: rgba(4, 9, 18, 0.25);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    z-index: 12;
   }
 
   .item {
@@ -184,10 +207,7 @@
     pointer-events: none;
   }
 
-  #fireButton {
-    position: fixed;
-    bottom: 22px;
-    right: 22px;
+  .fireButton {
     width: 76px;
     height: 76px;
     border-radius: 50%;
@@ -198,11 +218,11 @@
     font-weight: 800;
     letter-spacing: 0.5px;
     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
-    z-index: 12;
     touch-action: none;
+    flex-shrink: 0;
   }
 
-  #fireButton:active {
+  .fireButton:active {
     transform: scale(0.94);
   }
 
@@ -382,7 +402,10 @@
     </div>
   </div>
 
-  <button id="fireButton" aria-label="Fire">FIRE</button>
+  <div id="controlBar">
+    <button id="fireButtonLeft" class="fireButton" aria-label="Fire">FIRE</button>
+    <button id="fireButtonRight" class="fireButton" aria-label="Fire">FIRE</button>
+  </div>
 
 </div>
 
@@ -398,7 +421,10 @@
   const endScreen = document.getElementById("endScreen");
   const finalScore = document.getElementById("finalScore");
   const exitConfirm = document.getElementById("exitConfirm");
-  const fireButton = document.getElementById("fireButton");
+  const fireButtons = [
+    document.getElementById("fireButtonLeft"),
+    document.getElementById("fireButtonRight")
+  ];
 
   const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -408,12 +434,11 @@
   const ITEM_SIZE = 64;
   const HEADER_CLEARANCE = 100;
   const SHIP_HALF = 28;
-  // Distance from the bottom of the screen to the ship's fixed Y position.
-  // Chosen so the ship's bottom edge clears the Fire button's top edge by
-  // a real margin (~24px) instead of the ~4px gap the old value (130) left,
-  // which is what forced getShipMaxX() to eat into horizontal travel.
-  const SHIP_Y_OFFSET = 150;
-  const FIRE_BUTTON_PADDING = 16;
+  // Distance from the bottom of the play field (not the window - the Fire
+  // button now lives outside #playField in its own #controlBar, so the
+  // play field's own height is already clear of it) to the ship's fixed Y
+  // position.
+  const SHIP_Y_OFFSET = 60;
   const BULLET_WIDTH = 8;
   const BULLET_SPEED = 9;
   const FIRE_COOLDOWN = 180;
@@ -520,20 +545,13 @@
   }
 
   function getShipMaxX() {
-    // The Fire button only occupies a small circle in the bottom-right
-    // corner. Only restrict horizontal travel if the ship's row (it never
-    // moves vertically during play) could actually reach into the
-    // button's vertical footprint - otherwise the ship is free to use the
-    // full screen width. This keeps the restriction scoped to the small
-    // area the button really occupies instead of carving out a wide strip
-    // across the whole width.
-    const fireRect = fireButton.getBoundingClientRect();
-    const shipBottom = shipY + SHIP_HALF;
-    const rowOverlapsButton = shipBottom + FIRE_BUTTON_PADDING > fireRect.top;
-    if (!rowOverlapsButton) {
-      return window.innerWidth - SHIP_HALF;
-    }
-    return Math.max(SHIP_HALF, fireRect.left - FIRE_BUTTON_PADDING - SHIP_HALF);
+    // The Fire button lives outside #playField now, so the ship is free
+    // to use the play field's full width - no need to dodge the button.
+    return window.innerWidth - SHIP_HALF;
+  }
+
+  function getPlayFieldHeight() {
+    return playField.clientHeight;
   }
 
   function updateShipX(clientX) {
@@ -602,10 +620,16 @@
     window.visualViewport.addEventListener("scroll", () => logViewportDebug("visualViewport-scroll"));
   }
 
-  fireButton.addEventListener("pointerdown", (e) => {
-    e.stopPropagation();
-    e.preventDefault();
-    fireBullet();
+  // Two redundant Fire buttons (left/right edges of #controlBar), each
+  // with its own pointerdown listener so either thumb can fire
+  // independently. stopPropagation keeps taps on either button from ever
+  // being picked up as a ship-drag on #playField.
+  fireButtons.forEach(btn => {
+    btn.addEventListener("pointerdown", (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      fireBullet();
+    });
   });
 
   function fireBullet() {
@@ -714,7 +738,7 @@
     const enemyRemovals = [];
     const bulletRemovals = [];
     const maxX = window.innerWidth - ITEM_SIZE;
-    const leakY = window.innerHeight - 10;
+    const leakY = getPlayFieldHeight() - 10;
 
     activeEnemies.forEach(state => {
       if (state.isStress && !prefersReducedMotion && Math.random() < 0.03) {
@@ -864,10 +888,7 @@
     endScreen.classList.add("hidden");
     exitConfirm.style.display = "none";
 
-    // shipY must be set before getShipMaxX() runs, since the max-X
-    // calculation depends on the ship's vertical clearance above the
-    // Fire button.
-    shipY = window.innerHeight - SHIP_Y_OFFSET;
+    shipY = getPlayFieldHeight() - SHIP_Y_OFFSET;
     shipX = clamp(window.innerWidth / 2, SHIP_HALF, getShipMaxX());
     shipEl.style.left = shipX + "px";
     shipEl.style.top = shipY + "px";
@@ -906,7 +927,7 @@
 
   window.addEventListener("resize", () => {
     if (!gameRunning) return;
-    shipY = window.innerHeight - SHIP_Y_OFFSET;
+    shipY = getPlayFieldHeight() - SHIP_Y_OFFSET;
     shipEl.style.top = shipY + "px";
     shipX = clamp(shipX, SHIP_HALF, getShipMaxX());
     shipEl.style.left = shipX + "px";
