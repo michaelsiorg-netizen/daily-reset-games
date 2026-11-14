@@ -29,6 +29,7 @@
 
   #game {
     position: relative;
+    touch-action: none;
     width: 100vw;
     height: 100vh;
     height: 100svh;
@@ -47,6 +48,13 @@
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
+    /* Let touches fall through to the joystick zone underneath; only the
+       Exit button itself stays interactive. */
+    pointer-events: none;
+  }
+
+  .top-row .exitButton {
+    pointer-events: auto;
   }
 
   .header-text {
@@ -111,11 +119,9 @@
   }
 
   /* Dedicated control zone below the play field. Kept outside #playField
-     entirely so the Fire buttons can never visually or spatially overlap
-     gameplay (ship, enemies, bullets), which all live inside #playField's
-     own bounds now instead of the full viewport. Two redundant Fire
-     buttons sit at opposite edges (space-between) so either thumb can
-     reach one without crossing toward the other or into the play field. */
+     entirely so the controls can never overlap gameplay (ship, enemies,
+     bullets). Left side: the joystick's resting spot (#joystickRest is an
+     invisible placeholder sized from JS). Right side: the Fire button. */
   #controlBar {
     position: relative;
     flex: 0 0 auto;
@@ -207,14 +213,60 @@
     pointer-events: none;
   }
 
+  #joystickRest {
+    flex-shrink: 0;
+  }
+
+  /* Left-thumb touch zone: the whole left half of the game, above the
+     play field and control bar but below the top row / dialogs. */
+  #joystickZone {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 50%;
+    z-index: 13;
+    touch-action: none;
+  }
+
+  #joystick {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.07);
+    border: 2px solid rgba(159, 214, 255, 0.3);
+    box-shadow: inset 0 0 18px rgba(127, 209, 255, 0.15);
+    z-index: 14;
+    pointer-events: none;
+    opacity: 0.75;
+    transition: opacity 0.2s ease;
+  }
+
+  #joystick.active {
+    opacity: 1;
+  }
+
+  #joystickKnob {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    border-radius: 50%;
+    background: radial-gradient(circle at 40% 35%, rgba(200, 232, 255, 0.85), rgba(127, 180, 230, 0.6));
+    box-shadow: 0 0 14px rgba(127, 209, 255, 0.5);
+    transform: translate(-50%, -50%);
+  }
+
+  #joystickKnob.springBack {
+    transition: transform 0.15s ease-out;
+  }
+
   .fireButton {
-    width: 76px;
-    height: 76px;
+    width: 84px;
+    height: 84px;
     border-radius: 50%;
     border: none;
     background: #ffd875;
     color: #16233a;
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 800;
     letter-spacing: 0.5px;
     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
@@ -222,8 +274,16 @@
     flex-shrink: 0;
   }
 
-  .fireButton:active {
+  .fireButton.held {
     transform: scale(0.94);
+    background: #ffe7a6;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    #joystickKnob.springBack,
+    #joystick {
+      transition: none;
+    }
   }
 
   #hitFlash {
@@ -379,7 +439,8 @@
       <p>Stress is drifting in. Shoot it down before it reaches you, and let the calm pass safely by.</p>
       <p class="legend"><span class="stress">Shoot:</span> ⏰ ⚠️ 😠 🔥 💢</p>
       <p class="legend"><span class="calm">Let pass:</span> 🌳 ☁️ 🌊 🌻 🦋 🌙 ⭐ 🍃</p>
-      <p>Drag anywhere to move your ship. Tap FIRE to shoot upward.</p>
+      <p>Left thumb: touch anywhere on the left half and push the joystick left or right to move. Right thumb: tap or hold FIRE to shoot upward.</p>
+      <p style="font-size: 12px; opacity: 0.7;">Keyboard: arrows / A D to move, space to fire.</p>
       <button class="primary" onclick="startGame()">Start</button>
     </div>
   </div>
@@ -403,13 +464,30 @@
   </div>
 
   <div id="controlBar">
-    <button id="fireButtonLeft" class="fireButton" aria-label="Fire">FIRE</button>
-    <button id="fireButtonRight" class="fireButton" aria-label="Fire">FIRE</button>
+    <div id="joystickRest"></div>
+    <button id="fireButton" class="fireButton" aria-label="Fire">FIRE</button>
   </div>
+
+  <div id="joystickZone"></div>
+  <div id="joystick"><div id="joystickKnob"></div></div>
 
 </div>
 
 <script>
+  // ---- Control tuning ----
+  // Joystick base radius (px). The knob can travel up to this far from
+  // the base center; a full push = max ship speed.
+  const JOYSTICK_RADIUS = 56;
+  // Knob radius (px).
+  const JOYSTICK_KNOB_RADIUS = 24;
+  // Fraction (0-1) of the base radius around center that's ignored, so
+  // a resting thumb doesn't make the ship drift.
+  const JOYSTICK_DEAD_ZONE = 0.15;
+  // Ship top speed (px/frame at 60fps) at full joystick push or keyboard.
+  const SHIP_MAX_SPEED = 6;
+  // Minimum time (ms) between shots - sets the hold-to-auto-fire rate.
+  const FIRE_INTERVAL_MS = 180;
+
   const game = document.getElementById("game");
   const playField = document.getElementById("playField");
   const shipEl = document.getElementById("ship");
@@ -421,10 +499,11 @@
   const endScreen = document.getElementById("endScreen");
   const finalScore = document.getElementById("finalScore");
   const exitConfirm = document.getElementById("exitConfirm");
-  const fireButtons = [
-    document.getElementById("fireButtonLeft"),
-    document.getElementById("fireButtonRight")
-  ];
+  const fireButton = document.getElementById("fireButton");
+  const joystickZone = document.getElementById("joystickZone");
+  const joystickEl = document.getElementById("joystick");
+  const joystickKnob = document.getElementById("joystickKnob");
+  const joystickRest = document.getElementById("joystickRest");
 
   const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -441,7 +520,6 @@
   const SHIP_Y_OFFSET = 60;
   const BULLET_WIDTH = 8;
   const BULLET_SPEED = 9;
-  const FIRE_COOLDOWN = 180;
   const HIT_RADIUS = 32;
   const MAX_ON_SCREEN = 6;
 
@@ -463,14 +541,19 @@
 
   let shipX = 0;
   let shipY = 0;
-  let dragPointerId = null;
   let lastFireTime = 0;
 
-  let audioCtx = null;
+  // Twin-thumb input state. Each control owns at most one pointer at a
+  // time, tracked by pointerId, so the joystick thumb and the fire thumb
+  // never interfere.
+  let joyPointerId = null;
+  let joyBaseX = 0;   // base center, #game-relative px
+  let joyBaseY = 0;
+  let joyVecX = 0;    // knob offset / JOYSTICK_RADIUS, -1..1
+  let firePointerId = null;
+  const keysHeld = { left: false, right: false, fire: false };
 
-  // Known limitation: control is drag-to-move + tap-to-fire only, with no
-  // keyboard-equivalent scheme - the same reflex-based accessibility gap
-  // as Growing Compassion's tap-to-select mechanic.
+  let audioCtx = null;
 
   function ensureAudio() {
     if (!audioCtx) {
@@ -554,41 +637,165 @@
     return playField.clientHeight;
   }
 
-  function updateShipX(clientX) {
-    shipX = clamp(clientX, SHIP_HALF, getShipMaxX());
-    shipEl.style.left = shipX + "px";
+  // ---- Joystick (left thumb) ----
+  // Same joystick as Protect Your Peace, but the ship here only moves
+  // horizontally, so the knob rides a horizontal track and only its x
+  // offset drives the ship.
+
+  function setJoystickBase(x, y) {
+    joyBaseX = x;
+    joyBaseY = y;
+    joystickEl.style.left = (x - JOYSTICK_RADIUS) + "px";
+    joystickEl.style.top = (y - JOYSTICK_RADIUS) + "px";
   }
 
-  function onPointerDown(e) {
+  function setKnobOffset(dx, dy) {
+    joystickKnob.style.transform =
+      "translate(-50%, -50%) translate(" + dx + "px, " + dy + "px)";
+  }
+
+  // Resting spot: centered on the invisible placeholder in #controlBar.
+  function resetJoystickToRest() {
+    const g = game.getBoundingClientRect();
+    const r = joystickRest.getBoundingClientRect();
+    setJoystickBase(r.left - g.left + r.width / 2, r.top - g.top + r.height / 2);
+  }
+
+  function sizeJoystick() {
+    const d = JOYSTICK_RADIUS * 2;
+    joystickEl.style.width = d + "px";
+    joystickEl.style.height = d + "px";
+    joystickRest.style.width = d + "px";
+    joystickRest.style.height = d + "px";
+    joystickKnob.style.width = (JOYSTICK_KNOB_RADIUS * 2) + "px";
+    joystickKnob.style.height = (JOYSTICK_KNOB_RADIUS * 2) + "px";
+  }
+
+  function gameRelative(e) {
+    const g = game.getBoundingClientRect();
+    return { x: e.clientX - g.left, y: e.clientY - g.top };
+  }
+
+  function updateKnob(e) {
+    const p = gameRelative(e);
+    const dx = clamp(p.x - joyBaseX, -JOYSTICK_RADIUS, JOYSTICK_RADIUS);
+    setKnobOffset(dx, 0);
+    joyVecX = dx / JOYSTICK_RADIUS;
+  }
+
+  function releaseJoystick() {
+    joyPointerId = null;
+    joyVecX = 0;
+    joystickEl.classList.remove("active");
+    joystickKnob.classList.add("springBack");
+    setKnobOffset(0, 0);
+    resetJoystickToRest();
+  }
+
+  joystickZone.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
     if (!gameRunning) return;
-    // Only track one drag finger at a time. If a drag is already active,
-    // ignore any other pointer touching down on the play field so it
-    // can't hijack or add a second, conflicting drag.
-    if (dragPointerId !== null) return;
-    dragPointerId = e.pointerId;
-    playField.setPointerCapture(e.pointerId);
-    updateShipX(e.clientX);
+    // One joystick finger at a time - a second finger landing on the
+    // left half can't hijack it.
+    if (joyPointerId !== null) return;
+    joyPointerId = e.pointerId;
+    joystickZone.setPointerCapture(e.pointerId);
+
+    // Float the base to where the thumb landed, kept fully on-screen.
+    const p = gameRelative(e);
+    setJoystickBase(
+      clamp(p.x, JOYSTICK_RADIUS, game.clientWidth - JOYSTICK_RADIUS),
+      clamp(p.y, JOYSTICK_RADIUS, game.clientHeight - JOYSTICK_RADIUS)
+    );
+    joystickKnob.classList.remove("springBack");
+    joystickEl.classList.add("active");
+    updateKnob(e);
+  });
+
+  // ---- Fire button (right thumb) ----
+
+  function releaseFire() {
+    firePointerId = null;
+    fireButton.classList.remove("held");
   }
 
-  function onPointerMove(e) {
-    if (e.pointerId !== dragPointerId) return;
-    updateShipX(e.clientX);
+  fireButton.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!gameRunning || firePointerId !== null) return;
+    firePointerId = e.pointerId;
+    fireButton.setPointerCapture(e.pointerId);
+    fireButton.classList.add("held");
+    vibrate(10);
+    // Tap = one immediate shot; holding keeps firing from the game loop.
+    fireBullet();
+  });
+
+  // Shared move/up routing - each event only affects the control that
+  // owns its pointerId.
+  window.addEventListener("pointermove", (e) => {
+    if (e.pointerId === joyPointerId) updateKnob(e);
+  });
+
+  function onPointerEnd(e) {
+    if (e.pointerId === joyPointerId) releaseJoystick();
+    if (e.pointerId === firePointerId) releaseFire();
+  }
+  window.addEventListener("pointerup", onPointerEnd);
+  window.addEventListener("pointercancel", onPointerEnd);
+
+  function resetControls() {
+    releaseJoystick();
+    releaseFire();
+    Object.keys(keysHeld).forEach(k => { keysHeld[k] = false; });
   }
 
-  function onPointerUp(e) {
-    if (e.pointerId !== dragPointerId) return;
-    dragPointerId = null;
+  // ---- Keyboard fallback (desktop testing) ----
+
+  const KEY_MAP = {
+    ArrowLeft: "left", KeyA: "left",
+    ArrowRight: "right", KeyD: "right",
+    Space: "fire"
+  };
+
+  window.addEventListener("keydown", (e) => {
+    const action = KEY_MAP[e.code];
+    if (!action || !gameRunning) return;
+    e.preventDefault();
+    if (action === "fire" && !keysHeld.fire) fireBullet();
+    keysHeld[action] = true;
+  });
+
+  window.addEventListener("keyup", (e) => {
+    const action = KEY_MAP[e.code];
+    if (!action) return;
+    keysHeld[action] = false;
+  });
+
+  // Don't leave the ship drifting / auto-firing if focus leaves the page.
+  window.addEventListener("blur", resetControls);
+
+  // Current horizontal input, -1..1. Joystick wins while a thumb is on
+  // it; otherwise keyboard.
+  function movementInputX() {
+    if (joyPointerId !== null) {
+      const mag = Math.abs(joyVecX);
+      if (mag <= JOYSTICK_DEAD_ZONE) return 0;
+      // Rescale so speed ramps from 0 at the dead-zone edge to 1 at full push.
+      const scaled = Math.min(1, (mag - JOYSTICK_DEAD_ZONE) / (1 - JOYSTICK_DEAD_ZONE));
+      return Math.sign(joyVecX) * scaled;
+    }
+    return (keysHeld.right ? 1 : 0) - (keysHeld.left ? 1 : 0);
   }
 
-  playField.addEventListener("pointerdown", onPointerDown);
-  window.addEventListener("pointermove", onPointerMove);
-  window.addEventListener("pointerup", onPointerUp);
-  window.addEventListener("pointercancel", onPointerUp);
+  sizeJoystick();
+  // Wait a frame so #controlBar has laid out with the new placeholder size.
+  requestAnimationFrame(resetJoystickToRest);
 
   // Belt-and-suspenders against iOS Safari's rubber-band/bounce scroll:
   // touch-action:none and overscroll-behavior:none on html/body are not
   // reliably sufficient on their own on iOS, so also block the default
-  // touchmove action directly. Ship dragging uses Pointer Events above,
+  // touchmove action directly. The controls use Pointer Events above,
   // which still fire normally alongside this.
   document.addEventListener("touchmove", (e) => {
     e.preventDefault();
@@ -620,23 +827,11 @@
     window.visualViewport.addEventListener("scroll", () => logViewportDebug("visualViewport-scroll"));
   }
 
-  // Two redundant Fire buttons (left/right edges of #controlBar), each
-  // with its own pointerdown listener so either thumb can fire
-  // independently. stopPropagation keeps taps on either button from ever
-  // being picked up as a ship-drag on #playField.
-  fireButtons.forEach(btn => {
-    btn.addEventListener("pointerdown", (e) => {
-      e.stopPropagation();
-      e.preventDefault();
-      fireBullet();
-    });
-  });
-
   function fireBullet() {
     if (!gameRunning) return;
 
     const now = performance.now();
-    if (now - lastFireTime < FIRE_COOLDOWN) return;
+    if (now - lastFireTime < FIRE_INTERVAL_MS) return;
     lastFireTime = now;
 
     const el = document.createElement("div");
@@ -734,6 +929,20 @@
 
     const step = Math.min(now - (gameLoop.lastTime || now), 50) / 16.67;
     gameLoop.lastTime = now;
+
+    // Ship: horizontal-only movement from joystick/keyboard input, and
+    // auto-fire while the fire button or spacebar is held (fireBullet
+    // enforces the rate).
+    if (gameRunning) {
+      const inputX = movementInputX();
+      if (inputX !== 0) {
+        shipX = clamp(shipX + inputX * SHIP_MAX_SPEED * step, SHIP_HALF, getShipMaxX());
+        shipEl.style.left = shipX + "px";
+      }
+      if (firePointerId !== null || keysHeld.fire) {
+        fireBullet();
+      }
+    }
 
     const enemyRemovals = [];
     const bulletRemovals = [];
@@ -856,6 +1065,7 @@
 
   function finishAllWaves() {
     gameRunning = false;
+    resetControls();
     clearInterval(spawnTimer);
     clearTimeout(waveAdvanceTimer);
     clearTimeout(waveBannerTimer);
@@ -887,6 +1097,10 @@
     startScreen.classList.add("hidden");
     endScreen.classList.add("hidden");
     exitConfirm.style.display = "none";
+    // Drop focus from the Start/Play Again button so the spacebar fires
+    // instead of re-clicking it.
+    if (document.activeElement) document.activeElement.blur();
+    resetControls();
 
     shipY = getPlayFieldHeight() - SHIP_Y_OFFSET;
     shipX = clamp(window.innerWidth / 2, SHIP_HALF, getShipMaxX());
@@ -907,6 +1121,7 @@
 
   function doExit() {
     gameRunning = false;
+    resetControls();
     clearInterval(spawnTimer);
     clearTimeout(waveAdvanceTimer);
     clearTimeout(waveBannerTimer);
@@ -926,6 +1141,7 @@
   }
 
   window.addEventListener("resize", () => {
+    if (joyPointerId === null) resetJoystickToRest();
     if (!gameRunning) return;
     shipY = getPlayFieldHeight() - SHIP_Y_OFFSET;
     shipEl.style.top = shipY + "px";
