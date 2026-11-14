@@ -153,16 +153,24 @@
   }
 
   /* ---- Overlays ---- */
+  /* Cards center with auto margins (not align-items) so that on a very
+     short Web View they scroll from the top instead of being cut off. */
   #startScreen, #endScreen {
     position: absolute;
     inset: 0;
     z-index: 30;
     display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 24px;
+    padding: 24px 16px;
     text-align: center;
+    overflow-y: auto;
+    touch-action: pan-y;
   }
+
+  #startScreen .card, #endScreen .card {
+    margin: auto;
+  }
+
+
 
   /* Solid, opaque start screen (convention). */
   #startScreen {
@@ -301,6 +309,55 @@
     padding: 24px;
     background: rgba(6, 5, 20, 0.85);
   }
+
+  /* ---- Short Web Views (kept last so they override the base card styles) ---- */
+  @media (max-height: 600px) {
+    .card {
+      padding: 20px 18px;
+    }
+    .card h2 {
+      margin-bottom: 8px;
+    }
+    .card p {
+      margin: 6px 0;
+      font-size: 13px;
+    }
+    button.primary {
+      margin-top: 12px;
+    }
+    #breathCircle {
+      width: 90px;
+      height: 90px;
+      margin: 10px auto 4px;
+    }
+  }
+
+  @media (max-height: 520px) {
+    .card {
+      padding: 14px 16px;
+      border-radius: 18px;
+    }
+    .card h2 {
+      font-size: 20px;
+    }
+    .card p {
+      margin: 4px 0;
+      font-size: 12.5px;
+      line-height: 1.4;
+    }
+    .finalScore {
+      font-size: 17px !important;
+    }
+    button.primary {
+      margin-top: 10px;
+      padding: 11px 18px;
+    }
+    #breathCircle {
+      width: 70px;
+      height: 70px;
+      margin: 6px auto 2px;
+    }
+  }
 </style>
 </head>
 
@@ -315,6 +372,11 @@
   <div id="topBar">
     <button class="exitButton barButton" onclick="confirmExit()" aria-label="Exit game">&times; Exit</button>
     <div id="dmdBezel"><canvas id="dmd" aria-hidden="true"></canvas></div>
+    <button id="nudgeButton" class="barButton" aria-label="Nudge the table">
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+        <path d="M6 11l6-6 6 6M6 18l6-6 6 6" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+    </button>
     <button id="muteButton" class="barButton" onclick="toggleMute()" aria-label="Mute sound" aria-pressed="false">
       <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
         <path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor" />
@@ -328,9 +390,9 @@
     <div class="card">
       <h2>Mindful Pinball</h2>
       <p>The ball is your attention. When it drifts, gently bring it back.</p>
-      <p>Tap the left or right side to flip. Drag the plunger (bottom right) down and let go to launch.</p>
+      <p>Tap the left or right side to flip. Drag the plunger (bottom right) down and let go to launch. Swipe up, or tap &#8679;, to nudge &mdash; gently.</p>
       <p>Light the Five Senses to ground yourself. Loop the Breath orbit on the left to steady your breath.</p>
-      <p class="small">Keyboard: Z / Left Shift and / / Right Shift for flippers, Space or Down to pull the plunger.</p>
+      <p class="small">Keyboard: Z / Left Shift and / / Right Shift for flippers, Space or Down to pull the plunger, N or Up to nudge.</p>
       <button class="primary" onclick="startGame()">Start</button>
     </div>
   </div>
@@ -401,6 +463,12 @@
   const FLIPPER_DOWN_SPEED = 16;      // rad/s falling back
   const FLIPPER_HAPTIC_MIN_IMPACT = 300;
 
+  // Inlane guide end, relative to the left flipper pivot's height (mirrored
+  // on the right). It meets the top of the flipper base so a ball leaving
+  // the inlane always lands on the downhill side - no resting notch.
+  const INLANE_GUIDE_END_X = 163;
+  const INLANE_GUIDE_END_UP = 16;
+
   // ---- Pop bumpers ----
   const BUMPER_RADIUS = 32;
   const BUMPER_KICK = 1300;        // minimum outward speed after a bumper hit
@@ -428,8 +496,17 @@
   // ---- Game ----
   const BALLS_PER_GAME = 3;
   const NEXT_BALL_DELAY_MS = 2200; // pause after a drain so the calm message can be read
-  const STUCK_SPEED = 10;          // a ball slower than this for STUCK_TIME gets nudged
-  const STUCK_TIME = 3;
+  const STUCK_TIME = 5;            // s a ball can sit still before an automatic gentle nudge
+  const STUCK_RADIUS = 6;          // "still" = hasn't moved further than this (table units)
+
+  // ---- Player nudge + tilt ----
+  const NUDGE_SPEED = 320;         // upward kick a nudge gives each ball on the playfield
+  const NUDGE_COOLDOWN = 0.5;      // s between nudges
+  const TILT_LIMIT = 3;            // this many nudges close together = tilt
+  const TILT_DECAY = 2.5;          // s for the tilt meter to forget one nudge
+  const NUDGE_SWIPE_PX = 50;       // quick upward swipe distance (css px) that nudges
+  const NUDGE_SWIPE_MS = 300;      // ...within this time
+  const SHAKE_NUDGE = 4;           // css px of table shake on a nudge
   const BALL_SAVE_SECONDS = 8;     // after the first launch of each ball
   const MULTIBALL_SAVE_SECONDS = 10;
   const BREATH_CYCLES_FOR_MULTIBALL = 3;
@@ -480,6 +557,7 @@
   const dmdCanvas = document.getElementById("dmd");
   const dmdCtx = dmdCanvas.getContext("2d", { alpha: false });
   const muteButton = document.getElementById("muteButton");
+  const nudgeButton = document.getElementById("nudgeButton");
   const caption = document.getElementById("caption");
   const reflectionEl = document.getElementById("reflection");
   const breathCircle = document.getElementById("breathCircle");
@@ -628,6 +706,13 @@
     // Soft chime for targets / rollovers; i picks the note.
     chime: (i = 0) => bell(CHIME_NOTES[i % CHIME_NOTES.length], { peak: 0.07 }),
     softBell: () => bell(293.66, { peak: 0.05, decay: 1.6 }),
+    // Table nudge: a low cabinet thump.
+    nudge: () => {
+      noise(0.06, { filter: "lowpass", freq: 320, peak: 0.25 });
+      tone(62, 0.14, { peak: 0.26, freqEnd: 45, attack: 0 });
+    },
+    // Tilt: a soft, low descending tone (no buzzer).
+    tilt: () => tone(150, 0.9, { type: "triangle", peak: 0.12, freqEnd: 70 }),
     // A target hit that doesn't advance anything: a quiet tick.
     tick: () => {
       noise(0.02, { freq: 2200, q: 1.5, peak: 0.08 });
@@ -816,7 +901,7 @@
       const postTop = P(48, yP - 170);
       circles.push({ x: postTop[0], y: postTop[1], r: 7, mat: MAT.rubber });
       posts.push({ x: postTop[0], y: postTop[1], r: 7 });
-      addPolyline([postTop, P(48, yP - 60), P(155, yP - 12)], 3, MAT.wall, true);
+      addPolyline([postTop, P(48, yP - 60), P(INLANE_GUIDE_END_X, yP - INLANE_GUIDE_END_UP)], 3, MAT.wall, true);
       // Outlane inner wall down to the drain, and the apron edge under the
       // flipper leading to the center drain.
       addPolyline([P(48, yP - 60), P(48, H + 60)], 3, MAT.wall, true);
@@ -855,6 +940,10 @@
       segs.push(makeSeg(cx - hx, cy - hy, cx + hx, cy + hy, 5, MAT.target, { target: t }));
       targets.push(t);
     }
+    // Sloped metal cover over the back of the bank, so a ball coming down
+    // from the bumpers always rolls off an end instead of resting on the
+    // flat middle target or in the notches between targets.
+    addPolyline([[189, 562], [PLAY_CENTER_X, 530], [2 * PLAY_CENTER_X - 189, 562]], 3, MAT.wall, true);
 
     // Flippers.
     const flippers = [
@@ -884,7 +973,7 @@
     // Aprons (drawn only - the rails above are the colliders).
     const apron = side => {
       const m = side === "left" ? (x => x) : mx;
-      return [[m(48), yP - 60], [m(155), yP - 12], [m(167), yP + 13], [m(PLAY_CENTER_X - 60), H + 60], [m(48), H + 60]];
+      return [[m(48), yP - 60], [m(INLANE_GUIDE_END_X), yP - INLANE_GUIDE_END_UP], [m(167), yP + 13], [m(PLAY_CENTER_X - 60), H + 60], [m(48), H + 60]];
     };
 
     // Space reserved for later features (shown only with ?debug).
@@ -929,11 +1018,15 @@
     const rvx = ball.vx - svx, rvy = ball.vy - svy;
     const vn = rvx * nx + rvy * ny;
     if (vn >= 0) return 0;
-    const e = -vn < RESTING_SPEED ? 0 : mat.e;
+    const resting = -vn < RESTING_SPEED;
+    const e = resting ? 0 : mat.e;
     const jn = -(1 + e) * vn;
     const tx = -ny, ty = nx;
     const vt = rvx * tx + rvy * ty;
-    const maxF = mat.mu * jn;
+    // Friction only acts on real impacts. On a resting contact a steel
+    // ball rolls rather than gripping, so it can never balance on top of a
+    // post or sit still on a gentle slope.
+    const maxF = resting ? 0 : mat.mu * jn;
     const jt = clamp(-vt, -maxF, maxF);
     ball.vx += nx * jn + tx * jt;
     ball.vy += ny * jn + ty * jt;
@@ -966,7 +1059,7 @@
 
     // Slingshot kicker face: fires on a real hit away from the corners.
     const sl = s.sling;
-    if (sl && impact > SLING_MIN_IMPACT && t > 0.1 && t < 0.9 && simTime - sl.lastHit > SLING_COOLDOWN) {
+    if (sl && !tilted && impact > SLING_MIN_IMPACT && t > 0.1 && t < 0.9 && simTime - sl.lastHit > SLING_COOLDOWN) {
       ball.vx += nx * SLING_KICK;
       ball.vy += ny * SLING_KICK;
       sl.lastHit = simTime;
@@ -979,7 +1072,7 @@
     // Five Senses target: only real hits on the front face register
     // (rules/feedback only - the bounce above is already done).
     const tg = s.target;
-    if (tg && impact > TARGET_MIN_IMPACT && nx * tg.fnx + ny * tg.fny > 0.3 && simTime - tg.lastHit > 0.2) {
+    if (tg && !tilted && impact > TARGET_MIN_IMPACT && nx * tg.fnx + ny * tg.fny > 0.3 && simTime - tg.lastHit > 0.2) {
       tg.lastHit = simTime;
       onTargetHit(tg);
     }
@@ -995,7 +1088,7 @@
     resolveContact(nx, ny, minD - d, 0, 0, c.mat);
 
     // Pop bumper: any touch fires the coil and throws the ball outward.
-    if (c.bumper && simTime - c.lastHit > BUMPER_COOLDOWN) {
+    if (c.bumper && !tilted && simTime - c.lastHit > BUMPER_COOLDOWN) {
       const vn = ball.vx * nx + ball.vy * ny;
       if (vn < BUMPER_KICK) {
         ball.vx += nx * (BUMPER_KICK - vn);
@@ -1058,6 +1151,7 @@
   }
 
   function flipperPressed(side) {
+    if (tilted) return false;          // tilt: flippers go dead until the ball drains
     if (keys[side]) return true;
     for (const role of pointerRoles.values()) if (role === side) return true;
     return false;
@@ -1067,6 +1161,7 @@
   // recorded. Plays the flipper sound immediately (not on the next
   // frame) and latches the press so even the shortest tap flips.
   function pressFlipper(side) {
+    if (tilted) return;
     if (!flipperPressed(side)) sfx.flipper();
     flipperLatch[side] = true;
   }
@@ -1144,24 +1239,38 @@
       ball.vy *= MAX_BALL_SPEED / sp;
     }
 
-    checkRollovers();   // lights/sound/rules only - doesn't touch the ball
-    checkOrbit();
+    if (!tilted) {
+      checkRollovers();   // lights/sound/rules only - don't touch the ball
+      checkOrbit();
+    }
 
-    // Stuck safety net: a ball sitting still somewhere other than the
-    // plunger or a held flipper gets a small nudge.
-    const held = flipperPressed("left") || flipperPressed("right");
-    if (sp < STUCK_SPEED && !ballInLaneB(ball) && !held) {
+    // Stuck safety net: if the ball hasn't moved more than STUCK_RADIUS in
+    // STUCK_TIME seconds - and isn't waiting at the plunger or being
+    // cradled on a held flipper - give it a gentle nudge toward the middle.
+    // Position-based, so a ball rocking in place counts as stuck too.
+    if (Math.hypot(ball.x - ball.anchorX, ball.y - ball.anchorY) > STUCK_RADIUS ||
+        ballInLaneB(ball) || isCradled(ball)) {
+      ball.anchorX = ball.x;
+      ball.anchorY = ball.y;
+      ball.still = 0;
+    } else {
       ball.still += dt;
       if (ball.still > STUCK_TIME) {
-        ball.vy -= 300;
-        ball.vx += (Math.random() - 0.5) * 300;
+        ball.vy -= 320;
+        ball.vx += Math.sign(PLAY_CENTER_X - ball.x) * 120 + (Math.random() - 0.5) * 80;
         ball.still = 0;
       }
-    } else {
-      ball.still = 0;
     }
 
     if (ball.y - BALL_RADIUS > T.H + 20) onDrain(ball);
+  }
+
+  // Ball resting near a flipper that's being held up (a deliberate cradle).
+  function isCradled(b) {
+    for (const f of T.flippers) {
+      if (flipperPressed(f.side) && Math.hypot(b.x - f.px, b.y - f.py) < FLIPPER_LENGTH + 30) return true;
+    }
+    return false;
   }
 
   // Steady Breath multiball: the balls bump off each other (equal mass).
@@ -1497,7 +1606,7 @@
     // Backbox bar first: the display fills the space between the Exit and
     // mute buttons. The table gets the remaining height.
     const dmdDpr = Math.min(devDpr, 3);
-    const dmdCssW = clamp(gw - 150, 96, DMD_MAX_HEIGHT * DMD_COLS / DMD_ROWS);
+    const dmdCssW = clamp(gw - 196, 96, DMD_MAX_HEIGHT * DMD_COLS / DMD_ROWS);
     const dmdCssH = dmdCssW * DMD_ROWS / DMD_COLS;
     dmdCanvas.width = Math.round(dmdCssW * dmdDpr);
     dmdCanvas.height = Math.round(dmdCssH * dmdDpr);
@@ -1983,9 +2092,10 @@
       } else if (ins.role === "lane") {
         target = lane ? (prefersReducedMotion ? 0.7 : (Math.floor(simTime * 6) % 3 === ins.index ? 1 : 0.12)) : 0;
       }
-      target = Math.max(target, showLevel(ins, i));
+      target = tilted ? 0 : Math.max(target, showLevel(ins, i));   // tilt: lamps go dark
       ins.level += (target - ins.level) * k;
     });
+    tiltMeter = Math.max(0, tiltMeter - dt / TILT_DECAY);
     if (show && simTime - show.start > show.dur) show = null;
     if (flashes.length) flashes = flashes.filter(f => simTime - f.start < f.dur);
     if (thoughts.length) thoughts = thoughts.filter(t => simTime - t.start < THOUGHT_SECONDS);
@@ -2038,6 +2148,9 @@
     breathStep = 0;
     breathResetAt = 0;
     breathCycles = 0;
+    tilted = false;
+    tiltMeter = 0;
+    lastNudge = -1;
     if (!T) return;
     T.inserts.forEach(ins => { ins.level = 0; ins.flashUntil = 0; });
     T.bumpers.forEach(b => { b.litUntil = -1; });
@@ -2048,7 +2161,8 @@
   function newBall() {
     return {
       x: LANE_CENTER_X, y: T.plungerRestY - BALL_RADIUS - 6, vx: 0, vy: 0,
-      active: true, still: 0, lastRollover: null, orbitAt: 0, autoLaunchAt: 0
+      active: true, still: 0, lastRollover: null, orbitAt: 0, autoLaunchAt: 0,
+      anchorX: LANE_CENTER_X, anchorY: T.plungerRestY - BALL_RADIUS - 6
     };
   }
 
@@ -2221,6 +2335,51 @@
   function endMultiball() {
     multiball = false;
     dmdMessage("ONE BALL", 1.4, "STILL HERE");
+  }
+
+  // ---- Player nudge + tilt ----
+  // A nudge bumps the table: every ball on the playfield gets a small
+  // upward kick. Nudging too often in a short time tilts the machine -
+  // flippers, bumpers and slings go dead until the ball drains.
+
+  let tilted = false;
+  let tiltMeter = 0;     // decays by one nudge every TILT_DECAY seconds
+  let lastNudge = -1;
+
+  function nudge() {
+    if (state !== "playing" || paused || tilted) return;
+    if (simTime - lastNudge < NUDGE_COOLDOWN) return;
+    lastNudge = simTime;
+    let moved = false;
+    for (const b of balls) {
+      if (!b.active || ballInLaneB(b)) continue;
+      b.vy -= NUDGE_SPEED;
+      b.vx += (Math.random() - 0.5) * 100;
+      moved = true;
+    }
+    if (!moved) return;   // nothing on the playfield to nudge
+    tiltMeter += 1;
+    sfx.nudge();
+    vibrate(30);
+    shake(SHAKE_NUDGE, 0.15);
+    if (tiltMeter >= TILT_LIMIT) {
+      tilt();
+    } else if (tiltMeter >= TILT_LIMIT - 1) {
+      dmdMessage("EASY NOW", 1.4, "GENTLE NUDGES");
+      showCaption("Gently. Let the ball find its way.", 2.5);
+    }
+  }
+
+  function tilt() {
+    tilted = true;
+    ballSaveUntil = 0;
+    flipperLatch.left = flipperLatch.right = false;
+    show = null;
+    giDim = 1;
+    sfx.tilt();
+    vibrate([60, 40, 60]);
+    dmdMessage("TILT", Infinity, "LET THIS BALL GO");
+    showCaption("Too much force. Breathe, and let this ball go.", 3.5);
   }
 
   // Rollover switches in the inlanes/outlanes (lights + sound only).
@@ -2801,20 +2960,40 @@
       plunger.pointerId = e.pointerId;
       plunger.dragStartY = p.y;
     }
-    if (role !== "plunger") pressFlipper(role);
+    if (role !== "plunger") {
+      pressFlipper(role);
+      swipeStarts.set(e.pointerId, { y: e.clientY, t: performance.now(), used: false });
+    }
     pointerRoles.set(e.pointerId, role);
   });
 
+  // Quick upward swipe with a flipper finger = nudge (once per touch).
+  const swipeStarts = new Map();
+
   game.addEventListener("pointermove", (e) => {
-    if (e.pointerId !== plunger.pointerId) return;
-    const p = toTable(e);
-    plunger.pull = clamp(p.y - plunger.dragStartY, 0, PLUNGER_MAX_PULL);
+    if (e.pointerId === plunger.pointerId) {
+      const p = toTable(e);
+      plunger.pull = clamp(p.y - plunger.dragStartY, 0, PLUNGER_MAX_PULL);
+      return;
+    }
+    const s = swipeStarts.get(e.pointerId);
+    if (s && !s.used && s.y - e.clientY >= NUDGE_SWIPE_PX && performance.now() - s.t <= NUDGE_SWIPE_MS) {
+      s.used = true;
+      nudge();
+    }
+  });
+
+  nudgeButton.addEventListener("pointerdown", (e) => {
+    e.preventDefault();   // no focus ring, no delayed click
+    e.stopPropagation();
+    nudge();
   });
 
   function onPointerEnd(e) {
     if (!pointerRoles.has(e.pointerId)) return;
     const role = pointerRoles.get(e.pointerId);
     pointerRoles.delete(e.pointerId);
+    swipeStarts.delete(e.pointerId);
     if (role === "plunger" && plunger.pointerId === e.pointerId) releasePlunger();
   }
   game.addEventListener("pointerup", onPointerEnd);
@@ -2823,7 +3002,8 @@
   const KEY_ROLES = {
     KeyZ: "left", ShiftLeft: "left",
     Slash: "right", ShiftRight: "right",
-    ArrowDown: "plunger", Space: "plunger"
+    ArrowDown: "plunger", Space: "plunger",
+    KeyN: "nudge", ArrowUp: "nudge"
   };
 
   window.addEventListener("keydown", (e) => {
@@ -2832,7 +3012,9 @@
     e.preventDefault();
     // Ignore OS auto-repeat: only the first keydown of a hold counts.
     if (e.repeat || paused) return;
-    if (role === "plunger") {
+    if (role === "nudge") {
+      nudge();
+    } else if (role === "plunger") {
       if (ballInLane() && plunger.pointerId === null) plunger.keyHeld = true;
     } else {
       if (!keys[role]) pressFlipper(role);
@@ -2845,13 +3027,14 @@
     if (!role) return;
     if (role === "plunger") {
       if (plunger.keyHeld) releasePlunger();
-    } else {
+    } else if (role !== "nudge") {
       keys[role] = false;
     }
   });
 
   function releaseAllInput() {
     pointerRoles.clear();
+    swipeStarts.clear();
     keys.left = keys.right = false;
     flipperLatch.left = flipperLatch.right = false;
     plunger.pointerId = null;
@@ -2863,6 +3046,8 @@
   // Block iOS rubber-band scrolling (same belt-and-suspenders as the
   // other games).
   document.addEventListener("touchmove", (e) => {
+    // Let the start/end cards scroll on very short screens.
+    if (e.target.closest && e.target.closest("#startScreen, #endScreen")) return;
     e.preventDefault();
   }, { passive: false });
 
@@ -2879,16 +3064,20 @@
     multiball = false;
     ballSaveUntil = 0;
     saveReady = fresh;
+    if (tilted) dmdClearMessage();   // clear the "TILT" hold
+    tilted = false;
+    tiltMeter = 0;
     if (fresh && ballNumber > 1) dmdQueue(["BALL " + ballNumber, "PULL TO LAUNCH", 1.8]);
   }
 
   function onDrain(b) {
     b.active = false;
     const others = balls.filter(x => x.active);
-    const saved = simTime < ballSaveUntil;
+    const saved = simTime < ballSaveUntil && !tilted;
 
     // Multiball: losing one ball never costs the turn.
     if (others.length > 0) {
+      if (tilted) return;   // tilted: the remaining balls just drain too
       if (saved) {
         addLaneBall(0.5);
         dmdMessage("BALL SAVED", 1.2);
