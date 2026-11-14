@@ -125,6 +125,33 @@
     z-index: 1;
   }
 
+  /* Caption banner under the display for sentences too long for the
+     dot-matrix (prompts, drain message). Never blocks touches. */
+  #caption {
+    position: absolute;
+    left: 50%;
+    top: 70px;
+    z-index: 15;
+    transform: translateX(-50%);
+    width: max-content;
+    max-width: calc(100% - 32px);
+    padding: 8px 14px;
+    border-radius: 14px;
+    background: rgba(12, 10, 36, 0.8);
+    border: 1px solid rgba(255, 210, 122, 0.28);
+    color: #f3eeff;
+    font-size: 14px;
+    line-height: 1.35;
+    text-align: center;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    pointer-events: none;
+  }
+
+  #caption.show {
+    opacity: 1;
+  }
+
   /* ---- Overlays ---- */
   #startScreen, #endScreen {
     position: absolute;
@@ -204,6 +231,66 @@
     display: none !important;
   }
 
+  /* ---- End screen: score, reflection, one breath ---- */
+  .finalScore {
+    font-size: 20px !important;
+    font-weight: 700;
+    color: #ffd27a !important;
+    margin: 4px 0 6px !important;
+  }
+
+  .reflection {
+    font-style: italic;
+  }
+
+  #breathCircle {
+    width: 120px;
+    height: 120px;
+    margin: 16px auto 6px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 210, 122, 0.45) 0%, rgba(180, 156, 255, 0.25) 60%, rgba(180, 156, 255, 0.08) 100%);
+    border: 2px solid rgba(255, 210, 122, 0.6);
+    box-shadow: 0 0 24px rgba(180, 156, 255, 0.35);
+    transform: scale(0.4);
+    transition: transform 4s ease-in-out;
+  }
+
+  #breathCircle.expanding {
+    transform: scale(1);
+  }
+
+  .breathLabel {
+    min-height: 1.5em;
+    font-size: 15px !important;
+  }
+
+  button.linkButton {
+    margin-top: 8px;
+    padding: 6px 10px;
+    border: none;
+    background: none;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 13px;
+    text-decoration: underline;
+    cursor: pointer;
+  }
+
+  /* Reduced motion: the circle brightens instead of growing. */
+  @media (prefers-reduced-motion: reduce) {
+    #breathCircle {
+      transform: none;
+      opacity: 0.35;
+      transition: opacity 4s linear;
+    }
+    #breathCircle.expanding {
+      transform: none;
+      opacity: 1;
+    }
+    #caption {
+      transition: none;
+    }
+  }
+
   #exitConfirm {
     position: absolute;
     inset: 0;
@@ -240,19 +327,26 @@
   <div id="startScreen">
     <div class="card">
       <h2>Mindful Pinball</h2>
-      <p>Stay with the ball. Keep it in play as long as you can.</p>
-      <p>Touch the left side of the screen for the left flipper and the right side for the right flipper. Hold to keep a flipper up.</p>
-      <p>To launch, drag the plunger (bottom right) down and let go. Pull further for a stronger shot.</p>
+      <p>The ball is your attention. When it drifts, gently bring it back.</p>
+      <p>Tap the left or right side to flip. Drag the plunger (bottom right) down and let go to launch.</p>
+      <p>Light the Five Senses to ground yourself. Loop the Breath orbit on the left to steady your breath.</p>
       <p class="small">Keyboard: Z / Left Shift and / / Right Shift for flippers, Space or Down to pull the plunger.</p>
       <button class="primary" onclick="startGame()">Start</button>
     </div>
   </div>
 
+  <div id="caption" role="status" aria-live="polite"></div>
+
   <div id="endScreen" class="hidden">
     <div class="card">
-      <h2>Game Over</h2>
-      <p id="finalScore"></p>
-      <button class="primary" onclick="startGame()">Play Again</button>
+      <h2>Session complete</h2>
+      <p id="finalScore" class="finalScore"></p>
+      <p id="reflection" class="reflection"></p>
+      <div id="breathCircle" aria-hidden="true"></div>
+      <p id="breathLabel" class="breathLabel">Ready when you are.</p>
+      <button id="breathButton" class="primary" onclick="takeBreath()">Take one breath</button>
+      <button id="playAgainButton" class="primary hidden" onclick="startGame()">Play again</button>
+      <button id="skipBreathButton" class="linkButton" onclick="skipBreath()">Skip</button>
     </div>
   </div>
 
@@ -326,26 +420,40 @@
 
   // ---- Table shape ("stretch to fill") ----
   const TABLE_WIDTH = 600;
-  const MIN_TABLE_HEIGHT = 870;    // ~1.45 aspect; wider Web Views get side trim
+  const MIN_TABLE_HEIGHT = 1030;   // ~1.7 aspect (keeps the orbit mouth on the flipper's shot line); wider Web Views get side trim
   const MAX_TABLE_HEIGHT = 1400;   // ~2.3 aspect; taller Web Views get top/bottom trim
   const DPR_CAP = 2;               // max canvas pixel density (performance)
   const MAX_CANVAS_PIXELS = 2500000; // per canvas; big desktop windows drop density instead of frames
 
   // ---- Game ----
   const BALLS_PER_GAME = 3;
-  const NEXT_BALL_DELAY_MS = 900;
-  const SCORE_BUMPER = 100;        // placeholder scoring (theme/scoring come later)
-  const SCORE_SLING = 10;
+  const NEXT_BALL_DELAY_MS = 2200; // pause after a drain so the calm message can be read
   const STUCK_SPEED = 10;          // a ball slower than this for STUCK_TIME gets nudged
   const STUCK_TIME = 3;
+  const BALL_SAVE_SECONDS = 8;     // after the first launch of each ball
+  const MULTIBALL_SAVE_SECONDS = 10;
+  const BREATH_CYCLES_FOR_MULTIBALL = 3;
+  const BALL_BOUNCE = 0.9;         // ball-to-ball (multiball)
+  const TARGET_BOUNCE = 0.5;       // Five Senses standup targets
+  const TARGET_MIN_IMPACT = 80;    // softer touches don't register a target hit
+  const THOUGHT_SECONDS = 1.8;     // how long a bumper "thought" drifts before fading
+  const BREATH_MOMENT_MS = 4000;   // end-screen breath
+
+  // ---- Scoring (everything is doubled during Steady Breath) ----
+  const SCORE_BUMPER = 100;
+  const SCORE_SLING = 10;
+  const SCORE_ROLLOVER = 50;
+  const SCORE_TARGET = 100;        // a target that doesn't advance anything
+  const SCORE_SENSE_LIGHT = 500;   // lighting a sense in the bank
+  const SCORE_SENSE_STEP = 1000;   // each counted hit during grounding
+  const SCORE_GROUNDED = 25000;    // completing 5-4-3-2-1
+  const SCORE_ORBIT = 1000;        // each breath orbit
+  const SCORE_BREATH_CYCLE = 5000; // inhale-hold-exhale-rest complete
 
   // ---- Lights, display, sound ----
   const DMD_COLS = 128;            // dot-matrix display resolution
   const DMD_ROWS = 24;
   const DMD_MAX_HEIGHT = 64;       // css px
-  const CALM_HITS_PER_LIGHT = 4;   // bumper hits to light each calm-meter lamp
-  const SCORE_ROLLOVER = 50;
-  const SCORE_CALM_BONUS = 1000;   // all five calm lamps lit
   const SHAKE_BUMPER = 1.5;        // css px of table shake on bumper hits (0 = off)
   const SHAKE_BIG = 3.5;           // css px on big events
   const MASTER_VOLUME = 0.8;
@@ -372,6 +480,13 @@
   const dmdCanvas = document.getElementById("dmd");
   const dmdCtx = dmdCanvas.getContext("2d", { alpha: false });
   const muteButton = document.getElementById("muteButton");
+  const caption = document.getElementById("caption");
+  const reflectionEl = document.getElementById("reflection");
+  const breathCircle = document.getElementById("breathCircle");
+  const breathLabel = document.getElementById("breathLabel");
+  const breathButton = document.getElementById("breathButton");
+  const skipBreathButton = document.getElementById("skipBreathButton");
+  const playAgainButton = document.getElementById("playAgainButton");
 
   const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -400,7 +515,6 @@
   let lastFrame = 0;
   let rafId = null;
   let nextBallTimer = null;
-  let stillTime = 0;
   let lastVibe = 0;
   let fps = 0;
 
@@ -514,6 +628,11 @@
     // Soft chime for targets / rollovers; i picks the note.
     chime: (i = 0) => bell(CHIME_NOTES[i % CHIME_NOTES.length], { peak: 0.07 }),
     softBell: () => bell(293.66, { peak: 0.05, decay: 1.6 }),
+    // A target hit that doesn't advance anything: a quiet tick.
+    tick: () => {
+      noise(0.02, { freq: 2200, q: 1.5, peak: 0.08 });
+      tone(620, 0.04, { peak: 0.03, attack: 0 });
+    },
     launch: (frac = 1) => {
       noise(0.35, { freq: 400, freqEnd: 2200, q: 0.7, peak: 0.06 + 0.08 * frac });
       tone(120, 0.12, { type: "triangle", peak: 0.12, freqEnd: 70, attack: 0 });
@@ -551,8 +670,12 @@
     if (!roll) return;
     let level = 0;
     let freq = 200;
-    if (state === "playing" && !paused && ball && ball.active) {
-      const k = clamp(Math.hypot(ball.vx, ball.vy) / 2500, 0, 1);
+    let speed = 0;
+    if (state === "playing" && !paused) {
+      for (const b of balls) if (b.active) speed = Math.max(speed, Math.hypot(b.vx, b.vy));
+    }
+    if (speed > 0) {
+      const k = clamp(speed / 2500, 0, 1);
       level = ROLL_VOLUME * Math.sqrt(k);
       freq = 180 + 900 * k;
     }
@@ -617,7 +740,8 @@
       wall: { e: WALL_BOUNCE, mu: WALL_FRICTION },
       rubber: { e: RUBBER_BOUNCE, mu: RUBBER_FRICTION },
       flipper: { e: FLIPPER_BOUNCE, mu: FLIPPER_FRICTION },
-      plunger: { e: PLUNGER_BOUNCE, mu: WALL_FRICTION }
+      plunger: { e: PLUNGER_BOUNCE, mu: WALL_FRICTION },
+      target: { e: TARGET_BOUNCE, mu: WALL_FRICTION }
     };
     const yP = H - 150;                // flipper pivot height
     const mx = x => 2 * PLAY_CENTER_X - x; // mirror left -> right
@@ -701,6 +825,37 @@
     lowerSide(x => x);
     lowerSide(mx);
 
+    // "Breath" orbit: an inner wall parallel to the left wall that then
+    // follows the top arch. A ball sent up it rides the arch clockwise and
+    // comes down the right side past the lane gate.
+    // The mouth is measured from the flippers (not the top) so it always
+    // sits on the right flipper's up-left shot line (~60 degrees), and the
+    // entrance wall runs down along that same angle so near-misses are
+    // guided in rather than glancing off the outside of the lane.
+    const orbitBottom = Math.max(ARCH_CY + 20, yP - 560);
+    const ORBIT_INNER_R = ARCH_RADIUS - 48;
+    const ORBIT_ENTRANCE_LEN = 140;
+    const orbitPts = [[56 + 0.5 * ORBIT_ENTRANCE_LEN, orbitBottom + 0.866 * ORBIT_ENTRANCE_LEN], [56, orbitBottom], [56, ARCH_CY]];
+    for (let i = 1; i <= 8; i++) {
+      const a = Math.PI + (0.55 * i) / 8;
+      orbitPts.push([ARCH_CX + ORBIT_INNER_R * Math.cos(a), ARCH_CY + ORBIT_INNER_R * Math.sin(a)]);
+    }
+    addPolyline(orbitPts, 3, MAT.wall, true);
+
+    // Five Senses standup targets: a gently curved bank below the bumpers
+    // (higher in the middle, so a ball landing on its back rolls off the
+    // ends). fnx/fny is each target's front (flipper-facing) normal.
+    const targets = [];
+    for (let i = 0; i < 5; i++) {
+      const cx = PLAY_CENTER_X + (i - 2) * 36;
+      const cy = 548 + Math.abs(i - 2) * 6;
+      const a = (i - 2) * 0.16;
+      const hx = Math.cos(a) * 13, hy = Math.sin(a) * 13;
+      const t = { index: i, x: cx, y: cy, angle: a, fnx: -Math.sin(a), fny: Math.cos(a), lastHit: -1, litUntil: -1 };
+      segs.push(makeSeg(cx - hx, cy - hy, cx + hx, cy + hy, 5, MAT.target, { target: t }));
+      targets.push(t);
+    }
+
     // Flippers.
     const flippers = [
       {
@@ -734,13 +889,11 @@
 
     // Space reserved for later features (shown only with ?debug).
     const reserved = [
-      { label: "top lanes", x: 190, y: 70, w: 180, h: 80 },
-      { label: "ramp / orbit", x: 30, y: 380, w: 120, h: 170 },
-      { label: "target bank", x: 420, y: 520, w: 120, h: Math.max(80, yP - 330 - 540) }
+      { label: "top lanes", x: 190, y: 70, w: 180, h: 80 }
     ];
 
     return {
-      H, yP, segs, circles, rails, posts, slings, flippers, bumpers, outline, gate,
+      H, yP, segs, circles, rails, posts, slings, flippers, bumpers, outline, gate, targets, orbitBottom,
       plungerSeg, plungerRestY, apronLeft: apron("left"), apronRight: apron("right"), reserved,
       plungerStripY: LANE_TOP + (H - LANE_TOP) * 0.4
     };
@@ -753,8 +906,18 @@
   // contact is caught before the ball could pass through anything.
   // =====================================================================
 
+  function ballInLaneB(b) {
+    return !!b && b.active && b.x > LANE_X && b.y > LANE_TOP;
+  }
+
+  // The ball waiting in the plunger lane, if any (multiball-safe).
+  function laneBall() {
+    for (const b of balls) if (ballInLaneB(b)) return b;
+    return null;
+  }
+
   function ballInLane() {
-    return ball && ball.active && ball.x > LANE_X && ball.y > LANE_TOP;
+    return laneBall() !== null;
   }
 
   // Pushes the ball out of a surface along normal (nx, ny) and applies a
@@ -808,9 +971,17 @@
       ball.vy += ny * SLING_KICK;
       sl.lastHit = simTime;
       sl.litUntil = simTime + 0.12;
-      score += SCORE_SLING;
+      addScore(SCORE_SLING);
       onSlingHit(sl);
       vibrate(12);
+    }
+
+    // Five Senses target: only real hits on the front face register
+    // (rules/feedback only - the bounce above is already done).
+    const tg = s.target;
+    if (tg && impact > TARGET_MIN_IMPACT && nx * tg.fnx + ny * tg.fny > 0.3 && simTime - tg.lastHit > 0.2) {
+      tg.lastHit = simTime;
+      onTargetHit(tg);
     }
   }
 
@@ -832,7 +1003,7 @@
       }
       c.lastHit = simTime;
       c.litUntil = simTime + 0.14;
-      score += SCORE_BUMPER;
+      addScore(SCORE_BUMPER);
       onBumperHit(c);
       vibrate(25);
     }
@@ -918,13 +1089,14 @@
     const frac = plunger.pull / PLUNGER_MAX_PULL;
     plunger.pointerId = null;
     plunger.keyHeld = false;
-    if (!ballInLane() || frac < 0.03) return;
+    const b = laneBall();
+    if (!b || frac < 0.03) return;
     // Ball must be down at the bottom of the lane. It may still be
     // settling onto the tip after a very quick pull - the spring catches
     // it either way, like a real plunger.
-    if (ball.y + BALL_RADIUS < T.plungerRestY - 40) return;
-    ball.vy = -(PLUNGER_MIN_SPEED + (PLUNGER_MAX_SPEED - PLUNGER_MIN_SPEED) * frac);
-    ball.vx = 0;
+    if (b.y + BALL_RADIUS < T.plungerRestY - 40) return;
+    b.vy = -(PLUNGER_MIN_SPEED + (PLUNGER_MAX_SPEED - PLUNGER_MIN_SPEED) * frac);
+    b.vx = 0;
     onLaunch(frac);
     vibrate(20);
   }
@@ -933,7 +1105,25 @@
     simTime += dt;
     T.flippers.forEach(f => updateFlipper(f, flipperPressed(f.side), dt));
     updatePlunger(dt);
-    if (!ball || !ball.active) return;
+    // Every collision helper works on `ball`, so step each ball in turn.
+    for (const b of balls.slice()) {
+      if (!b.active) continue;
+      ball = b;
+      stepBall(dt);
+    }
+    if (balls.length > 1) collideBalls();
+    if (balls.some(b => !b.active)) balls = balls.filter(b => b.active);
+    if (balls.length) ball = balls[0];
+  }
+
+  function stepBall(dt) {
+    // Auto-plunge for balls added by multiball or a multiball save.
+    if (ball.autoLaunchAt && simTime >= ball.autoLaunchAt && ballInLaneB(ball)) {
+      ball.autoLaunchAt = 0;
+      ball.vy = -PLUNGER_MAX_SPEED * 0.92;
+      ball.vx = 0;
+      sfx.launch(0.9);
+    }
 
     ball.vy += GRAVITY * dt;
     const drag = 1 - ROLLING_DRAG * dt;
@@ -954,23 +1144,48 @@
       ball.vy *= MAX_BALL_SPEED / sp;
     }
 
-    checkRollovers();   // lights/sound only - doesn't touch the ball
+    checkRollovers();   // lights/sound/rules only - doesn't touch the ball
+    checkOrbit();
 
     // Stuck safety net: a ball sitting still somewhere other than the
     // plunger or a held flipper gets a small nudge.
     const held = flipperPressed("left") || flipperPressed("right");
-    if (sp < STUCK_SPEED && !ballInLane() && !held) {
-      stillTime += dt;
-      if (stillTime > STUCK_TIME) {
+    if (sp < STUCK_SPEED && !ballInLaneB(ball) && !held) {
+      ball.still += dt;
+      if (ball.still > STUCK_TIME) {
         ball.vy -= 300;
         ball.vx += (Math.random() - 0.5) * 300;
-        stillTime = 0;
+        ball.still = 0;
       }
     } else {
-      stillTime = 0;
+      ball.still = 0;
     }
 
-    if (ball.y - BALL_RADIUS > T.H + 20) onDrain();
+    if (ball.y - BALL_RADIUS > T.H + 20) onDrain(ball);
+  }
+
+  // Steady Breath multiball: the balls bump off each other (equal mass).
+  function collideBalls() {
+    for (let i = 0; i < balls.length; i++) {
+      for (let j = i + 1; j < balls.length; j++) {
+        const a = balls[i], b = balls[j];
+        if (!a.active || !b.active) continue;
+        const dx = b.x - a.x, dy = b.y - a.y;
+        const d2 = dx * dx + dy * dy;
+        const minD = BALL_RADIUS * 2;
+        if (d2 >= minD * minD || d2 === 0) continue;
+        const d = Math.sqrt(d2);
+        const nx = dx / d, ny = dy / d;
+        const push = (minD - d) / 2;
+        a.x -= nx * push; a.y -= ny * push;
+        b.x += nx * push; b.y += ny * push;
+        const vn = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
+        if (vn >= 0) continue;
+        const jn = (-(1 + BALL_BOUNCE) * vn) / 2;
+        a.vx -= jn * nx; a.vy -= jn * ny;
+        b.vx += jn * nx; b.vy += jn * ny;
+      }
+    }
   }
 
   // =====================================================================
@@ -1018,9 +1233,34 @@
   // physics table without touching any collider.
   // =====================================================================
 
+  // ---- Theme: the ball is your attention ----
+
+  // Five Senses bank, in 5-4-3-2-1 grounding order.
+  const SENSES = [
+    { name: "SEE", verb: "see", icon: "👁️", color: "#8fb8ff", need: 5 },
+    { name: "HEAR", verb: "hear", icon: "👂", color: "#b49cff", need: 4 },
+    { name: "TOUCH", verb: "feel", icon: "✋", color: "#f2a8d8", need: 3 },
+    { name: "SMELL", verb: "smell", icon: "👃", color: "#6fe0e0", need: 2 },
+    { name: "TASTE", verb: "taste", icon: "👅", color: "#ffd27a", need: 1 }
+  ];
+  const BREATH_STEPS = ["INHALE", "HOLD", "EXHALE", "REST"];
+  const BREATH_LABELS = ["IN", "HOLD", "OUT", "REST"];
+  const BREATH_COLORS = ["#8fb8ff", "#a99cff", "#c79cff", "#ffd27a"];
+  // Pop bumpers are passing thoughts: one of these drifts up and fades.
+  const THOUGHT_WORDS = ["worry", "to-do", "what if", "plans", "replay", "someday",
+                         "doubt", "hurry", "maybe", "should", "later", "emails"];
+  const REFLECTIONS = [
+    "Noticing you drifted is the practice.",
+    "Each return to the ball was a return to now.",
+    "Attention wanders. Coming back is the skill.",
+    "Thoughts came and went. You stayed.",
+    "No need to grip. Just keep coming back."
+  ];
+
   function decorateTable(T) {
     T.bumpers.forEach((b, i) => { b.color = BUMPER_COLORS[i]; });
-    const yP = T.yP;
+    T.targets.forEach((t, i) => { t.color = SENSES[i].color; });
+    const yP = T.yP, ob = T.orbitBottom;
     const M = x => 2 * PLAY_CENTER_X - x;
     const inserts = [];
     const add = o => {
@@ -1029,26 +1269,29 @@
       return ins;
     };
 
-    // Calm meter: five round lamps in a gentle arc above the flippers.
-    T.calmLights = CALM_COLORS.map((color, i) => add({
-      role: "calm", index: i, kind: "circle", color, r: 12,
-      x: PLAY_CENTER_X + (i - 2) * 44, y: yP - 252 + Math.abs(i - 2) * 11
+    // One lamp in front of each Five Senses target.
+    T.senseLights = T.targets.map((t, i) => add({
+      role: "sense", index: i, kind: "circle", color: SENSES[i].color, r: 7,
+      x: t.x + t.fnx * 24, y: t.y + t.fny * 24
     }));
+    // Breath orbit: an arrow into the orbit, four breath-step lamps, and
+    // three cycle lamps inside the orbit lane (3 cycles = Steady Breath).
+    T.orbitArrow = add({ role: "orbit", kind: "arrow", angle: -120, color: COLORS.lavender, r: 13, x: 122, y: ob + 66 });
+    T.breathLights = BREATH_LABELS.map((label, i) => add({
+      role: "breath", index: i, label, kind: "circle", color: BREATH_COLORS[i], r: 8,
+      x: 144 + i * 18, y: ob + 90 + i * 17
+    }));
+    T.cycleLights = [0, 1, 2].map(i => add({ role: "cycle", index: i, kind: "circle", color: COLORS.gold, r: 6, x: 32, y: ob - 22 - i * 24 }));
     // Inlane arrows and outlane lamps (lit by rollovers).
     T.inlaneArrows = [70, M(70)].map(x => add({ role: "rollover", kind: "arrow", angle: -90, color: COLORS.teal, r: 12, x, y: yP - 118 }));
     T.outlaneLights = [28, M(28)].map(x => add({ role: "rollover", kind: "circle", color: COLORS.rose, r: 8, x, y: yP - 112 }));
-    // "Ready" lamp between the flippers, lit while a ball waits to launch.
-    T.readyLight = add({ role: "ready", kind: "circle", color: COLORS.gold, r: 10, x: PLAY_CENTER_X, y: yP + 34 });
+    // Ball-save lamp between the flippers.
+    T.saveLight = add({ role: "save", kind: "circle", color: COLORS.gold, r: 10, x: PLAY_CENTER_X, y: yP + 34 });
     // Shooter lane arrows (chase upward while a ball waits).
     T.laneArrows = [0, 1, 2].map(i => add({
       role: "lane", index: i, kind: "arrow", angle: -90, color: COLORS.gold, r: 9,
       x: LANE_CENTER_X, y: T.plungerRestY - 92 - i * 32
     }));
-    // Arrows toward the reserved ramp/orbit and target bank (future shots).
-    T.featureArrows = [
-      add({ role: "feature", index: 0, kind: "arrow", angle: -120, color: COLORS.lavender, r: 13, x: 140, y: 446 }),
-      add({ role: "feature", index: 1, kind: "arrow", angle: 30, color: COLORS.lavender, r: 13, x: 420, y: 476 })
-    ];
     // Three small lamps up top, one per bumper (left, right, center).
     T.topLights = [-1, 1, 0].map((d, i) => add({
       role: "top", index: i, kind: "circle", color: BUMPER_COLORS[i], r: 8, x: PLAY_CENTER_X + d * 46, y: 112
@@ -1295,10 +1538,11 @@
       const oldH = T ? T.H : tableH;
       T = buildTable(tableH);
       decorateTable(T);
-      // Keep a ball in the bottom (anchored) half in the same spot
+      // Keep balls in the bottom (anchored) half in the same spot
       // relative to the flippers.
-      if (ball && ball.y > oldH / 2) ball.y += tableH - oldH;
+      for (const b of balls) if (b.y > oldH / 2) b.y += tableH - oldH;
     }
+    caption.style.top = barH + 10 + "px";
     // Cached gradients belong to the old canvas size; rebuild lazily.
     T.inserts.forEach(ins => { ins.litGrad = null; });
     buildSprites();
@@ -1600,21 +1844,64 @@
 
     T.slings.forEach(s => drawSlingStatic(c, s));
     T.posts.forEach(p => drawPost(c, p.x, p.y, p.r));
+    T.targets.forEach((t, i) => drawTargetStatic(c, t, SENSES[i]));
+
+    // Breath step labels beside their lamps.
+    c.font = "700 13px system-ui, sans-serif";
+    c.textAlign = "left";
+    c.textBaseline = "middle";
+    c.fillStyle = "rgba(255, 222, 170, 0.7)";
+    T.breathLights.forEach(l => c.fillText(l.label, l.x + 12, l.y + 1));
+    c.textBaseline = "alphabetic";
+  }
+
+  // Standup target: a decal plate behind it with the sense icon, and the
+  // plastic face the ball strikes (centered on the collider).
+  function drawTargetStatic(c, t, sense) {
+    const px = t.x - t.fnx * 20, py = t.y - t.fny * 20;
+    drawSoftShadow(c, px + 2, py + 4, 16, 0.5);
+    c.fillStyle = mix(sense.color, "#0b0a20", 0.62);
+    c.beginPath();
+    c.arc(px, py, 13, 0, Math.PI * 2);
+    c.fill();
+    c.strokeStyle = hexA(sense.color, 0.75);
+    c.lineWidth = 1.5;
+    c.stroke();
+    c.font = "17px 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif";
+    c.textAlign = "center";
+    c.textBaseline = "middle";
+    c.fillStyle = "#ffffff";
+    c.fillText(sense.icon, px, py + 1);
+    c.textBaseline = "alphabetic";
+
+    c.save();
+    c.translate(t.x, t.y);
+    c.rotate(t.angle);
+    c.fillStyle = "rgba(0, 0, 0, 0.35)";
+    c.fillRect(-14, -1, 30, 10);
+    c.beginPath();
+    if (c.roundRect) c.roundRect(-15, -5, 30, 10, 3); else c.rect(-15, -5, 30, 10);
+    const g = c.createLinearGradient(0, -5, 0, 5);
+    g.addColorStop(0, mix(sense.color, "#ffffff", 0.35));
+    g.addColorStop(1, mix(sense.color, "#0b0a20", 0.35));
+    c.fillStyle = g;
+    c.fill();
+    c.strokeStyle = "rgba(20, 16, 50, 0.8)";
+    c.lineWidth = 1.2;
+    c.stroke();
+    c.restore();
   }
 
   // =====================================================================
   // Lights: lamp states, light shows, hit flashes, GI, screen shake.
   // =====================================================================
 
-  let calmLevel = 0;
-  let bumperHits = 0;
-  let calmResetAt = 0;
   let flashes = [];
   let show = null;       // { kind, start, dur }
   let giPulse = 0;       // brief warm glow over the whole table
   let giDim = 0;         // lights dimming after a drain
   let shakeMag = 0, shakeDur = 1, shakeUntil = 0, shaking = false;
-  let lastRollover = null;
+  let thoughts = [];     // drifting bumper words
 
   function addFlash(x, y, r, color, intensity) {
     flashes.push({ x, y, r, color, start: simTime, dur: 0.22, intensity: intensity * (prefersReducedMotion ? 0.4 : 1) });
@@ -1654,7 +1941,6 @@
     if (t > show.dur) return 0;
     if (prefersReducedMotion) return 0.6 * Math.sin((Math.PI * t) / show.dur);
     if (show.kind === "chase") {
-      // A band of light sweeping from the flippers to the top.
       const pos = 1 - ins.y / T.H;
       const p = (t / show.dur) * 1.3 - 0.15;
       return Math.abs(pos - p) < 0.12 ? 1 : 0;
@@ -1665,68 +1951,127 @@
     return 0;
   }
 
+  // Slow lamp pulse (steady under reduced motion).
+  function lampPulse(speed) {
+    return prefersReducedMotion ? 0.8 : 0.5 + 0.5 * Math.sin(simTime * speed);
+  }
+
   function updateLights(dt) {
     const k = Math.min(1, dt * 28);   // ~35ms bulb warm-up/cool-down
     const lane = ballInLane();
+    const saveLeft = ballSaveUntil - simTime;
+    if (breathResetAt && simTime >= breathResetAt) {
+      breathStep = 0;
+      breathResetAt = 0;
+    }
     T.inserts.forEach((ins, i) => {
       let target = 0;
-      if (simTime < ins.flashUntil) target = 1;
-      else if (ins.role === "calm") target = ins.index < calmLevel ? 1 : 0;
-      else if (ins.role === "ready") target = lane ? (prefersReducedMotion ? 0.8 : 0.55 + 0.45 * Math.sin(simTime * 6)) : 0;
-      else if (ins.role === "lane") target = lane ? (prefersReducedMotion ? 0.7 : (Math.floor(simTime * 6) % 3 === ins.index ? 1 : 0.12)) : 0;
-      else if (ins.role === "feature") target = prefersReducedMotion ? 0.3 : 0.2 + 0.2 * (0.5 + 0.5 * Math.sin(simTime * 1.6 + ins.index * Math.PI));
+      if (simTime < ins.flashUntil) {
+        target = 1;
+      } else if (ins.role === "sense") {
+        if (sensePhase === "bank") target = senseLit[ins.index] ? 1 : 0;
+        else target = ins.index < senseStage ? 1 : (ins.index === senseStage ? lampPulse(5) : 0);
+      } else if (ins.role === "breath") {
+        target = ins.index < breathStep ? 1 : 0;
+      } else if (ins.role === "cycle") {
+        target = ins.index < breathCycles ? 1 : 0;
+      } else if (ins.role === "orbit") {
+        target = multiball ? 1 : (prefersReducedMotion ? 0.45 : 0.25 + 0.35 * lampPulse(2.2));
+      } else if (ins.role === "save") {
+        if (saveLeft > 0) target = saveLeft < 2 && !prefersReducedMotion ? (Math.floor(simTime * 8) % 2 ? 1 : 0.2) : 1;
+        else target = lane && saveReady ? 0.35 : 0;
+      } else if (ins.role === "lane") {
+        target = lane ? (prefersReducedMotion ? 0.7 : (Math.floor(simTime * 6) % 3 === ins.index ? 1 : 0.12)) : 0;
+      }
       target = Math.max(target, showLevel(ins, i));
       ins.level += (target - ins.level) * k;
     });
     if (show && simTime - show.start > show.dur) show = null;
-    if (calmResetAt && simTime >= calmResetAt) {
-      calmLevel = 0;
-      calmResetAt = 0;
-    }
     if (flashes.length) flashes = flashes.filter(f => simTime - f.start < f.dur);
+    if (thoughts.length) thoughts = thoughts.filter(t => simTime - t.start < THOUGHT_SECONDS);
     giPulse = Math.max(0, giPulse - dt * 1.4);
     giDim = Math.max(0, giDim - dt * 1.1);
   }
 
+  // =====================================================================
+  // Rules: Five Senses -> Grounding (5-4-3-2-1), Breath orbit -> Steady
+  // Breath multiball, ball save, passing thoughts.
+  // =====================================================================
+
+  let balls = [];
+  let multiball = false;
+  let ballSaveUntil = 0;
+  let saveReady = false;       // next launch of this ball starts the save timer
+  let sensePhase = "bank";     // "bank" (light all five) | "grounding" (5-4-3-2-1)
+  let senseLit = [false, false, false, false, false];
+  let senseStage = 0;          // grounding: index into SENSES
+  let senseCount = 0;          // grounding: hits on the current sense
+  let breathStep = 0;          // 0..4 lit breath lamps
+  let breathResetAt = 0;
+  let breathCycles = 0;        // completed cycles toward Steady Breath
+
+  function fmt(n) {
+    return n.toLocaleString("en-US");
+  }
+
+  // Everything scores double during Steady Breath. Returns points added.
+  function addScore(n) {
+    const pts = n * (multiball ? 2 : 1);
+    score += pts;
+    return pts;
+  }
+
   function resetLights() {
-    calmLevel = 0;
-    bumperHits = 0;
-    calmResetAt = 0;
     flashes = [];
     show = null;
     giPulse = 0;
     giDim = 0;
     shakeUntil = 0;
-    lastRollover = null;
-    if (T) T.inserts.forEach(ins => { ins.level = 0; ins.flashUntil = 0; });
-    if (T) T.bumpers.forEach(b => { b.litUntil = -1; });
-    if (T) T.slings.forEach(s => { s.litUntil = -1; });
+    thoughts = [];
+    multiball = false;
+    ballSaveUntil = 0;
+    saveReady = false;
+    sensePhase = "bank";
+    senseLit = [false, false, false, false, false];
+    senseStage = 0;
+    senseCount = 0;
+    breathStep = 0;
+    breathResetAt = 0;
+    breathCycles = 0;
+    if (!T) return;
+    T.inserts.forEach(ins => { ins.level = 0; ins.flashUntil = 0; });
+    T.bumpers.forEach(b => { b.litUntil = -1; });
+    T.slings.forEach(s => { s.litUntil = -1; });
+    T.targets.forEach(t => { t.litUntil = -1; t.lastHit = -1; });
   }
 
-  // ---- Hooks called from the physics (visual/audio feedback only) ----
+  function newBall() {
+    return {
+      x: LANE_CENTER_X, y: T.plungerRestY - BALL_RADIUS - 6, vx: 0, vy: 0,
+      active: true, still: 0, lastRollover: null, orbitAt: 0, autoLaunchAt: 0
+    };
+  }
+
+  // Adds a ball to the plunger lane that launches itself after `delay` s.
+  function addLaneBall(delay) {
+    const b = newBall();
+    b.autoLaunchAt = simTime + delay;
+    balls.push(b);
+  }
+
+  // ---- Hooks called from the physics (feedback and rules only) ----
 
   function onBumperHit(b) {
     sfx.bumper();
     addFlash(b.x, b.y, 150, b.color, 0.55);
     shake(SHAKE_BUMPER, 0.09);
     T.topLights[T.bumpers.indexOf(b)].flashUntil = simTime + 0.25;
-    bumperHits += 1;
-    if (calmLevel < 5 && !calmResetAt && bumperHits % CALM_HITS_PER_LIGHT === 0) {
-      calmLevel += 1;
-      sfx.chime(calmLevel - 1);
-      if (calmLevel === 5) completeCalm();
-      else dmdMessage("CALM " + calmLevel + "/5", 0.9);
-    }
-  }
-
-  function completeCalm() {
-    score += SCORE_CALM_BONUS;
-    calmResetAt = simTime + 1.8;
-    sfx.bigEvent();
-    startShow("celebrate", 1.8);
-    giPulse = prefersReducedMotion ? 0.12 : 0.3;
-    shake(SHAKE_BIG, 0.25);
-    dmdMessage("INNER CALM", 2, "+" + SCORE_CALM_BONUS.toLocaleString("en-US") + " BONUS");
+    // A passing thought: noticed, then let go as it drifts away.
+    if (thoughts.length >= 4) thoughts.shift();
+    thoughts.push({
+      text: THOUGHT_WORDS[Math.floor(Math.random() * THOUGHT_WORDS.length)],
+      x: b.x, y: b.y - b.r - 10, dx: (Math.random() - 0.5) * 50, start: simTime
+    });
   }
 
   function onSlingHit(sl) {
@@ -1738,6 +2083,144 @@
   function onLaunch(frac) {
     sfx.launch(frac);
     startShow("chase", 0.7);
+    // Ball save starts with the first launch of each ball.
+    if (saveReady) {
+      saveReady = false;
+      ballSaveUntil = simTime + BALL_SAVE_SECONDS;
+    }
+  }
+
+  function sensePrompt(s) {
+    return s.need + (s.need === 1 ? " THING" : " THINGS") + " YOU " + s.verb.toUpperCase();
+  }
+
+  function announceSense(delay) {
+    const s = SENSES[senseStage];
+    const lines = [s.name + " 0/" + s.need, sensePrompt(s), 2.2];
+    if (delay) dmdQueue(lines); else dmdMessage(lines[0], lines[2], lines[1]);
+    showCaption("Notice " + s.need + (s.need === 1 ? " thing" : " things") + " you can " + s.verb + ".", 3.6, delay);
+  }
+
+  function onTargetHit(t) {
+    const i = t.index, sense = SENSES[i];
+    t.litUntil = simTime + 0.15;
+    addFlash(t.x, t.y, 70, sense.color, 0.5);
+    vibrate(15);
+
+    if (sensePhase === "bank") {
+      if (senseLit[i]) {
+        addScore(SCORE_TARGET);
+        sfx.tick();
+        return;
+      }
+      senseLit[i] = true;
+      addScore(SCORE_SENSE_LIGHT);
+      sfx.chime(i);
+      const lit = senseLit.filter(Boolean).length;
+      if (lit === SENSES.length) startGrounding();
+      else dmdMessage(sense.name, 1, "SENSES " + lit + "/5");
+      return;
+    }
+
+    // Grounding: only the current sense moves you forward.
+    if (i !== senseStage) {
+      addScore(SCORE_TARGET);
+      sfx.tick();
+      return;
+    }
+    senseCount += 1;
+    addScore(SCORE_SENSE_STEP);
+    sfx.chime(senseCount);
+    if (senseCount < sense.need) {
+      dmdMessage(sense.name + " " + senseCount + "/" + sense.need, 1.2, sensePrompt(sense));
+      return;
+    }
+    senseStage += 1;
+    senseCount = 0;
+    if (senseStage >= SENSES.length) completeGrounding();
+    else announceSense(0);
+  }
+
+  function startGrounding() {
+    sensePhase = "grounding";
+    senseStage = 0;
+    senseCount = 0;
+    sfx.bigEvent();
+    startShow("chase", 1.2);
+    giPulse = prefersReducedMotion ? 0.1 : 0.22;
+    dmdMessage("GROUNDING", 1.6, "5-4-3-2-1");
+    announceSense(1.6);
+  }
+
+  function completeGrounding() {
+    const pts = addScore(SCORE_GROUNDED);
+    sensePhase = "bank";
+    senseLit = [false, false, false, false, false];
+    senseStage = 0;
+    senseCount = 0;
+    sfx.bigEvent();
+    startShow("celebrate", 2);
+    giPulse = prefersReducedMotion ? 0.12 : 0.3;
+    shake(SHAKE_BIG, 0.25);
+    dmdMessage("GROUNDED", 2.4, "+" + fmt(pts));
+    showCaption("You're here, in this moment.", 3);
+  }
+
+  // Breath orbit sensor: a ball moving up the orbit's lane, then reaching
+  // the top-right of the arch within 2.5s, is one completed orbit.
+  function checkOrbit() {
+    const ob = T.orbitBottom;
+    if (ball.x < 60 && ball.y < ob && ball.y > ob - 90 && ball.vy < -150) ball.orbitAt = simTime;
+    if (!ball.orbitAt) return;
+    if (simTime - ball.orbitAt > 2.5) ball.orbitAt = 0;
+    else if (ball.x > 430 && ball.y < 220) {
+      ball.orbitAt = 0;
+      onOrbit();
+    }
+  }
+
+  function onOrbit() {
+    if (breathStep >= BREATH_STEPS.length) {   // previous cycle still showing
+      breathStep = 0;
+      breathResetAt = 0;
+    }
+    addScore(SCORE_ORBIT);
+    T.orbitArrow.flashUntil = simTime + 0.5;
+    breathStep += 1;
+    sfx.chime(breathStep + 1);
+    addFlash(T.orbitArrow.x, T.orbitArrow.y, 90, COLORS.lavender, 0.5);
+    if (breathStep < BREATH_STEPS.length) {
+      dmdMessage(BREATH_STEPS[breathStep - 1], 1.3, "BREATH " + (breathCycles + 1) + "/" + BREATH_CYCLES_FOR_MULTIBALL);
+      return;
+    }
+    // REST lit: cycle complete. Lamps stay lit briefly, then reset.
+    breathResetAt = simTime + 1.4;
+    breathCycles = Math.min(BREATH_CYCLES_FOR_MULTIBALL, breathCycles + 1);
+    const pts = addScore(SCORE_BREATH_CYCLE);
+    if (breathCycles >= BREATH_CYCLES_FOR_MULTIBALL && !multiball) {
+      breathCycles = 0;
+      startMultiball();
+      return;
+    }
+    startShow("chase", 0.8);
+    dmdMessage("BREATH " + breathCycles + "/" + BREATH_CYCLES_FOR_MULTIBALL, 1.6, "REST  +" + fmt(pts));
+  }
+
+  function startMultiball() {
+    multiball = true;
+    ballSaveUntil = simTime + MULTIBALL_SAVE_SECONDS;
+    addLaneBall(0.8);
+    sfx.bigEvent();
+    startShow("celebrate", 2);
+    giPulse = prefersReducedMotion ? 0.12 : 0.3;
+    shake(SHAKE_BIG, 0.25);
+    dmdMessage("STEADY", 2.4, "BREATH - 2 BALLS");
+    showCaption("Steady Breath: two balls. Follow both, slowly.", 3.6);
+  }
+
+  function endMultiball() {
+    multiball = false;
+    dmdMessage("ONE BALL", 1.4, "STILL HERE");
   }
 
   // Rollover switches in the inlanes/outlanes (lights + sound only).
@@ -1749,13 +2232,13 @@
       if (lx > 51 && lx < 89) zone = "in";
       else if (lx > 8 && lx < 48) zone = "out";
     }
-    if (zone !== lastRollover) {
+    if (zone !== ball.lastRollover) {
       if (zone === "in") {
         const ins = T.inlaneArrows[side];
         // A ball bouncing back over the switch while the arrow is still
         // lit doesn't count twice.
         if (simTime >= ins.flashUntil) {
-          score += SCORE_ROLLOVER;
+          addScore(SCORE_ROLLOVER);
           sfx.chime(side ? 3 : 2);
           addFlash(ins.x, ins.y, 60, COLORS.teal, 0.5);
         }
@@ -1764,8 +2247,29 @@
         T.outlaneLights[side].flashUntil = simTime + 1.2;
         sfx.softBell();
       }
-      lastRollover = zone;
+      ball.lastRollover = zone;
     }
+  }
+
+  // ---- Caption banner: full sentences that don't fit the display ----
+
+  let captionTimer = null;
+  let captionDelayTimer = null;
+
+  function showCaption(text, seconds = 3, delay = 0) {
+    clearTimeout(captionTimer);
+    clearTimeout(captionDelayTimer);
+    captionDelayTimer = setTimeout(() => {
+      caption.textContent = text;
+      caption.classList.add("show");
+      captionTimer = setTimeout(() => caption.classList.remove("show"), seconds * 1000);
+    }, delay * 1000);
+  }
+
+  function hideCaption() {
+    clearTimeout(captionTimer);
+    clearTimeout(captionDelayTimer);
+    caption.classList.remove("show");
   }
 
   // =====================================================================
@@ -1819,13 +2323,14 @@
     "+": ".....|..#..|..#..|#####|..#..|..#..|.....",
     ":": ".....|.##..|.##..|.....|.##..|.##..|.....",
     "/": "....#|...#.|...#.|..#..|.#...|.#...|#....",
-    "?": ".###.|#...#|....#|...#.|..#..|.....|..#.."
+    "?": ".###.|#...#|....#|...#.|..#..|.....|..#..",
+    "'": "..#..|..#..|.#...|.....|.....|.....|....."
   };
   const FONT = {};
   Object.keys(FONT_SRC).forEach(ch => { FONT[ch] = FONT_SRC[ch].split("|"); });
 
   const dmdDots = new Uint8Array(DMD_COLS * DMD_ROWS);   // 0 off, 1 dim, 2 bright
-  const dmd = { msg: "", sub: "", until: 0, key: "", pitch: 2 };
+  const dmd = { msg: "", sub: "", until: 0, key: "", pitch: 2, queue: [] };
 
   function dmdWidth(str, scale) {
     return str.length * 6 * scale - scale;
@@ -1857,22 +2362,44 @@
     dmdText(str, Math.floor((DMD_COLS - dmdWidth(str, scale)) / 2), y, scale, level);
   }
 
+  // Show a message now (clears anything queued).
   function dmdMessage(msg, seconds, sub = "") {
+    dmd.queue = [];
     dmd.msg = msg;
     dmd.sub = sub;
     dmd.until = seconds === Infinity ? Infinity : performance.now() + seconds * 1000;
   }
 
+  // Show [msg, sub, seconds] after whatever is showing now.
+  function dmdQueue(item) {
+    const showing = dmd.msg && performance.now() < dmd.until;
+    if (showing) dmd.queue.push(item);
+    else dmdMessage(item[0], item[2], item[1]);
+  }
+
+  function dmdSequence(items) {
+    dmdMessage(items[0][0], items[0][2], items[0][1]);
+    for (let i = 1; i < items.length; i++) dmd.queue.push(items[i]);
+  }
+
   function dmdClearMessage() {
     dmd.msg = "";
     dmd.until = 0;
+    dmd.queue = [];
   }
 
   function updateDMD(force) {
-    const showingMsg = dmd.msg && performance.now() < dmd.until;
+    const now = performance.now();
+    if (dmd.queue.length && !(dmd.msg && now < dmd.until)) {
+      const [m, s, secs] = dmd.queue.shift();
+      dmd.msg = m;
+      dmd.sub = s;
+      dmd.until = now + secs * 1000;
+    }
+    const showingMsg = dmd.msg && now < dmd.until;
     const key = showingMsg
       ? "m|" + dmd.msg + "|" + dmd.sub
-      : "s|" + score + "|" + ballNumber + "|" + calmLevel;
+      : ["s", score, ballNumber, sensePhase, senseStage, senseCount, breathStep, multiball].join("|");
     if (!force && key === dmd.key) return;
     dmd.key = key;
     dmdDots.fill(0);
@@ -1886,17 +2413,28 @@
         if (dmd.sub) dmdCentered(dmd.sub, 13, 1, 1);
       }
     } else {
-      const s = score.toLocaleString("en-US");
+      const s = fmt(score);
       const big = dmdWidth(s, 2) <= DMD_COLS;
       dmdCentered(s, big ? 0 : 4, big ? 2 : 1, 2);
       dmdText("BALL " + Math.min(ballNumber, BALLS_PER_GAME), 1, 17, 1, 1);
-      dmdText("CALM", DMD_COLS - 61, 17, 1, 1);
-      for (let i = 0; i < 5; i++) {
-        const x0 = DMD_COLS - 35 + i * 7;
-        for (let y = 0; y < 5; y++) {
-          for (let x = 0; x < 5; x++) {
-            const edge = x === 0 || y === 0 || x === 4 || y === 4;
-            if (i < calmLevel || edge) dmdDots[(18 + y) * DMD_COLS + x0 + x] = i < calmLevel ? 2 : 1;
+      // Right side: multiball, grounding progress, or the breath cycle.
+      let right = "";
+      if (multiball) right = "2 BALLS";
+      else if (sensePhase === "grounding") {
+        const sn = SENSES[senseStage];
+        right = sn.name + " " + senseCount + "/" + sn.need;
+      }
+      if (right) {
+        dmdText(right, DMD_COLS - dmdWidth(right, 1), 17, 1, 2);
+      } else {
+        dmdText("BREATH", DMD_COLS - 27 - 4 - 35, 17, 1, 1);
+        for (let i = 0; i < 4; i++) {
+          const x0 = DMD_COLS - 27 + i * 7;
+          for (let y = 0; y < 5; y++) {
+            for (let x = 0; x < 5; x++) {
+              const edge = x === 0 || y === 0 || x === 4 || y === 4;
+              if (i < breathStep || edge) dmdDots[(18 + y) * DMD_COLS + x0 + x] = i < breathStep ? 2 : 1;
+            }
           }
         }
       }
@@ -1939,6 +2477,37 @@
       drawGlow(c, b.color, b.x, b.y - 5, b.r * 2.4, (prefersReducedMotion ? 0.35 : 0.8) * k);
       c.globalCompositeOperation = "source-over";
     }
+  }
+
+  // Target face flashes white and is knocked back slightly when struck.
+  function drawTargetFlash(c, t) {
+    if (simTime >= t.litUntil) return;
+    c.save();
+    c.translate(t.x, t.y);
+    c.rotate(t.angle);
+    c.globalAlpha = 0.9;
+    c.fillStyle = "#ffffff";
+    c.beginPath();
+    const back = prefersReducedMotion ? 0 : -2;
+    if (c.roundRect) c.roundRect(-15, -5 + back, 30, 10, 3); else c.rect(-15, -5 + back, 30, 10);
+    c.fill();
+    c.restore();
+  }
+
+  // Passing thoughts: a word rises from the bumper and fades away.
+  function drawThoughts(c) {
+    if (!thoughts.length) return;
+    c.textAlign = "center";
+    c.textBaseline = "middle";
+    c.font = "italic 600 22px system-ui, sans-serif";
+    for (const t of thoughts) {
+      const p = (simTime - t.start) / THOUGHT_SECONDS;
+      const drift = prefersReducedMotion ? 0 : p;
+      const alpha = p < 0.15 ? p / 0.15 : 1 - (p - 0.15) / 0.85;
+      c.fillStyle = "rgba(232, 224, 255, " + (alpha * 0.85).toFixed(3) + ")";
+      c.fillText(t.text, t.x + t.dx * drift, t.y - 50 * drift);
+    }
+    c.textBaseline = "alphabetic";
   }
 
   function drawSlingFlash(c, s) {
@@ -2048,8 +2617,8 @@
   // Chrome steel ball: an environment reflection (bright cabinet lights
   // above a dark horizon, the violet playfield below) plus highlights that
   // track the lights as the ball moves around the table.
-  function drawBall(c) {
-    const x = ball.x, y = ball.y, R = BALL_RADIUS;
+  function drawBall(c, b) {
+    const x = b.x, y = b.y, R = BALL_RADIUS;
     const sideways = clamp((PLAY_CENTER_X - x) / TABLE_WIDTH, -0.5, 0.5);
     drawSoftShadow(c, x + 3 - sideways * 8, y + 8, R * 1.3, 0.75);
 
@@ -2152,11 +2721,21 @@
     if (giPulse > 0.01) drawGlow(ctx, COLORS.gold, PLAY_CENTER_X, T.H * 0.55, T.H * 0.75, giPulse);
     ctx.globalCompositeOperation = "source-over";
 
+    // Grounding: a soft glow behind the sense that's being asked for.
+    if (sensePhase === "grounding" && state === "playing") {
+      const t = T.targets[senseStage];
+      ctx.globalCompositeOperation = "lighter";
+      drawGlow(ctx, t.color, t.x - t.fnx * 20, t.y - t.fny * 20, 34, 0.25 + 0.35 * lampPulse(5));
+      ctx.globalCompositeOperation = "source-over";
+    }
+
     T.slings.forEach(s => drawSlingFlash(ctx, s));
+    T.targets.forEach(t => drawTargetFlash(ctx, t));
     T.bumpers.forEach((b, i) => drawBumper(ctx, b, i));
+    drawThoughts(ctx);
     drawPlunger(ctx);
     T.flippers.forEach(f => drawFlipper(ctx, f));
-    if (ball && ball.active) drawBall(ctx);
+    for (const b of balls) if (b.active) drawBall(ctx, b);
     if (DEBUG) drawDebug(ctx);
     ctx.restore();
   }
@@ -2291,33 +2870,58 @@
   // Game flow
   // =====================================================================
 
-  function serveBall() {
+  // fresh = a new ball (save available); false = re-serving a saved ball.
+  function serveBall(fresh = true) {
     nextBallTimer = null;
     plunger.pull = 0;
-    ball = {
-      x: LANE_CENTER_X,
-      y: T.plungerRestY - BALL_RADIUS - 6,
-      vx: 0,
-      vy: 0,
-      active: true
-    };
-    stillTime = 0;
-    lastRollover = null;
-    if (ballNumber > 1) dmdMessage("BALL " + ballNumber, 1.8, "PULL TO LAUNCH");
+    ball = newBall();
+    balls = [ball];
+    multiball = false;
+    ballSaveUntil = 0;
+    saveReady = fresh;
+    if (fresh && ballNumber > 1) dmdQueue(["BALL " + ballNumber, "PULL TO LAUNCH", 1.8]);
   }
 
-  function onDrain() {
-    ball.active = false;
+  function onDrain(b) {
+    b.active = false;
+    const others = balls.filter(x => x.active);
+    const saved = simTime < ballSaveUntil;
+
+    // Multiball: losing one ball never costs the turn.
+    if (others.length > 0) {
+      if (saved) {
+        addLaneBall(0.5);
+        dmdMessage("BALL SAVED", 1.2);
+      } else if (multiball && others.length === 1) {
+        endMultiball();
+      }
+      sfx.softBell();
+      return;
+    }
+
+    if (saved) {
+      ballSaveUntil = 0;
+      multiball = false;
+      sfx.softBell();
+      dmdMessage("BALL SAVED", 1.8, "BEGIN AGAIN");
+      showCaption("Caught. Begin again, gently.", 2.5);
+      nextBallTimer = setTimeout(() => serveBall(false), 600);
+      return;
+    }
+
+    // Ball lost - framed as attention wandering, never as failure.
+    multiball = false;
     sfx.drain();
     vibrate([40, 40, 40]);
     show = null;
     giDim = 1;   // lights dim, then recover
-    dmdMessage("LET IT GO", 1.5);
+    dmdSequence([["MIND WANDERED", "THAT'S NORMAL", 1.8], ["COME BACK", "GENTLY", 1.6]]);
+    showCaption("Your mind wandered. That's normal. Gently come back.", 3.4);
     if (ballNumber >= BALLS_PER_GAME) {
       nextBallTimer = setTimeout(gameOver, NEXT_BALL_DELAY_MS);
     } else {
       ballNumber += 1;
-      nextBallTimer = setTimeout(serveBall, NEXT_BALL_DELAY_MS);
+      nextBallTimer = setTimeout(() => serveBall(true), NEXT_BALL_DELAY_MS);
     }
   }
 
@@ -2325,25 +2929,71 @@
     nextBallTimer = null;
     state = "over";
     releaseAllInput();
+    hideCaption();
     sfx.gameOver();
-    finalScore.textContent = "Final score: " + score.toLocaleString("en-US");
-    dmdMessage("GAME OVER", Infinity, "SCORE " + score.toLocaleString("en-US"));
+    dmdMessage("THANK YOU", Infinity, "SCORE " + fmt(score));
     updateDMD();
+    setupEndScreen();
     endScreen.classList.remove("hidden");
     stopLoop();
   }
 
+  // ---- End screen: score, one reflection, and a "take one breath" moment ----
+
+  let breathTimer = null;
+
+  function setupEndScreen() {
+    clearTimeout(breathTimer);
+    finalScore.textContent = "Score: " + fmt(score);
+    reflectionEl.textContent = REFLECTIONS[Math.floor(Math.random() * REFLECTIONS.length)];
+    breathCircle.classList.remove("expanding");
+    breathLabel.textContent = "Ready when you are.";
+    breathButton.classList.remove("hidden");
+    skipBreathButton.classList.remove("hidden");
+    playAgainButton.classList.add("hidden");
+  }
+
+  // A single 4-second in-breath with an expanding circle.
+  function takeBreath() {
+    ensureAudio();
+    breathButton.classList.add("hidden");
+    skipBreathButton.classList.add("hidden");
+    void breathCircle.offsetWidth;   // restart the transition
+    breathCircle.classList.add("expanding");
+    breathLabel.textContent = "Breathe in slowly…";
+    bell(CHIME_NOTES[0], { peak: 0.05, decay: 3.5 });
+    breathTimer = setTimeout(() => {
+      breathLabel.textContent = "And gently let it go.";
+      bell(CHIME_NOTES[3], { peak: 0.04, decay: 2.5 });
+      showPlayAgain();
+    }, BREATH_MOMENT_MS);
+  }
+
+  function skipBreath() {
+    clearTimeout(breathTimer);
+    showPlayAgain();
+  }
+
+  function showPlayAgain() {
+    breathButton.classList.add("hidden");
+    skipBreathButton.classList.add("hidden");
+    playAgainButton.classList.remove("hidden");
+  }
+
   function resetGameState() {
     clearTimeout(nextBallTimer);
+    clearTimeout(breathTimer);
     nextBallTimer = null;
     releaseAllInput();
     score = 0;
     ballNumber = 1;
     ball = null;
+    balls = [];
     plunger.pull = 0;
     paused = false;
     resetLights();
     dmdClearMessage();
+    hideCaption();
   }
 
   function startGame() {
@@ -2358,6 +3008,7 @@
     state = "playing";
     serveBall();
     dmdMessage("BE PRESENT", 1.8, "PULL TO LAUNCH");
+    showCaption("The ball is your attention. Stay with it.", 3);
     startShow("chase", 1.2);
     startLoop();
   }
