@@ -602,6 +602,14 @@
   const BUMPER_MESSAGE_Y = 244;    // table y for bumper messages: above the bumpers, far from the flippers
   const BREATH_MOMENT_MS = 4000;   // end-screen breath
 
+  // ---- Outlanes ----
+  // How far the side-wall bend above each outlane juts in. Balls riding
+  // down the wall get kicked past the inlane/outlane post into the inlane
+  // instead of sliding straight into the outlane.
+  const OUTLANE_GUARD = 28;
+  const KICKBACK_SPEED = 2300;     // left-outlane kickback launch speed (saves one ball, relit by a full breath)
+  const OUTLANE_POST_R = 7;       // inlane/outlane post radius. 7 is the max: bigger closes the inlane gap
+
   // ---- Scoring (everything is doubled during Steady Breath) ----
   const SCORE_BUMPER = 100;
   const SCORE_SLING = 10;
@@ -933,7 +941,7 @@
     const outline = [
       [OUTER_LEFT, H + 60],
       [OUTER_LEFT, yP - 230],
-      [OUTER_LEFT + 16, yP - 280],
+      [OUTER_LEFT + OUTLANE_GUARD, yP - 280],
       [OUTER_LEFT, yP - 330],
       [OUTER_LEFT, ARCH_CY]
     ];
@@ -950,7 +958,7 @@
     addPolyline([
       [LANE_X, H + 60],
       [LANE_X, yP - 230],
-      [LANE_X - 16, yP - 280],
+      [LANE_X - OUTLANE_GUARD, yP - 280],
       [LANE_X, yP - 330],
       [LANE_X, LANE_TOP]
     ], 3, MAT.wall, true);
@@ -981,10 +989,12 @@
       segs.push(makeSeg(bo[0], bo[1], bi[0], bi[1], 5, MAT.rubber));
 
       // Inlane/outlane separator: rubber post on top, rail below, then the
-      // inlane guide that feeds the ball onto the flipper.
-      const postTop = P(48, yP - 170);
-      circles.push({ x: postTop[0], y: postTop[1], r: 7, mat: MAT.rubber });
-      posts.push({ x: postTop[0], y: postTop[1], r: 7 });
+      // inlane guide that feeds the ball onto the flipper. The gaps on
+      // both sides of the post are just over one ball wide, so the post
+      // can't grow without closing the inlane or the outlane.
+      const postTop = P(48 + OUTLANE_POST_R - 7, yP - 172);
+      circles.push({ x: postTop[0], y: postTop[1], r: OUTLANE_POST_R, mat: MAT.rubber });
+      posts.push({ x: postTop[0], y: postTop[1], r: OUTLANE_POST_R });
       addPolyline([postTop, P(48, yP - 60), P(INLANE_GUIDE_END_X, yP - INLANE_GUIDE_END_UP)], 3, MAT.wall, true);
       // Outlane inner wall down to the drain, and the apron edge under the
       // flipper leading to the center drain.
@@ -1347,6 +1357,10 @@
       }
     }
 
+    // Kickback: a lit kickback fires a ball that reaches the bottom of the
+    // left outlane straight back up, once.
+    if (kickbackLit && !tilted && ball.x < 46 && ball.y > T.yP - 40 && ball.vy > 0) onKickback(ball);
+
     if (ball.y - BALL_RADIUS > T.H + 20) onDrain(ball);
   }
 
@@ -1480,6 +1494,8 @@
     // Inlane arrows and outlane lamps (lit by rollovers).
     T.inlaneArrows = [70, M(70)].map(x => add({ role: "rollover", kind: "arrow", angle: -90, color: COLORS.teal, r: 12, x, y: yP - 118 }));
     T.outlaneLights = [28, M(28)].map(x => add({ role: "rollover", kind: "circle", color: COLORS.rose, r: 8, x, y: yP - 112 }));
+    // Kickback lamp low in the left outlane (lit = kickback ready).
+    T.kickbackLight = add({ role: "kickback", kind: "circle", color: COLORS.gold, r: 9, x: 28, y: yP - 20 });
     // Ball-save lamp between the flippers.
     T.saveLight = add({ role: "save", kind: "circle", color: COLORS.gold, r: 10, x: PLAY_CENTER_X, y: yP + 34 });
     // Shooter lane arrows (chase upward while a ball waits).
@@ -2044,6 +2060,17 @@
     c.fillStyle = "rgba(214, 204, 255, 0.78)";
     T.breathLights.forEach(l => c.fillText(l.label, l.x + 12, l.y + 1));
 
+    // "KICKBACK" printed up the left outlane above its lamp.
+    c.save();
+    c.translate(28, T.yP - 66);
+    c.rotate(-Math.PI / 2);
+    c.font = "800 10px ui-rounded, 'SF Pro Rounded', system-ui, sans-serif";
+    c.textAlign = "center";
+    c.textBaseline = "middle";
+    c.fillStyle = "rgba(240, 201, 106, 0.75)";
+    c.fillText("KICKBACK", 0, 0);
+    c.restore();
+
     // "BREATH LANE" printed on the lane floor along its entrance wall, the
     // way real tables label their shots.
     const ob = T.orbitBottom;
@@ -2260,6 +2287,8 @@
         target = ins.index < breathStep ? 1 : 0;
       } else if (ins.role === "cycle") {
         target = ins.index < breathCycles ? 1 : 0;
+      } else if (ins.role === "kickback") {
+        target = kickbackLit ? 1 : 0;
       } else if (ins.role === "orbit") {
         target = multiball ? 1 : (prefersReducedMotion ? 0.45 : 0.25 + 0.35 * lampPulse(2.2));
       } else if (ins.role === "save") {
@@ -2324,6 +2353,7 @@
     breathResetAt = 0;
     breathCycles = 0;
     breathTipShown = false;
+    kickbackLit = true;          // every game starts with the kickback lit
     tilted = false;
     tiltMeter = 0;
     lastNudge = -1;
@@ -2446,13 +2476,38 @@
     breathResetAt = simTime + 1.4;
     breathCycles = Math.min(BREATH_CYCLES_FOR_MULTIBALL, breathCycles + 1);
     const pts = addScore(SCORE_BREATH_CYCLE);
+    // A full breath relights the kickback.
+    const relit = !kickbackLit;
+    kickbackLit = true;
     if (breathCycles >= BREATH_CYCLES_FOR_MULTIBALL && !multiball) {
       breathCycles = 0;
       startMultiball();
       return;
     }
     startShow("chase", 0.8);
-    dmdMessage("Breath " + breathCycles + "/" + BREATH_CYCLES_FOR_MULTIBALL, 1.6, "+" + fmt(pts));
+    dmdMessage("Breath " + breathCycles + "/" + BREATH_CYCLES_FOR_MULTIBALL, 1.6, relit ? "kickback lit" : "+" + fmt(pts));
+  }
+
+  // ---- Kickback (left outlane) ----
+  let kickbackLit = true;
+
+  function onKickback(b) {
+    kickbackLit = false;
+    // Fire straight up the center of the outlane: the gap past the
+    // inlane/outlane post is exactly one ball wide, so any sideways drift
+    // would clip the post. The wall bend above then turns it onto the
+    // playfield.
+    b.x = OUTER_LEFT + 3 + BALL_RADIUS;
+    b.y = Math.min(b.y, T.yP - 20);
+    b.vx = 0;
+    b.vy = -KICKBACK_SPEED;
+    b.lastRollover = null;
+    sfx.launch(1);
+    sfx.nudge();
+    vibrate([30, 20, 30]);
+    addFlash(28, T.yP - 20, 110, COLORS.gold, 0.7);
+    shake(SHAKE_BUMPER, 0.12);
+    dmdMessage("Kickback", 1.8, "relight: complete a breath");
   }
 
   function startMultiball() {
@@ -2620,7 +2675,10 @@
     if (tilted) return ["Tilt", "let this ball go"];
     if (multiball) return ["Steady Breath", "2 balls"];
     const dots = "\u25cf".repeat(breathStep) + "\u25cb".repeat(BREATH_STEPS.length - breathStep);
-    return ["Breath " + dots, breathCycles ? breathCycles + "/" + BREATH_CYCLES_FOR_MULTIBALL : ""];
+    const extras = [];
+    if (breathCycles) extras.push(breathCycles + "/" + BREATH_CYCLES_FOR_MULTIBALL);
+    if (kickbackLit) extras.push("kickback lit");
+    return ["Breath " + dots, extras.join(" \u00b7 ")];
   }
 
   function updateDMD(force) {
