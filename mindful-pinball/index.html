@@ -37,11 +37,24 @@
     background: #0b1322;
   }
 
-  #table {
+  /* Two stacked canvases sized to the table only (not the trim around
+     it): #tableStatic holds everything that never moves and is drawn
+     once; #table is cleared and redrawn each frame with just the moving
+     parts, so the background is never copied per frame. */
+  #game canvas {
+    position: absolute;
+    left: 0;
+    top: 0;
     display: block;
-    width: 100%;
-    height: 100%;
     touch-action: none;
+  }
+
+  #tableStatic {
+    z-index: 0;
+  }
+
+  #table {
+    z-index: 1;
   }
 
   .exitButton {
@@ -156,6 +169,7 @@
 <body>
 <div id="game">
 
+  <canvas id="tableStatic"></canvas>
   <canvas id="table"></canvas>
 
   <button class="exitButton" onclick="confirmExit()" aria-label="Exit game">&times; Exit</button>
@@ -252,6 +266,7 @@
   const MIN_TABLE_HEIGHT = 870;    // ~1.45 aspect; wider Web Views get side trim
   const MAX_TABLE_HEIGHT = 1400;   // ~2.3 aspect; taller Web Views get top/bottom trim
   const DPR_CAP = 2;               // max canvas pixel density (performance)
+  const MAX_CANVAS_PIXELS = 2500000; // per canvas; big desktop windows drop density instead of frames
 
   // ---- Game ----
   const BALLS_PER_GAME = 3;
@@ -271,8 +286,8 @@
   const game = document.getElementById("game");
   const canvas = document.getElementById("table");
   const ctx = canvas.getContext("2d");
-  const staticCanvas = document.createElement("canvas");
-  const staticCtx = staticCanvas.getContext("2d");
+  const staticCanvas = document.getElementById("tableStatic");
+  const staticCtx = staticCanvas.getContext("2d", { alpha: false });
   const startScreen = document.getElementById("startScreen");
   const endScreen = document.getElementById("endScreen");
   const finalScore = document.getElementById("finalScore");
@@ -311,6 +326,7 @@
 
   const pointerRoles = new Map();  // pointerId -> "left" | "right" | "plunger"
   const keys = { left: false, right: false };
+  const flipperLatch = { left: false, right: false };
   const plunger = { pull: 0, pointerId: null, keyHeld: false, dragStartY: 0 };
 
   let audioCtx = null;
@@ -329,15 +345,19 @@
 
   function tone(freq, duration, opts = {}) {
     if (!audioCtx) return;
-    const { type = "sine", peak = 0.2, delay = 0, freqEnd = null } = opts;
+    const { type = "sine", peak = 0.2, delay = 0, freqEnd = null, attack = 0.01 } = opts;
     const t0 = audioCtx.currentTime + delay;
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
     osc.type = type;
     osc.frequency.setValueAtTime(freq, t0);
     if (freqEnd) osc.frequency.exponentialRampToValueAtTime(freqEnd, t0 + duration);
-    gain.gain.setValueAtTime(0.0001, t0);
-    gain.gain.exponentialRampToValueAtTime(peak, t0 + 0.01);
+    if (attack > 0) {
+      gain.gain.setValueAtTime(0.0001, t0);
+      gain.gain.exponentialRampToValueAtTime(peak, t0 + attack);
+    } else {
+      gain.gain.setValueAtTime(peak, t0);   // instant onset (flipper clack)
+    }
     gain.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
     osc.connect(gain).connect(audioCtx.destination);
     osc.start(t0);
@@ -345,7 +365,7 @@
   }
 
   const sfx = {
-    flipper: () => tone(150, 0.05, { type: "square", peak: 0.06, freqEnd: 80 }),
+    flipper: () => tone(150, 0.05, { type: "square", peak: 0.06, freqEnd: 80, attack: 0 }),
     bumper: () => { tone(380, 0.08, { type: "triangle", peak: 0.2, freqEnd: 240 }); tone(760, 0.05, { peak: 0.08 }); },
     sling: () => tone(300, 0.05, { type: "square", peak: 0.07, freqEnd: 200 }),
     launch: () => tone(180, 0.22, { type: "sawtooth", peak: 0.06, freqEnd: 420 }),
@@ -483,7 +503,7 @@
         rest: Math.PI - FLIPPER_REST_ANGLE_DEG * DEG, up: Math.PI - FLIPPER_UP_ANGLE_DEG * DEG
       }
     ];
-    flippers.forEach(f => { f.angle = f.rest; f.omega = 0; f.wasPressed = false; });
+    flippers.forEach(f => { f.angle = f.rest; f.omega = 0; });
 
     // Pop bumpers (upper area, anchored to the top).
     const bumpers = [
@@ -631,9 +651,16 @@
     if (f.omega !== 0 && impact > FLIPPER_HAPTIC_MIN_IMPACT) vibrate(15);
   }
 
+  // Constant-speed stroke, no easing: at FLIPPER_UP_SPEED the full
+  // up-stroke takes ~29ms (under 2 frames at 60fps); the return is
+  // slower, like a real flipper's spring.
   function updateFlipper(f, pressed, dt) {
-    if (pressed && !f.wasPressed) sfx.flipper();
-    f.wasPressed = pressed;
+    // A latched tap keeps driving the coil until the flipper reaches the
+    // top, so a press released before the next frame still flips fully.
+    if (flipperLatch[f.side]) {
+      pressed = true;
+      if (f.angle === f.up) flipperLatch[f.side] = false;
+    }
     const target = pressed ? f.up : f.rest;
     const diff = target - f.angle;
     if (diff === 0) { f.omega = 0; return; }
@@ -653,6 +680,14 @@
     if (keys[side]) return true;
     for (const role of pointerRoles.values()) if (role === side) return true;
     return false;
+  }
+
+  // Called straight from the key/touch handler, before the input is
+  // recorded. Plays the flipper sound immediately (not on the next
+  // frame) and latches the press so even the shortest tap flips.
+  function pressFlipper(side) {
+    if (!flipperPressed(side)) sfx.flipper();
+    flipperLatch[side] = true;
   }
 
   function updatePlunger(dt) {
@@ -734,23 +769,35 @@
     const rect = game.getBoundingClientRect();
     const cssW = Math.max(1, rect.width);
     const cssH = Math.max(1, rect.height);
-    const dpr = Math.min(window.devicePixelRatio || 1, DPR_CAP);
     const tableH = Math.round(clamp(TABLE_WIDTH * (cssH / cssW), MIN_TABLE_HEIGHT, MAX_TABLE_HEIGHT));
     const scale = Math.min(cssW / TABLE_WIDTH, cssH / tableH);
+    const tableCssW = TABLE_WIDTH * scale;
+    const tableCssH = tableH * scale;
+    // Pixel density: device density up to DPR_CAP, lowered further if
+    // the canvas would exceed MAX_CANVAS_PIXELS.
+    let dpr = Math.min(window.devicePixelRatio || 1, DPR_CAP);
+    dpr = Math.min(dpr, Math.sqrt(MAX_CANVAS_PIXELS / (tableCssW * tableCssH)));
 
     view = {
       cssW, cssH, dpr, scale,
-      offX: (cssW - TABLE_WIDTH * scale) / 2,
-      offY: (cssH - tableH * scale) / 2
+      offX: (cssW - tableCssW) / 2,
+      offY: (cssH - tableCssH) / 2
     };
-    canvas.width = staticCanvas.width = Math.round(cssW * dpr);
-    canvas.height = staticCanvas.height = Math.round(cssH * dpr);
+    const pxW = Math.round(tableCssW * dpr);
+    const pxH = Math.round(tableCssH * dpr);
+    view.k = pxW / TABLE_WIDTH;    // table units -> canvas pixels
+    [canvas, staticCanvas].forEach(cv => {
+      cv.width = pxW;
+      cv.height = pxH;
+      cv.style.left = view.offX + "px";
+      cv.style.top = view.offY + "px";
+      cv.style.width = tableCssW + "px";
+      cv.style.height = tableCssH + "px";
+    });
 
     if (!T || T.H !== tableH) {
       const oldH = T ? T.H : tableH;
-      const oldFlippers = T ? T.flippers : null;
       T = buildTable(tableH);
-      if (oldFlippers) T.flippers.forEach((f, i) => { f.wasPressed = oldFlippers[i].wasPressed; });
       // Keep a ball in the bottom (anchored) half in the same spot
       // relative to the flippers.
       if (ball && ball.y > oldH / 2) ball.y += tableH - oldH;
@@ -759,15 +806,14 @@
   }
 
   function tableTransform(c) {
-    const { dpr, scale, offX, offY } = view;
-    c.setTransform(dpr * scale, 0, 0, dpr * scale, dpr * offX, dpr * offY);
+    c.setTransform(view.k, 0, 0, view.k, 0, 0);
   }
 
   function toTable(e) {
     const rect = canvas.getBoundingClientRect();
     return {
-      x: (e.clientX - rect.left - view.offX) / view.scale,
-      y: (e.clientY - rect.top - view.offY) / view.scale
+      x: (e.clientX - rect.left) / view.scale,
+      y: (e.clientY - rect.top) / view.scale
     };
   }
 
@@ -1125,7 +1171,7 @@
 
   function render() {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.drawImage(staticCanvas, 0, 0);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
     tableTransform(ctx);
     ctx.save();
     ctx.beginPath();
@@ -1176,12 +1222,15 @@
   // plunger can all be used at the same time without interfering.
   // =====================================================================
 
-  canvas.addEventListener("pointerdown", (e) => {
+  // Listens on the whole game area (trim included) so "left/right half
+  // of the screen" means the Web View's halves, not just the table's.
+  game.addEventListener("pointerdown", (e) => {
+    if (e.target.closest("button")) return;   // Exit button, dialogs
     e.preventDefault();
     if (state !== "playing" || paused) return;
-    canvas.setPointerCapture(e.pointerId);
+    game.setPointerCapture(e.pointerId);
     const p = toTable(e);
-    const rect = canvas.getBoundingClientRect();
+    const rect = game.getBoundingClientRect();
     let role = (e.clientX - rect.left) < rect.width / 2 ? "left" : "right";
 
     // Plunger strip: only while a ball is waiting in the lane, so the
@@ -1192,10 +1241,11 @@
       plunger.pointerId = e.pointerId;
       plunger.dragStartY = p.y;
     }
+    if (role !== "plunger") pressFlipper(role);
     pointerRoles.set(e.pointerId, role);
   });
 
-  canvas.addEventListener("pointermove", (e) => {
+  game.addEventListener("pointermove", (e) => {
     if (e.pointerId !== plunger.pointerId) return;
     const p = toTable(e);
     plunger.pull = clamp(p.y - plunger.dragStartY, 0, PLUNGER_MAX_PULL);
@@ -1207,8 +1257,8 @@
     pointerRoles.delete(e.pointerId);
     if (role === "plunger" && plunger.pointerId === e.pointerId) releasePlunger();
   }
-  canvas.addEventListener("pointerup", onPointerEnd);
-  canvas.addEventListener("pointercancel", onPointerEnd);
+  game.addEventListener("pointerup", onPointerEnd);
+  game.addEventListener("pointercancel", onPointerEnd);
 
   const KEY_ROLES = {
     KeyZ: "left", ShiftLeft: "left",
@@ -1220,10 +1270,12 @@
     const role = KEY_ROLES[e.code];
     if (!role || state !== "playing") return;
     e.preventDefault();
+    // Ignore OS auto-repeat: only the first keydown of a hold counts.
     if (e.repeat || paused) return;
     if (role === "plunger") {
       if (ballInLane() && plunger.pointerId === null) plunger.keyHeld = true;
     } else {
+      if (!keys[role]) pressFlipper(role);
       keys[role] = true;
     }
   });
@@ -1241,6 +1293,7 @@
   function releaseAllInput() {
     pointerRoles.clear();
     keys.left = keys.right = false;
+    flipperLatch.left = flipperLatch.right = false;
     plunger.pointerId = null;
     plunger.keyHeld = false;
   }
