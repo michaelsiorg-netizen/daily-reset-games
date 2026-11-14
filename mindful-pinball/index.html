@@ -13,6 +13,11 @@
     -webkit-user-select: none;
   }
 
+  :root {
+    /* Rounded system font (no download needed inside the Web View). */
+    --round-font: ui-rounded, "SF Pro Rounded", "Segoe UI Variable Display", "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+  }
+
   html, body {
     margin: 0;
     padding: 0;
@@ -21,7 +26,7 @@
     overflow: hidden;
     position: fixed;
     overscroll-behavior: none;
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family: var(--round-font);
     touch-action: none;
     background: #06110d;
     color: #ffffff;
@@ -53,22 +58,83 @@
     box-shadow: 0 3px 12px rgba(0, 0, 0, 0.55);
   }
 
-  #dmdBezel {
+  /* Score card: score, ball number and one short message line. */
+  #scoreCard {
     flex: 1 1 auto;
     min-width: 0;
     display: flex;
+    flex-direction: column;
     justify-content: center;
-    align-items: center;
-    padding: 3px;
-    border-radius: 6px;
-    background: #050410;
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06), inset 0 2px 8px rgba(0, 0, 0, 0.9);
+    gap: 1px;
+    padding: 5px 10px 6px;
+    border-radius: 14px;
+    background: linear-gradient(rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.04));
+    border: 1px solid rgba(156, 201, 164, 0.3);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
   }
 
-  #dmd {
-    display: block;
-    /* Soft phosphor bloom; only re-rasterized when the display changes. */
-    filter: drop-shadow(0 0 2px rgba(255, 196, 110, 0.55));
+  .scoreRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .scoreBlock {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .scoreLabel {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #9cc9a4;
+  }
+
+  #scoreValue {
+    font-size: 20px;
+    font-weight: 800;
+    line-height: 1.1;
+    color: #f6f2e3;
+    font-variant-numeric: tabular-nums;
+  }
+
+  #ballChip {
+    flex: 0 0 auto;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #9cc9a4;
+    color: #0f2a20;
+    font-size: 11px;
+    font-weight: 800;
+  }
+
+  #scoreMessage {
+    min-height: 15px;
+    font-size: 12px;
+    line-height: 1.25;
+    color: rgba(214, 236, 222, 0.78);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  #scoreMessage.isMessage {
+    color: #f0c96a;
+  }
+
+  #scoreMessage strong {
+    font-weight: 800;
+  }
+
+  @media (max-width: 360px) {
+    .scoreLabel { display: none; }
+    #scoreValue { font-size: 17px; }
   }
 
   .barButton {
@@ -371,7 +437,13 @@
 
   <div id="topBar">
     <button class="exitButton barButton" onclick="confirmExit()" aria-label="Exit game">&times; Exit</button>
-    <div id="dmdBezel"><canvas id="dmd" aria-hidden="true"></canvas></div>
+    <div id="scoreCard">
+      <div class="scoreRow">
+        <div class="scoreBlock"><span class="scoreLabel">Score</span><span id="scoreValue">0</span></div>
+        <span id="ballChip">Ball 1/3</span>
+      </div>
+      <div id="scoreMessage" aria-live="polite"><strong id="msgMain"></strong> <span id="msgSub"></span></div>
+    </div>
     <button id="nudgeButton" class="barButton" aria-label="Nudge the table">
       <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
         <path d="M6 11l6-6 6 6M6 18l6-6 6 6" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round" />
@@ -529,9 +601,6 @@
   const SCORE_BREATH_CYCLE = 5000; // inhale-hold-exhale-rest complete
 
   // ---- Lights, display, sound ----
-  const DMD_COLS = 128;            // dot-matrix display resolution
-  const DMD_ROWS = 24;
-  const DMD_MAX_HEIGHT = 64;       // css px
   const SHAKE_BUMPER = 1.5;        // css px of table shake on bumper hits (0 = off)
   const SHAKE_BIG = 3.5;           // css px on big events
   const MASTER_VOLUME = 0.8;
@@ -555,8 +624,11 @@
   const exitConfirm = document.getElementById("exitConfirm");
   const topBar = document.getElementById("topBar");
   const tableWrap = document.getElementById("tableWrap");
-  const dmdCanvas = document.getElementById("dmd");
-  const dmdCtx = dmdCanvas.getContext("2d", { alpha: false });
+  const scoreValue = document.getElementById("scoreValue");
+  const ballChip = document.getElementById("ballChip");
+  const scoreMessage = document.getElementById("scoreMessage");
+  const msgMain = document.getElementById("msgMain");
+  const msgSub = document.getElementById("msgSub");
   const muteButton = document.getElementById("muteButton");
   const nudgeButton = document.getElementById("nudgeButton");
   const caption = document.getElementById("caption");
@@ -787,7 +859,7 @@
     if (master) master.gain.setTargetAtTime(muted ? 0 : MASTER_VOLUME, audioCtx.currentTime, 0.02);
     updateMuteButton();
     muteButton.blur();   // so Space doesn't re-toggle it mid-game
-    dmdMessage(muted ? "SOUND OFF" : "SOUND ON", 1);
+    dmdMessage(muted ? "Sound off" : "Sound on", 1);
     updateDMD();
   }
 
@@ -1357,7 +1429,7 @@
     { name: "SMELL", verb: "smell", icon: "👃", color: "#6fe0e0", need: 2 },
     { name: "TASTE", verb: "taste", icon: "👅", color: "#ffd27a", need: 1 }
   ];
-  const BREATH_STEPS = ["INHALE", "HOLD", "EXHALE", "REST"];
+  const BREATH_STEPS = ["Inhale", "Hold", "Exhale", "Rest"];
   const BREATH_LABELS = ["IN", "HOLD", "OUT", "REST"];
   const BREATH_COLORS = ["#c3b4f7", "#b2a0f3", "#a28cee", "#9378e8"];   // special (purple)
   const REFLECTIONS = [
@@ -1609,16 +1681,8 @@
     const gh = Math.max(1, rect.height);
     const devDpr = window.devicePixelRatio || 1;
 
-    // Backbox bar first: the display fills the space between the Exit and
-    // mute buttons. The table gets the remaining height.
-    const dmdDpr = Math.min(devDpr, 3);
-    const dmdCssW = clamp(gw - 196, 96, DMD_MAX_HEIGHT * DMD_COLS / DMD_ROWS);
-    const dmdCssH = dmdCssW * DMD_ROWS / DMD_COLS;
-    dmdCanvas.width = Math.round(dmdCssW * dmdDpr);
-    dmdCanvas.height = Math.round(dmdCssH * dmdDpr);
-    dmdCanvas.style.width = dmdCssW + "px";
-    dmdCanvas.style.height = dmdCssH + "px";
-    dmd.pitch = dmdCanvas.width / DMD_COLS;
+    // Top bar (Exit | score card | nudge | mute) sits above the table;
+    // the table gets the remaining height.
     const barH = topBar.getBoundingClientRect().height;
 
     const cssW = gw;
@@ -2308,7 +2372,7 @@
     sfx.chime(breathStep + 1);
     addFlash(T.orbitArrow.x, T.orbitArrow.y, 90, COLORS.special, 0.5);
     if (breathStep < BREATH_STEPS.length) {
-      dmdMessage(BREATH_STEPS[breathStep - 1], 1.3, "BREATH " + (breathCycles + 1) + "/" + BREATH_CYCLES_FOR_MULTIBALL);
+      dmdMessage(BREATH_STEPS[breathStep - 1], 1.3, "breath " + (breathCycles + 1) + "/" + BREATH_CYCLES_FOR_MULTIBALL);
       return;
     }
     // REST lit: cycle complete. Lamps stay lit briefly, then reset.
@@ -2321,7 +2385,7 @@
       return;
     }
     startShow("chase", 0.8);
-    dmdMessage("BREATH " + breathCycles + "/" + BREATH_CYCLES_FOR_MULTIBALL, 1.6, "REST  +" + fmt(pts));
+    dmdMessage("Breath " + breathCycles + "/" + BREATH_CYCLES_FOR_MULTIBALL, 1.6, "+" + fmt(pts));
   }
 
   function startMultiball() {
@@ -2332,13 +2396,13 @@
     startShow("celebrate", 2);
     giPulse = prefersReducedMotion ? 0.12 : 0.3;
     shake(SHAKE_BIG, 0.25);
-    dmdMessage("STEADY", 2.4, "BREATH - 2 BALLS");
+    dmdMessage("Steady Breath", 2.4, "2 balls");
     showCaption("Steady Breath: two balls. Follow both, slowly.", 3.6);
   }
 
   function endMultiball() {
     multiball = false;
-    dmdMessage("ONE BALL", 1.4, "STILL HERE");
+    dmdMessage("One ball", 1.4, "still here");
   }
 
   // ---- Player nudge + tilt ----
@@ -2369,7 +2433,7 @@
     if (tiltMeter >= TILT_LIMIT) {
       tilt();
     } else if (tiltMeter >= TILT_LIMIT - 1) {
-      dmdMessage("EASY NOW", 1.4, "GENTLE NUDGES");
+      dmdMessage("Easy now", 1.4, "gentle nudges");
       showCaption("Gently. Let the ball find its way.", 2.5);
     }
   }
@@ -2382,7 +2446,7 @@
     giDim = 1;
     sfx.tilt();
     vibrate([60, 40, 60]);
-    dmdMessage("TILT", Infinity, "LET THIS BALL GO");
+    dmdMessage("Tilt", Infinity, "let this ball go");
     showCaption("Too much force. Breathe, and let this ball go.", 3.5);
   }
 
@@ -2436,94 +2500,13 @@
   }
 
   // =====================================================================
-  // Dot-matrix display. Text uses a 5x7 pixel font drawn into a
-  // DMD_COLS x DMD_ROWS grid; the canvas is only redrawn when the
-  // content changes.
+  // Score card: score, ball number and one short message line in the top
+  // bar. Plain DOM text, touched only when something actually changes.
   // =====================================================================
 
-  const FONT_SRC = {
-    "A": ".###.|#...#|#...#|#####|#...#|#...#|#...#",
-    "B": "####.|#...#|#...#|####.|#...#|#...#|####.",
-    "C": ".###.|#...#|#....|#....|#....|#...#|.###.",
-    "D": "####.|#...#|#...#|#...#|#...#|#...#|####.",
-    "E": "#####|#....|#....|####.|#....|#....|#####",
-    "F": "#####|#....|#....|####.|#....|#....|#....",
-    "G": ".###.|#...#|#....|#.###|#...#|#...#|.####",
-    "H": "#...#|#...#|#...#|#####|#...#|#...#|#...#",
-    "I": ".###.|..#..|..#..|..#..|..#..|..#..|.###.",
-    "J": "..###|...#.|...#.|...#.|...#.|#..#.|.##..",
-    "K": "#...#|#..#.|#.#..|##...|#.#..|#..#.|#...#",
-    "L": "#....|#....|#....|#....|#....|#....|#####",
-    "M": "#...#|##.##|#.#.#|#.#.#|#...#|#...#|#...#",
-    "N": "#...#|#...#|##..#|#.#.#|#..##|#...#|#...#",
-    "O": ".###.|#...#|#...#|#...#|#...#|#...#|.###.",
-    "P": "####.|#...#|#...#|####.|#....|#....|#....",
-    "Q": ".###.|#...#|#...#|#...#|#.#.#|#..#.|.##.#",
-    "R": "####.|#...#|#...#|####.|#.#..|#..#.|#...#",
-    "S": ".####|#....|#....|.###.|....#|....#|####.",
-    "T": "#####|..#..|..#..|..#..|..#..|..#..|..#..",
-    "U": "#...#|#...#|#...#|#...#|#...#|#...#|.###.",
-    "V": "#...#|#...#|#...#|#...#|#...#|.#.#.|..#..",
-    "W": "#...#|#...#|#...#|#.#.#|#.#.#|#.#.#|.#.#.",
-    "X": "#...#|#...#|.#.#.|..#..|.#.#.|#...#|#...#",
-    "Y": "#...#|#...#|.#.#.|..#..|..#..|..#..|..#..",
-    "Z": "#####|....#|...#.|..#..|.#...|#....|#####",
-    "0": ".###.|#...#|#..##|#.#.#|##..#|#...#|.###.",
-    "1": "..#..|.##..|..#..|..#..|..#..|..#..|.###.",
-    "2": ".###.|#...#|....#|...#.|..#..|.#...|#####",
-    "3": "####.|....#|....#|.###.|....#|....#|####.",
-    "4": "...#.|..##.|.#.#.|#..#.|#####|...#.|...#.",
-    "5": "#####|#....|####.|....#|....#|#...#|.###.",
-    "6": "..##.|.#...|#....|####.|#...#|#...#|.###.",
-    "7": "#####|....#|...#.|..#..|.#...|.#...|.#...",
-    "8": ".###.|#...#|#...#|.###.|#...#|#...#|.###.",
-    "9": ".###.|#...#|#...#|.####|....#|...#.|.##..",
-    " ": ".....|.....|.....|.....|.....|.....|.....",
-    ".": ".....|.....|.....|.....|.....|.##..|.##..",
-    ",": ".....|.....|.....|.....|.##..|..#..|.#...",
-    "!": "..#..|..#..|..#..|..#..|..#..|.....|..#..",
-    "-": ".....|.....|.....|.###.|.....|.....|.....",
-    "+": ".....|..#..|..#..|#####|..#..|..#..|.....",
-    ":": ".....|.##..|.##..|.....|.##..|.##..|.....",
-    "/": "....#|...#.|...#.|..#..|.#...|.#...|#....",
-    "?": ".###.|#...#|....#|...#.|..#..|.....|..#..",
-    "'": "..#..|..#..|.#...|.....|.....|.....|....."
-  };
-  const FONT = {};
-  Object.keys(FONT_SRC).forEach(ch => { FONT[ch] = FONT_SRC[ch].split("|"); });
-
-  const dmdDots = new Uint8Array(DMD_COLS * DMD_ROWS);   // 0 off, 1 dim, 2 bright
-  const dmd = { msg: "", sub: "", until: 0, key: "", pitch: 2, queue: [] };
-
-  function dmdWidth(str, scale) {
-    return str.length * 6 * scale - scale;
-  }
-
-  function dmdText(str, x0, y0, scale, level) {
-    let x = x0;
-    for (const ch of str) {
-      const g = FONT[ch] || FONT[" "];
-      for (let row = 0; row < 7; row++) {
-        for (let col = 0; col < 5; col++) {
-          if (g[row].charCodeAt(col) !== 35) continue;   // '#'
-          for (let sy = 0; sy < scale; sy++) {
-            for (let sx = 0; sx < scale; sx++) {
-              const px = x + col * scale + sx, py = y0 + row * scale + sy;
-              if (px >= 0 && px < DMD_COLS && py >= 0 && py < DMD_ROWS) {
-                const i = py * DMD_COLS + px;
-                if (dmdDots[i] < level) dmdDots[i] = level;
-              }
-            }
-          }
-        }
-      }
-      x += 6 * scale;
-    }
-  }
-
-  function dmdCentered(str, y, scale, level) {
-    dmdText(str, Math.floor((DMD_COLS - dmdWidth(str, scale)) / 2), y, scale, level);
-  }
+  // Message state (the "dmd" names are kept from the old display so the
+  // game code that sends messages didn't need to change).
+  const dmd = { msg: "", sub: "", until: 0, key: "", queue: [] };
 
   // Show a message now (clears anything queued).
   function dmdMessage(msg, seconds, sub = "") {
@@ -2551,6 +2534,14 @@
     dmd.queue = [];
   }
 
+  // What the message line shows when there's no message.
+  function statusLine() {
+    if (tilted) return ["Tilt", "let this ball go"];
+    if (multiball) return ["Steady Breath", "2 balls"];
+    const dots = "\u25cf".repeat(breathStep) + "\u25cb".repeat(BREATH_STEPS.length - breathStep);
+    return ["Breath " + dots, breathCycles ? breathCycles + "/" + BREATH_CYCLES_FOR_MULTIBALL : ""];
+  }
+
   function updateDMD(force) {
     const now = performance.now();
     if (dmd.queue.length && !(dmd.msg && now < dmd.until)) {
@@ -2559,69 +2550,18 @@
       dmd.sub = s;
       dmd.until = now + secs * 1000;
     }
-    const showingMsg = dmd.msg && now < dmd.until;
-    const key = showingMsg
-      ? "m|" + dmd.msg + "|" + dmd.sub
-      : ["s", score, ballNumber, sensePhase, senseStage, senseCount, breathStep, multiball].join("|");
+    const showingMsg = !!(dmd.msg && now < dmd.until);
+    const [main, sub] = showingMsg ? [dmd.msg, dmd.sub] : statusLine();
+    const scoreText = fmt(score);
+    const ballText = "Ball " + Math.min(ballNumber, BALLS_PER_GAME) + "/" + BALLS_PER_GAME;
+    const key = scoreText + "|" + ballText + "|" + main + "|" + sub + "|" + showingMsg;
     if (!force && key === dmd.key) return;
     dmd.key = key;
-    dmdDots.fill(0);
-
-    if (showingMsg) {
-      if (dmdWidth(dmd.msg, 2) <= DMD_COLS) {
-        dmdCentered(dmd.msg, dmd.sub ? 0 : 5, 2, 2);
-        if (dmd.sub) dmdCentered(dmd.sub, 16, 1, 1);
-      } else {
-        dmdCentered(dmd.msg, dmd.sub ? 3 : 8, 1, 2);
-        if (dmd.sub) dmdCentered(dmd.sub, 13, 1, 1);
-      }
-    } else {
-      const s = fmt(score);
-      const big = dmdWidth(s, 2) <= DMD_COLS;
-      dmdCentered(s, big ? 0 : 4, big ? 2 : 1, 2);
-      dmdText("BALL " + Math.min(ballNumber, BALLS_PER_GAME), 1, 17, 1, 1);
-      // Right side: multiball, grounding progress, or the breath cycle.
-      let right = "";
-      if (multiball) right = "2 BALLS";
-      else if (sensePhase === "grounding") {
-        const sn = SENSES[senseStage];
-        right = sn.name + " " + senseCount + "/" + sn.need;
-      }
-      if (right) {
-        dmdText(right, DMD_COLS - dmdWidth(right, 1), 17, 1, 2);
-      } else {
-        dmdText("BREATH", DMD_COLS - 27 - 4 - 35, 17, 1, 1);
-        for (let i = 0; i < 4; i++) {
-          const x0 = DMD_COLS - 27 + i * 7;
-          for (let y = 0; y < 5; y++) {
-            for (let x = 0; x < 5; x++) {
-              const edge = x === 0 || y === 0 || x === 4 || y === 4;
-              if (i < breathStep || edge) dmdDots[(18 + y) * DMD_COLS + x0 + x] = i < breathStep ? 2 : 1;
-            }
-          }
-        }
-      }
-    }
-    dmdRender();
-  }
-
-  function dmdRender() {
-    const c = dmdCtx, p = dmd.pitch;
-    c.fillStyle = "#07060f";
-    c.fillRect(0, 0, dmdCanvas.width, dmdCanvas.height);
-    // Dots snap to whole pixels; the gap between them shrinks away on
-    // very small displays rather than blurring.
-    const size = p >= 2.5 ? Math.max(1, Math.round(p * 0.72)) : Math.max(1, Math.ceil(p));
-    const colors = ["rgba(255, 196, 110, 0.08)", "rgba(255, 200, 120, 0.5)", "#ffd27a"];
-    for (let level = 0; level < 3; level++) {
-      c.fillStyle = colors[level];
-      for (let y = 0; y < DMD_ROWS; y++) {
-        const py = Math.round(y * p);
-        for (let x = 0; x < DMD_COLS; x++) {
-          if (dmdDots[y * DMD_COLS + x] === level) c.fillRect(Math.round(x * p), py, size, size);
-        }
-      }
-    }
+    scoreValue.textContent = scoreText;
+    ballChip.textContent = ballText;
+    msgMain.textContent = main;
+    msgSub.textContent = sub;
+    scoreMessage.classList.toggle("isMessage", showingMsg);
   }
 
   // =====================================================================
@@ -3071,7 +3011,7 @@
     if (tilted) dmdClearMessage();   // clear the "TILT" hold
     tilted = false;
     tiltMeter = 0;
-    if (fresh && ballNumber > 1) dmdQueue(["BALL " + ballNumber, "PULL TO LAUNCH", 1.8]);
+    if (fresh && ballNumber > 1) dmdQueue(["Ball " + ballNumber, "launch when ready", 1.8]);
   }
 
   function onDrain(b) {
@@ -3084,7 +3024,7 @@
       if (tilted) return;   // tilted: the remaining balls just drain too
       if (saved) {
         addLaneBall(0.5);
-        dmdMessage("BALL SAVED", 1.2);
+        dmdMessage("Ball saved", 1.2);
       } else if (multiball && others.length === 1) {
         endMultiball();
       }
@@ -3096,7 +3036,7 @@
       ballSaveUntil = 0;
       multiball = false;
       sfx.softBell();
-      dmdMessage("BALL SAVED", 1.8, "BEGIN AGAIN");
+      dmdMessage("Ball saved", 1.8, "begin again");
       showCaption("Caught. Begin again, gently.", 2.5);
       nextBallTimer = setTimeout(() => serveBall(false), 600);
       return;
@@ -3108,7 +3048,7 @@
     vibrate([40, 40, 40]);
     show = null;
     giDim = 1;   // lights dim, then recover
-    dmdSequence([["MIND WANDERED", "THAT'S NORMAL", 1.8], ["COME BACK", "GENTLY", 1.6]]);
+    dmdSequence([["Mind wandered", "that's normal", 1.8], ["Come back", "gently", 1.6]]);
     showCaption("Your mind wandered. That's normal. Gently come back.", 3.4);
     if (ballNumber >= BALLS_PER_GAME) {
       nextBallTimer = setTimeout(gameOver, NEXT_BALL_DELAY_MS);
@@ -3124,7 +3064,7 @@
     releaseAllInput();
     hideCaption();
     sfx.gameOver();
-    dmdMessage("THANK YOU", Infinity, "SCORE " + fmt(score));
+    dmdMessage("Thank you", Infinity, "score " + fmt(score));
     updateDMD();
     setupEndScreen();
     endScreen.classList.remove("hidden");
@@ -3200,7 +3140,7 @@
     exitConfirm.style.display = "none";
     state = "playing";
     serveBall();
-    dmdMessage("BE PRESENT", 1.8, "PULL TO LAUNCH");
+    dmdMessage("Be present", 1.8, "launch when ready");
     showCaption("The ball is your attention. Stay with it.", 3);
     startShow("chase", 1.2);
     startLoop();
