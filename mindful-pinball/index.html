@@ -550,6 +550,10 @@
   const INLANE_GUIDE_END_X = 163;
   const INLANE_GUIDE_END_UP = 16;
 
+  // ---- Upper-table layout (table units from the top) ----
+  const BUMPER_TOP_Y = 300;        // the two upper bumpers; the third sits 100 below
+  const BANK_Y = 458;              // center of the reset target bank (just under the bumpers)
+
   // ---- Pop bumpers ----
   const BUMPER_RADIUS = 32;
   const BUMPER_KICK = 1300;        // minimum outward speed after a bumper hit
@@ -1007,13 +1011,14 @@
     }
     addPolyline(orbitPts, 3, MAT.wall, true);
 
-    // Reset standup targets: a gently curved bank below the bumpers
+    // Reset standup targets: a gently curved bank just below the bumpers
     // (higher in the middle, so a ball landing on its back rolls off the
     // ends). fnx/fny is each target's front (flipper-facing) normal.
+    // Kept high so the area above the flippers and slings stays open.
     const targets = [];
     for (let i = 0; i < 5; i++) {
       const cx = PLAY_CENTER_X + (i - 2) * 36;
-      const cy = 548 + Math.abs(i - 2) * 6;
+      const cy = BANK_Y + Math.abs(i - 2) * 6;
       const a = (i - 2) * 0.16;
       const hx = Math.cos(a) * 13, hy = Math.sin(a) * 13;
       const t = { index: i, x: cx, y: cy, angle: a, fnx: -Math.sin(a), fny: Math.cos(a), lastHit: -1, litUntil: -1 };
@@ -1023,7 +1028,7 @@
     // Sloped metal cover over the back of the bank, so a ball coming down
     // from the bumpers always rolls off an end instead of resting on the
     // flat middle target or in the notches between targets.
-    addPolyline([[189, 562], [PLAY_CENTER_X, 530], [2 * PLAY_CENTER_X - 189, 562]], 3, MAT.wall, true);
+    addPolyline([[189, BANK_Y + 14], [PLAY_CENTER_X, BANK_Y - 18], [2 * PLAY_CENTER_X - 189, BANK_Y + 14]], 3, MAT.wall, true);
 
     // Flippers.
     const flippers = [
@@ -1040,9 +1045,9 @@
 
     // Pop bumpers (upper area, anchored to the top).
     const bumpers = [
-      { x: PLAY_CENTER_X - 78, y: 338 },
-      { x: PLAY_CENTER_X + 78, y: 338 },
-      { x: PLAY_CENTER_X, y: 448 }
+      { x: PLAY_CENTER_X - 78, y: BUMPER_TOP_Y },
+      { x: PLAY_CENTER_X + 78, y: BUMPER_TOP_Y },
+      { x: PLAY_CENTER_X, y: BUMPER_TOP_Y + 100 }
     ].map(b => ({ ...b, r: BUMPER_RADIUS, mat: MAT.rubber, bumper: true, lastHit: -1, litUntil: -1 }));
     bumpers.forEach(b => circles.push(b));
 
@@ -1460,11 +1465,17 @@
     }));
     // Breath orbit: an arrow into the orbit, four breath-step lamps, and
     // three cycle lamps inside the orbit lane (3 cycles = Steady Breath).
-    T.orbitArrow = add({ role: "orbit", kind: "arrow", angle: -120, color: COLORS.special, r: 13, x: 122, y: ob + 66 });
-    T.breathLights = BREATH_LABELS.map((label, i) => add({
-      role: "breath", index: i, label, kind: "circle", color: BREATH_COLORS[i], r: 8,
-      x: 144 + i * 18, y: ob + 90 + i * 17
-    }));
+    // Breath lamps sit in a line parallel to the lane's entrance wall (just
+    // on the playfield side of it), so they never run into the target bank
+    // on short screens; the orbit arrow sits just past them.
+    T.breathLights = BREATH_LABELS.map((label, i) => {
+      const d = 20 + i * 26;   // distance along the entrance wall
+      return add({
+        role: "breath", index: i, label, kind: "circle", color: BREATH_COLORS[i], r: 8,
+        x: 56 + d * 0.5 + 24 * 0.866, y: ob + d * 0.866 - 24 * 0.5
+      });
+    });
+    T.orbitArrow = add({ role: "orbit", kind: "arrow", angle: -120, color: COLORS.special, r: 13, x: 150, y: ob + 102 });
     T.cycleLights = [0, 1, 2].map(i => add({ role: "cycle", index: i, kind: "circle", color: COLORS.gold, r: 6, x: 32, y: ob - 22 - i * 24 }));
     // Inlane arrows and outlane lamps (lit by rollovers).
     T.inlaneArrows = [70, M(70)].map(x => add({ role: "rollover", kind: "arrow", angle: -90, color: COLORS.teal, r: 12, x, y: yP - 118 }));
@@ -1943,7 +1954,7 @@
     // Soft washes of teal, sage and gold for layered depth.
     radialWash(c, 140, 230, 260, "#2f9e8f", 0.16);
     radialWash(c, 470, H * 0.52, 300, "#7fb08a", 0.12);
-    radialWash(c, PLAY_CENTER_X, 390, 230, "#5fc9bd", 0.1);
+    radialWash(c, PLAY_CENTER_X, BUMPER_TOP_Y + 45, 230, "#5fc9bd", 0.1);
     radialWash(c, PLAY_CENTER_X, yP - 80, 330, "#f0c96a", 0.1);
 
     // Stars, fading toward the front of the table.
@@ -1970,7 +1981,7 @@
     }
 
     drawMoon(c, 118, 196, 24);
-    drawMandala(c, PLAY_CENTER_X, 388);
+    drawMandala(c, PLAY_CENTER_X, BUMPER_TOP_Y + 45);
 
     // Calm waves above the flippers.
     c.lineWidth = 2;
