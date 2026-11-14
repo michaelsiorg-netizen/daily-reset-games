@@ -439,8 +439,8 @@
       <p>Stress is drifting in. Shoot it down before it reaches you, and let the calm pass safely by.</p>
       <p class="legend"><span class="stress">Shoot:</span> ⏰ ⚠️ 😠 🔥 💢</p>
       <p class="legend"><span class="calm">Let pass:</span> 🌳 ☁️ 🌊 🌻 🦋 🌙 ⭐ 🍃</p>
-      <p>Left thumb: touch anywhere on the left half and push the joystick left or right to move. Right thumb: tap or hold FIRE to shoot upward.</p>
-      <p style="font-size: 12px; opacity: 0.7;">Keyboard: arrows / A D to move, space to fire.</p>
+      <p>Left thumb: touch anywhere on the left half and push the joystick to fly in any direction. Right thumb: tap or hold FIRE to shoot upward.</p>
+      <p style="font-size: 12px; opacity: 0.7;">Keyboard: arrows / WASD to move, space to fire.</p>
       <button class="primary" onclick="startGame()">Start</button>
     </div>
   </div>
@@ -487,6 +487,11 @@
   const SHIP_MAX_SPEED = 6;
   // Minimum time (ms) between shots - sets the hold-to-auto-fire rate.
   const FIRE_INTERVAL_MS = 180;
+  // How far up the play area the ship may fly, as a fraction of the
+  // reachable height measured from the bottom. 1 = all the way up to the
+  // HUD (full play area), 0.5 = bottom half only, 0 = locked to the
+  // bottom row.
+  const SHIP_MAX_HEIGHT_FRACTION = 1;
 
   const game = document.getElementById("game");
   const playField = document.getElementById("playField");
@@ -513,11 +518,13 @@
   const ITEM_SIZE = 64;
   const HEADER_CLEARANCE = 100;
   const SHIP_HALF = 28;
-  // Distance from the bottom of the play field (not the window - the Fire
-  // button now lives outside #playField in its own #controlBar, so the
-  // play field's own height is already clear of it) to the ship's fixed Y
-  // position.
+  // Ship's starting distance from the bottom of the play field. After
+  // that it's joystick/keyboard-controlled in both axes; this only seeds
+  // where it appears.
   const SHIP_Y_OFFSET = 60;
+  // Gap (px) kept between the ship's bottom edge and the play field's
+  // bottom edge.
+  const BOTTOM_MARGIN = 16;
   const BULLET_WIDTH = 8;
   const BULLET_SPEED = 9;
   const HIT_RADIUS = 32;
@@ -549,9 +556,10 @@
   let joyPointerId = null;
   let joyBaseX = 0;   // base center, #game-relative px
   let joyBaseY = 0;
-  let joyVecX = 0;    // knob offset / JOYSTICK_RADIUS, -1..1
+  let joyVecX = 0;    // knob offset / JOYSTICK_RADIUS, each in -1..1
+  let joyVecY = 0;
   let firePointerId = null;
-  const keysHeld = { left: false, right: false, fire: false };
+  const keysHeld = { up: false, down: false, left: false, right: false, fire: false };
 
   let audioCtx = null;
 
@@ -637,10 +645,31 @@
     return playField.clientHeight;
   }
 
+  // Keeps the ship's center fully inside the play field: never above the
+  // HUD (its top edge stays at or below HEADER_CLEARANCE), never past the
+  // bottom or side edges, and no higher than SHIP_MAX_HEIGHT_FRACTION
+  // allows.
+  function clampShipPosition(x, y) {
+    const maxY = getPlayFieldHeight() - SHIP_HALF - BOTTOM_MARGIN;
+    const topY = HEADER_CLEARANCE + SHIP_HALF;
+    const minY = Math.min(maxY, maxY - (maxY - topY) * clamp(SHIP_MAX_HEIGHT_FRACTION, 0, 1));
+    return {
+      x: clamp(x, SHIP_HALF, getShipMaxX()),
+      y: clamp(y, minY, maxY)
+    };
+  }
+
+  function placeShip(x, y) {
+    const clamped = clampShipPosition(x, y);
+    shipX = clamped.x;
+    shipY = clamped.y;
+    shipEl.style.left = shipX + "px";
+    shipEl.style.top = shipY + "px";
+  }
+
   // ---- Joystick (left thumb) ----
-  // Same joystick as Protect Your Peace, but the ship here only moves
-  // horizontally, so the knob rides a horizontal track and only its x
-  // offset drives the ship.
+  // Same joystick as Protect Your Peace: the knob moves freely inside the
+  // base and the ship flies in whatever direction it's pushed.
 
   function setJoystickBase(x, y) {
     joyBaseX = x;
@@ -678,14 +707,22 @@
 
   function updateKnob(e) {
     const p = gameRelative(e);
-    const dx = clamp(p.x - joyBaseX, -JOYSTICK_RADIUS, JOYSTICK_RADIUS);
-    setKnobOffset(dx, 0);
+    let dx = p.x - joyBaseX;
+    let dy = p.y - joyBaseY;
+    const dist = Math.hypot(dx, dy);
+    if (dist > JOYSTICK_RADIUS) {
+      dx = (dx / dist) * JOYSTICK_RADIUS;
+      dy = (dy / dist) * JOYSTICK_RADIUS;
+    }
+    setKnobOffset(dx, dy);
     joyVecX = dx / JOYSTICK_RADIUS;
+    joyVecY = dy / JOYSTICK_RADIUS;
   }
 
   function releaseJoystick() {
     joyPointerId = null;
     joyVecX = 0;
+    joyVecY = 0;
     joystickEl.classList.remove("active");
     joystickKnob.classList.add("springBack");
     setKnobOffset(0, 0);
@@ -753,6 +790,8 @@
   // ---- Keyboard fallback (desktop testing) ----
 
   const KEY_MAP = {
+    ArrowUp: "up", KeyW: "up",
+    ArrowDown: "down", KeyS: "down",
     ArrowLeft: "left", KeyA: "left",
     ArrowRight: "right", KeyD: "right",
     Space: "fire"
@@ -775,17 +814,21 @@
   // Don't leave the ship drifting / auto-firing if focus leaves the page.
   window.addEventListener("blur", resetControls);
 
-  // Current horizontal input, -1..1. Joystick wins while a thumb is on
-  // it; otherwise keyboard.
-  function movementInputX() {
+  // Current movement vector (each axis -1..1, magnitude <= 1). Joystick
+  // wins while a thumb is on it; otherwise keyboard.
+  function movementInput() {
     if (joyPointerId !== null) {
-      const mag = Math.abs(joyVecX);
-      if (mag <= JOYSTICK_DEAD_ZONE) return 0;
+      const mag = Math.hypot(joyVecX, joyVecY);
+      if (mag <= JOYSTICK_DEAD_ZONE) return { x: 0, y: 0 };
       // Rescale so speed ramps from 0 at the dead-zone edge to 1 at full push.
       const scaled = Math.min(1, (mag - JOYSTICK_DEAD_ZONE) / (1 - JOYSTICK_DEAD_ZONE));
-      return Math.sign(joyVecX) * scaled;
+      return { x: (joyVecX / mag) * scaled, y: (joyVecY / mag) * scaled };
     }
-    return (keysHeld.right ? 1 : 0) - (keysHeld.left ? 1 : 0);
+    const kx = (keysHeld.right ? 1 : 0) - (keysHeld.left ? 1 : 0);
+    const ky = (keysHeld.down ? 1 : 0) - (keysHeld.up ? 1 : 0);
+    const kmag = Math.hypot(kx, ky);
+    if (kmag === 0) return { x: 0, y: 0 };
+    return { x: kx / kmag, y: ky / kmag };
   }
 
   sizeJoystick();
@@ -930,14 +973,16 @@
     const step = Math.min(now - (gameLoop.lastTime || now), 50) / 16.67;
     gameLoop.lastTime = now;
 
-    // Ship: horizontal-only movement from joystick/keyboard input, and
-    // auto-fire while the fire button or spacebar is held (fireBullet
-    // enforces the rate).
+    // Ship: free 2D movement from joystick/keyboard input, and auto-fire
+    // while the fire button or spacebar is held (fireBullet enforces the
+    // rate). Bullets still always travel straight up.
     if (gameRunning) {
-      const inputX = movementInputX();
-      if (inputX !== 0) {
-        shipX = clamp(shipX + inputX * SHIP_MAX_SPEED * step, SHIP_HALF, getShipMaxX());
-        shipEl.style.left = shipX + "px";
+      const input = movementInput();
+      if (input.x !== 0 || input.y !== 0) {
+        placeShip(
+          shipX + input.x * SHIP_MAX_SPEED * step,
+          shipY + input.y * SHIP_MAX_SPEED * step
+        );
       }
       if (firePointerId !== null || keysHeld.fire) {
         fireBullet();
@@ -1102,10 +1147,7 @@
     if (document.activeElement) document.activeElement.blur();
     resetControls();
 
-    shipY = getPlayFieldHeight() - SHIP_Y_OFFSET;
-    shipX = clamp(window.innerWidth / 2, SHIP_HALF, getShipMaxX());
-    shipEl.style.left = shipX + "px";
-    shipEl.style.top = shipY + "px";
+    placeShip(window.innerWidth / 2, getPlayFieldHeight() - SHIP_Y_OFFSET);
 
     startGameLoop();
     startWave(0);
@@ -1143,10 +1185,7 @@
   window.addEventListener("resize", () => {
     if (joyPointerId === null) resetJoystickToRest();
     if (!gameRunning) return;
-    shipY = getPlayFieldHeight() - SHIP_Y_OFFSET;
-    shipEl.style.top = shipY + "px";
-    shipX = clamp(shipX, SHIP_HALF, getShipMaxX());
-    shipEl.style.left = shipX + "px";
+    placeShip(shipX, shipY);
   });
 </script>
 </body>
