@@ -553,6 +553,10 @@
   // ---- Upper-table layout (table units from the top) ----
   const BUMPER_TOP_Y = 300;        // the two upper bumpers; the third sits 100 below
   const BANK_Y = 458;              // center of the reset target bank (just under the bumpers)
+  const DECK_LEFT = 304;           // Calm Deck (upper level) spans this x range...
+  const DECK_RIGHT = 516;
+  const DECK_FLAP_Y = 240;         // ...down to its bottom edge, where the ramp's one-way flap is
+  const DECK_FALL = 15;            // how much lower the deck floor is at the exit hole (keeps balls rolling to it)
 
   // ---- Pop bumpers ----
   const BUMPER_RADIUS = 32;
@@ -608,6 +612,20 @@
   // instead of sliding straight into the outlane.
   const OUTLANE_GUARD = 28;
   const KICKBACK_SPEED = 2300;     // left-outlane kickback launch speed (saves one ball, relit by a full breath)
+  // ---- Second level: ramp, Calm Deck, wireform ----
+  const RAMP_GRAVITY = 1.9;        // the raised part of the ramp climbs: gravity there is this much stronger
+  const RAMP_HALF_WIDTH = 22;      // ramp channel half-width (ball radius is 15)
+  const RAMP_LOW_LEN = 50;         // the ramp's first stretch sits at playfield level (solid to main-level balls)
+  const RAMP_FUNNEL_LEN = 45;      // funnel walls below the ramp mouth: length...
+  const RAMP_FUNNEL_FLARE = 20;    // ...and how far each flares outward
+  const WIRE_SPEED = 520;          // wireform: starting speed (units/s)
+  const WIRE_ACCEL = 900;          // wireform: speed gained per second rolling down the wire
+  const WIRE_MAX_SPEED = 1500;
+  const ELEVATED_SCALE = 1.12;     // raised balls are drawn a little larger
+  const SCORE_RAMP = 2500;
+  const SCORE_CALM_DECK = 15000;   // all four C-A-L-M letters lit
+  const MESSAGE_X = 190;           // bumper messages: left of the Calm Deck
+
   const OUTLANE_POST_R = 7;       // inlane/outlane post radius. 7 is the max: bigger closes the inlane gap
 
   // ---- Scoring (everything is doubled during Steady Breath) ----
@@ -805,6 +823,16 @@
     },
     // Tilt: a soft, low descending tone (no buzzer).
     tilt: () => tone(150, 0.9, { type: "triangle", peak: 0.12, freqEnd: 70 }),
+    // Ramp shot: a rising whoosh and three climbing chimes.
+    rampShot: () => {
+      noise(0.4, { freq: 500, freqEnd: 3000, q: 0.8, peak: 0.09 });
+      [1, 3, 5].forEach((n, i) => bell(CHIME_NOTES[n], { peak: 0.06, delay: 0.05 + i * 0.09, decay: 1.2 }));
+    },
+    // Ball dropping onto the wireform: a light metallic clink.
+    wire: () => {
+      tone(1650, 0.12, { type: "triangle", peak: 0.05, attack: 0 });
+      noise(0.05, { filter: "highpass", freq: 3500, peak: 0.05 });
+    },
     // A target hit that doesn't advance anything: a quiet tick.
     tick: () => {
       noise(0.02, { freq: 2200, q: 1.5, peak: 0.08 });
@@ -1040,6 +1068,127 @@
     // flat middle target or in the notches between targets.
     addPolyline([[189, BANK_Y + 14], [PLAY_CENTER_X, BANK_Y - 18], [2 * PLAY_CENTER_X - 189, BANK_Y + 14]], 3, MAT.wall, true);
 
+    // =================================================================
+    // Second level. Every ball has a level: "main" (playfield), "ramp",
+    // "deck" (Calm Deck) or "wire" (wireform). Segments tagged with a
+    // level only collide with balls on that level; untagged = main.
+    // =================================================================
+    const rampSegs = [];
+    const deckSegs = [];
+    const overlayRails = [];         // raised rails, drawn on the overlay
+
+    // Offset a polyline sideways by d (miter at the joints).
+    function offsetLine(pts, d) {
+      return pts.map((p, i) => {
+        const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)];
+        const dx = b[0] - a[0], dy = b[1] - a[1], len = Math.hypot(dx, dy) || 1;
+        return [p[0] - (dy / len) * d, p[1] + (dx / len) * d];
+      });
+    }
+    function addLayerLine(list, pts, r, mat, layer) {
+      for (let i = 0; i < pts.length - 1; i++) {
+        list.push(makeSeg(pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1], r, mat, { layer }));
+      }
+    }
+
+    // ---- Ramp ----
+    // The mouth sits on the left flipper's up-right shot line (measured
+    // from the flippers); the ramp climbs up the right side and ends just
+    // under the Calm Deck's one-way flap (measured from the top).
+    const rampCenter = [
+      [400, yP - 300],
+      [435, yP - 361],
+      [465, yP - 420],
+      [478, yP - 480],
+      [480, DECK_FLAP_Y + 17]
+    ];
+    const rampLeft = offsetLine(rampCenter, -RAMP_HALF_WIDTH);
+    const rampRight = offsetLine(rampCenter, RAMP_HALF_WIDTH);
+    addLayerLine(rampSegs, rampLeft, 3, MAT.wall, "ramp");
+    addLayerLine(rampSegs, rampRight, 3, MAT.wall, "ramp");
+    // The low stretch at the mouth is solid to main-level balls too, so the
+    // ramp can only be entered through its mouth, not from the sides.
+    const lowEnd = (rail) => {
+      const a = rail[0], b = rail[1], len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      const t = RAMP_LOW_LEN / len;
+      return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+    };
+    // Short funnel walls flare out below the mouth so near-misses from the
+    // left flipper are guided in.
+    {
+      const d0x = rampCenter[1][0] - rampCenter[0][0], d0y = rampCenter[1][1] - rampCenter[0][1];
+      const dl = Math.hypot(d0x, d0y), ux = d0x / dl, uy = d0y / dl;   // uphill
+      const nx = -uy, ny = ux;                                          // to the right
+      // Only the right side flares: a left-side flare would sit in the path
+      // of right-flipper shots to the Release target.
+      const rightEnd = [rampRight[0][0] - ux * RAMP_FUNNEL_LEN + nx * RAMP_FUNNEL_FLARE, rampRight[0][1] - uy * RAMP_FUNNEL_LEN + ny * RAMP_FUNNEL_FLARE];
+      addPolyline([rampLeft[0], lowEnd(rampLeft)], 3, MAT.wall, true);
+      addPolyline([rightEnd, rampRight[0], lowEnd(rampRight)], 3, MAT.wall, true);
+    }
+    overlayRails.push(rampLeft, rampRight);
+    // Centerline lookup data (cumulative length per vertex).
+    const rampCum = [0];
+    for (let i = 1; i < rampCenter.length; i++) {
+      rampCum.push(rampCum[i - 1] + Math.hypot(rampCenter[i][0] - rampCenter[i - 1][0], rampCenter[i][1] - rampCenter[i - 1][1]));
+    }
+    const ramp = {
+      center: rampCenter, left: rampLeft, right: rampRight, cum: rampCum, len: rampCum[rampCum.length - 1],
+      mouthBox: [
+        Math.min(rampLeft[0][0], rampRight[0][0]) - 30, lowEnd(rampLeft)[1] - 30,
+        Math.max(rampRight[0][0], lowEnd(rampRight)[0]) + 30, rampRight[0][1] + 30
+      ]
+    };
+
+    // ---- Calm Deck (upper deck) ----
+    // A raised platform in the top-right of the arch. Ramp shots arrive
+    // through a one-way flap in its bottom edge; the ball then rolls gently
+    // left along the bottom to the exit hole.
+    const DECK_R = 236;
+    const arcY = x => ARCH_CY - Math.sqrt(DECK_R * DECK_R - (x - ARCH_CX) * (x - ARCH_CX));
+    const deckArc = [];
+    for (let i = 0; i <= 16; i++) {
+      const x = DECK_LEFT + ((DECK_RIGHT - DECK_LEFT) * i) / 16;
+      deckArc.push([x, arcY(x)]);
+    }
+    const flapA = [502, DECK_FLAP_Y - 2], flapB = [458, DECK_FLAP_Y + 2];
+    const deckBottomRight = [[DECK_RIGHT, DECK_FLAP_Y - 5], flapA];
+    const deckBottomLeft = [flapB, [DECK_LEFT, DECK_FLAP_Y + DECK_FALL]];
+    addLayerLine(deckSegs, [[DECK_LEFT, DECK_FLAP_Y + DECK_FALL], [DECK_LEFT, deckArc[0][1]]], 3, MAT.wall, "deck");
+    addLayerLine(deckSegs, deckArc, 3, MAT.wall, "deck");
+    addLayerLine(deckSegs, [deckArc[deckArc.length - 1], [DECK_RIGHT, DECK_FLAP_Y - 5]], 3, MAT.wall, "deck");
+    addLayerLine(deckSegs, deckBottomRight, 3, MAT.wall, "deck");
+    addLayerLine(deckSegs, deckBottomLeft, 3, MAT.wall, "deck");
+    // One-way flap: lets a ramp shot up onto the deck, never back down.
+    const flap = makeSeg(flapA[0], flapA[1], flapB[0], flapB[1], 2, MAT.wall, { layer: "deck", oneWay: true });
+    {
+      const len = Math.sqrt(flap.len2);
+      flap.nx = flap.dy / len; flap.ny = -flap.dx / len;
+      if (flap.ny > 0) { flap.nx *= -1; flap.ny *= -1; }
+    }
+    deckSegs.push(flap);
+    const deckOutline = [[DECK_LEFT, DECK_FLAP_Y + DECK_FALL], ...deckArc, [DECK_RIGHT, DECK_FLAP_Y - 5], flapA, flapB];
+    const deck = {
+      outline: deckOutline, flapA, flapB,
+      hole: [DECK_LEFT + 18, DECK_FLAP_Y - 7],
+      cx: (DECK_LEFT + DECK_RIGHT) / 2, cy: DECK_FLAP_Y - 70,
+      dropBackY: DECK_FLAP_Y + 20
+    };
+
+    // ---- Wireform ----
+    // From the deck's exit hole, a wire carries the ball down the left edge
+    // (over the orbit lane) and drops it into the left inlane, feeding the
+    // left flipper. The ball follows the wire exactly, so it can't stick.
+    const wirePts = [
+      [deck.hole[0], deck.hole[1]], [DECK_LEFT - 14, DECK_FLAP_Y - 18], [220, DECK_FLAP_Y - 28],
+      [150, DECK_FLAP_Y - 22], [92, DECK_FLAP_Y], [48, DECK_FLAP_Y + 46], [34, DECK_FLAP_Y + 96],
+      [34, yP - 300], [44, yP - 248], [70, yP - 205]
+    ];
+    const wireCum = [0];
+    for (let i = 1; i < wirePts.length; i++) {
+      wireCum.push(wireCum[i - 1] + Math.hypot(wirePts[i][0] - wirePts[i - 1][0], wirePts[i][1] - wirePts[i - 1][1]));
+    }
+    const wire = { pts: wirePts, cum: wireCum, len: wireCum[wireCum.length - 1] };
+
     // Flippers.
     const flippers = [
       {
@@ -1072,12 +1221,11 @@
     };
 
     // Space reserved for later features (shown only with ?debug).
-    const reserved = [
-      { label: "top lanes", x: 190, y: 70, w: 180, h: 80 }
-    ];
+    const reserved = [];
 
     return {
       H, yP, segs, circles, rails, posts, slings, flippers, bumpers, outline, gate, targets, orbitBottom,
+      rampSegs, deckSegs, overlayRails, ramp, deck, wire,
       plungerSeg, plungerRestY, apronLeft: apron("left"), apronRight: apron("right"), reserved,
       plungerStripY: LANE_TOP + (H - LANE_TOP) * 0.4
     };
@@ -1307,6 +1455,8 @@
   }
 
   function stepBall(dt) {
+    if (ball.layer === "wire") { stepWire(dt); return; }
+
     // Auto-plunge for balls added by multiball or a multiball save.
     if (ball.autoLaunchAt && simTime >= ball.autoLaunchAt && ballInLaneB(ball)) {
       ball.autoLaunchAt = 0;
@@ -1315,18 +1465,26 @@
       sfx.launch(0.9);
     }
 
-    ball.vy += GRAVITY * dt;
+    // The raised part of the ramp climbs, so gravity pulls harder there.
+    const onClimb = ball.layer === "ramp" && rampParam(ball.x, ball.y).s > RAMP_LOW_LEN;
+    ball.vy += GRAVITY * (onClimb ? RAMP_GRAVITY : 1) * dt;
     const drag = 1 - ROLLING_DRAG * dt;
     ball.vx *= drag;
     ball.vy *= drag;
     ball.x += ball.vx * dt;
     ball.y += ball.vy * dt;
 
-    for (let i = 0; i < T.segs.length; i++) collideSeg(T.segs[i]);
-    for (let i = 0; i < T.circles.length; i++) collideCircle(T.circles[i]);
-    collideFlipper(T.flippers[0]);
-    collideFlipper(T.flippers[1]);
-    collideSeg(T.plungerSeg);
+    if (ball.layer === "main") {
+      for (let i = 0; i < T.segs.length; i++) collideSeg(T.segs[i]);
+      for (let i = 0; i < T.circles.length; i++) collideCircle(T.circles[i]);
+      collideFlipper(T.flippers[0]);
+      collideFlipper(T.flippers[1]);
+      collideSeg(T.plungerSeg);
+    } else {
+      // Raised balls only touch their own level's walls.
+      const list = ball.layer === "ramp" ? T.rampSegs : T.deckSegs;
+      for (let i = 0; i < list.length; i++) collideSeg(list[i]);
+    }
 
     const sp = Math.hypot(ball.vx, ball.vy);
     if (sp > MAX_BALL_SPEED) {
@@ -1334,7 +1492,9 @@
       ball.vy *= MAX_BALL_SPEED / sp;
     }
 
-    if (!tilted) {
+    updateLayer();
+
+    if (!tilted && ball.layer === "main") {
       checkRollovers();   // lights/sound/rules only - don't touch the ball
       checkOrbit();
     }
@@ -1359,9 +1519,98 @@
 
     // Kickback: a lit kickback fires a ball that reaches the bottom of the
     // left outlane straight back up, once.
-    if (kickbackLit && !tilted && ball.x < 46 && ball.y > T.yP - 40 && ball.vy > 0) onKickback(ball);
+    if (kickbackLit && !tilted && ball.layer === "main" && ball.x < 46 && ball.y > T.yP - 40 && ball.vy > 0) onKickback(ball);
 
     if (ball.y - BALL_RADIUS > T.H + 20) onDrain(ball);
+  }
+
+  // Nearest point on the ramp's centerline: s = distance up the ramp from
+  // the mouth, d = sideways offset, (tx, ty) = uphill direction there.
+  function rampParam(x, y) {
+    const r = T.ramp, c = r.center;
+    let best = { s: 0, d: 1e9, tx: 0, ty: -1 }, bestDist = 1e18;
+    for (let i = 0; i < c.length - 1; i++) {
+      const ax = c[i][0], ay = c[i][1], dx = c[i + 1][0] - ax, dy = c[i + 1][1] - ay;
+      const len2 = dx * dx + dy * dy, len = Math.sqrt(len2);
+      const t = clamp(((x - ax) * dx + (y - ay) * dy) / len2, 0, 1);
+      const px = ax + dx * t, py = ay + dy * t;
+      const dist = (x - px) * (x - px) + (y - py) * (y - py);
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = { s: r.cum[i] + t * len, d: ((x - ax) * dy - (y - ay) * dx) / len, tx: dx / len, ty: dy / len };
+      }
+    }
+    return best;
+  }
+
+  // Level changes: up the ramp mouth, onto the deck, into the exit hole,
+  // and back down if a ramp shot falls short.
+  function updateLayer() {
+    const L = ball.layer;
+    if (L === "main") {
+      const box = T.ramp.mouthBox;
+      if (ball.x < box[0] || ball.x > box[2] || ball.y < box[1] || ball.y > box[3]) return;
+      const p = rampParam(ball.x, ball.y);
+      if (p.s > 8 && p.s < RAMP_LOW_LEN && Math.abs(p.d) < RAMP_HALF_WIDTH - 4 &&
+          ball.vx * p.tx + ball.vy * p.ty > 150) {
+        ball.layer = "ramp";
+      }
+    } else if (L === "ramp") {
+      const p = rampParam(ball.x, ball.y);
+      if (p.s < 4) ball.layer = "main";
+      else if (p.s >= T.ramp.len - 1) {
+        ball.layer = "deck";
+        ball.rampShotPending = true;
+      }
+    } else if (L === "deck") {
+      const dk = T.deck;
+      if (ball.rampShotPending && ball.y < dk.flapA[1] - BALL_RADIUS) {
+        ball.rampShotPending = false;
+        onRampShot(ball);
+      }
+      if (ball.y > dk.dropBackY && ball.x > dk.flapB[0] - 6 && ball.x < dk.flapA[0] + 6) {
+        ball.layer = "ramp";             // fell short of the flap: back down the ramp
+        ball.rampShotPending = false;
+      } else if (ball.x < dk.hole[0] + 14 && ball.y > dk.hole[1] - 18) {
+        startWire(ball);
+      }
+    }
+  }
+
+  function wirePoint(s) {
+    const w = T.wire;
+    let i = 1;
+    while (i < w.cum.length - 1 && w.cum[i] < s) i++;
+    const a = w.pts[i - 1], b = w.pts[i], seg = w.cum[i] - w.cum[i - 1];
+    const t = clamp((s - w.cum[i - 1]) / seg, 0, 1);
+    return { x: a[0] + (b[0] - a[0]) * t, y: a[1] + (b[1] - a[1]) * t, tx: (b[0] - a[0]) / seg, ty: (b[1] - a[1]) / seg };
+  }
+
+  function startWire(b) {
+    b.layer = "wire";
+    b.wireS = 0;
+    b.wireSpeed = WIRE_SPEED;
+    sfx.wire();
+  }
+
+  // Wireform: the ball rides the wire, speeding up as it rolls downhill,
+  // then drops into the left inlane.
+  function stepWire(dt) {
+    const w = T.wire;
+    ball.wireSpeed = Math.min(WIRE_MAX_SPEED, ball.wireSpeed + WIRE_ACCEL * dt);
+    ball.wireS += ball.wireSpeed * dt;
+    if (ball.wireS >= w.len) {
+      const e = w.pts[w.pts.length - 1];
+      ball.layer = "main";
+      ball.x = e[0]; ball.y = e[1];
+      ball.vx = 0; ball.vy = 300;
+      ball.anchorX = ball.x; ball.anchorY = ball.y; ball.still = 0;
+      ball.lastRollover = null;
+      return;
+    }
+    const p = wirePoint(ball.wireS);
+    ball.x = p.x; ball.y = p.y;
+    ball.vx = p.tx * ball.wireSpeed; ball.vy = p.ty * ball.wireSpeed;
   }
 
   // Ball resting near a flipper that's being held up (a deliberate cradle).
@@ -1378,6 +1627,7 @@
       for (let j = i + 1; j < balls.length; j++) {
         const a = balls[i], b = balls[j];
         if (!a.active || !b.active) continue;
+        if (a.layer !== b.layer || a.layer === "wire") continue;   // different levels pass by
         const dx = b.x - a.x, dy = b.y - a.y;
         const d2 = dx * dx + dy * dy;
         const minD = BALL_RADIUS * 2;
@@ -1503,9 +1753,10 @@
       role: "lane", index: i, kind: "arrow", angle: -90, color: COLORS.gold, r: 9,
       x: LANE_CENTER_X, y: T.plungerRestY - 92 - i * 32
     }));
-    // Three small lamps up top, one per bumper (left, right, center).
-    T.topLights = [-1, 1, 0].map((d, i) => add({
-      role: "top", index: i, kind: "circle", color: BUMPER_COLORS[i], r: 8, x: PLAY_CENTER_X + d * 46, y: 112
+    // C-A-L-M letter lamps on the Calm Deck (raised: drawn on the overlay).
+    T.deckLights = DECK_WORD.split("").map((letter, i) => add({
+      role: "deck", index: i, label: letter, kind: "circle", color: COLORS.gold, r: 11, elevated: true,
+      x: 356 + i * 38, y: DECK_FLAP_Y - 52
     }));
     T.inserts = inserts;
   }
@@ -1539,7 +1790,7 @@
   }
 
   // Lit lamp: bright glass with a hot center (per frame, only when lit).
-  function drawInsertLit(c, ins) {
+  function drawInsertLit(c, ins, withLabel = false) {
     if (!ins.litGrad) {
       const g = c.createRadialGradient(ins.x, ins.y, 0, ins.x, ins.y, ins.r * 1.15);
       g.addColorStop(0, "#ffffff");
@@ -1551,6 +1802,7 @@
     insertPath(c, ins);
     c.fillStyle = ins.litGrad;
     c.fill();
+    if (withLabel && ins.label) drawLampLetter(c, ins, "#123326");
     c.globalAlpha = 1;
   }
 
@@ -1754,6 +2006,7 @@
     T.inserts.forEach(ins => { ins.litGrad = null; });
     buildSprites();
     drawStatic();
+    drawOverlaySprite();
     updateDMD(true);
   }
 
@@ -2011,8 +2264,8 @@
       c.stroke();
     }
 
-    // Unlit lamps.
-    T.inserts.forEach(ins => drawInsertBody(c, ins));
+    // Unlit lamps (raised ones are drawn on the overlay).
+    T.inserts.forEach(ins => { if (!ins.elevated) drawInsertBody(c, ins); });
 
     // Plunger lane groove.
     c.fillStyle = "rgba(0, 0, 0, 0.3)";
@@ -2212,8 +2465,8 @@
   let shakeMag = 0, shakeDur = 1, shakeUntil = 0, shaking = false;
   let thoughts = [];     // drifting bumper words
 
-  function addFlash(x, y, r, color, intensity) {
-    flashes.push({ x, y, r, color, start: simTime, dur: 0.22, intensity: intensity * (prefersReducedMotion ? 0.4 : 1) });
+  function addFlash(x, y, r, color, intensity, top = false) {
+    flashes.push({ x, y, r, color, top, start: simTime, dur: 0.22, intensity: intensity * (prefersReducedMotion ? 0.4 : 1) });
     if (flashes.length > 12) flashes.shift();
   }
 
@@ -2269,6 +2522,10 @@
     const k = Math.min(1, dt * 28);   // ~35ms bulb warm-up/cool-down
     const lane = ballInLane();
     const saveLeft = ballSaveUntil - simTime;
+    if (deckResetAt && simTime >= deckResetAt) {
+      deckLetters = 0;
+      deckResetAt = 0;
+    }
     if (targetsResetAt && simTime >= targetsResetAt) {
       targetLit = [false, false, false, false, false];
       targetsResetAt = 0;
@@ -2287,6 +2544,8 @@
         target = ins.index < breathStep ? 1 : 0;
       } else if (ins.role === "cycle") {
         target = ins.index < breathCycles ? 1 : 0;
+      } else if (ins.role === "deck") {
+        target = ins.index < deckLetters ? 1 : 0;
       } else if (ins.role === "kickback") {
         target = kickbackLit ? 1 : 0;
       } else if (ins.role === "orbit") {
@@ -2354,6 +2613,8 @@
     breathCycles = 0;
     breathTipShown = false;
     kickbackLit = true;          // every game starts with the kickback lit
+    deckLetters = 0;
+    deckResetAt = 0;
     tilted = false;
     tiltMeter = 0;
     lastNudge = -1;
@@ -2368,6 +2629,7 @@
     return {
       x: LANE_CENTER_X, y: T.plungerRestY - BALL_RADIUS - 6, vx: 0, vy: 0,
       active: true, still: 0, lastRollover: null, orbitAt: 0, autoLaunchAt: 0,
+      layer: "main", wireS: 0, wireSpeed: 0, rampShotPending: false,
       anchorX: LANE_CENTER_X, anchorY: T.plungerRestY - BALL_RADIUS - 6
     };
   }
@@ -2385,11 +2647,10 @@
     sfx.bumper();
     addFlash(b.x, b.y, 150, b.color, 0.55);
     shake(SHAKE_BUMPER, 0.09);
-    T.topLights[T.bumpers.indexOf(b)].flashUntil = simTime + 0.25;
     // The bumper's message appears up near the top of the table - well
     // away from the flippers - and fades within THOUGHT_SECONDS. A new hit
     // replaces it rather than stacking.
-    thoughts = [{ text: BUMPER_MESSAGES[T.bumpers.indexOf(b)], x: PLAY_CENTER_X, y: BUMPER_MESSAGE_Y, dx: 0, start: simTime }];
+    thoughts = [{ text: BUMPER_MESSAGES[T.bumpers.indexOf(b)], x: MESSAGE_X, y: BUMPER_MESSAGE_Y, dx: 0, start: simTime }];
   }
 
   function onSlingHit(sl) {
@@ -2488,6 +2749,38 @@
     dmdMessage("Breath " + breathCycles + "/" + BREATH_CYCLES_FOR_MULTIBALL, 1.6, relit ? "kickback lit" : "+" + fmt(pts));
   }
 
+  // ---- Ramp shots and the Calm Deck ----
+  const DECK_WORD = "CALM";
+  let deckLetters = 0;         // C-A-L-M letters lit on the Calm Deck
+  let deckResetAt = 0;
+
+  function onRampShot(b) {
+    addScore(SCORE_RAMP);
+    sfx.rampShot();
+    vibrate([20, 30, 20]);
+    startShow("chase", 0.6);
+    addFlash(T.deck.cx, T.deck.cy, 190, COLORS.gold, 0.6, true);
+    addFlash(480, (T.ramp.center[2][1] + DECK_FLAP_Y) / 2, 150, COLORS.teal, 0.5, true);
+    if (deckResetAt) return;     // bonus celebration still showing
+    deckLetters += 1;
+    if (deckLetters >= DECK_WORD.length) {
+      calmDeckBonus();
+    } else {
+      dmdMessage("Calm Deck: " + DECK_WORD.slice(0, deckLetters).split("").join("\u00b7"), 1.6, deckLetters + " of " + DECK_WORD.length);
+    }
+  }
+
+  function calmDeckBonus() {
+    const pts = addScore(SCORE_CALM_DECK);
+    deckResetAt = simTime + 1.8;
+    sfx.bigEvent();
+    startShow("celebrate", 1.8);
+    giPulse = prefersReducedMotion ? 0.12 : 0.3;
+    shake(SHAKE_BIG, 0.25);
+    dmdMessage("Calm Deck Bonus", 2.4, "+" + fmt(pts));
+    showCaption("Calm Deck complete. Steady and clear.", 2.6);
+  }
+
   // ---- Kickback (left outlane) ----
   let kickbackLit = true;
 
@@ -2542,7 +2835,7 @@
     lastNudge = simTime;
     let moved = false;
     for (const b of balls) {
-      if (!b.active || ballInLaneB(b)) continue;
+      if (!b.active || ballInLaneB(b) || b.layer === "wire") continue;
       b.vy -= NUDGE_SPEED;
       b.vx += (Math.random() - 0.5) * 100;
       moved = true;
@@ -2722,6 +3015,148 @@
   }
 
   // Target face flashes white and is knocked back slightly when struck.
+  // ---- Second-level overlay ----
+  // Ramp, Calm Deck and wireform are pre-drawn once per layout into an
+  // offscreen canvas; each frame only their bounding boxes are copied over
+  // the playfield, so main-level balls pass visibly *under* them.
+  function drawLampLetter(c, ins, color) {
+    c.font = "800 13px ui-rounded, 'SF Pro Rounded', system-ui, sans-serif";
+    c.textAlign = "center";
+    c.textBaseline = "middle";
+    c.fillStyle = color;
+    c.fillText(ins.label, ins.x, ins.y + 1);
+    c.textBaseline = "alphabetic";
+  }
+
+  function drawOverlaySprite() {
+    const cv = sprites.overlay || (sprites.overlay = makeCanvas(1, 1));
+    cv.width = canvas.width;
+    cv.height = canvas.height;
+    const c = cv.getContext("2d");
+    c.clearRect(0, 0, cv.width, cv.height);
+    tableTransform(c);
+    const r = T.ramp, dk = T.deck, w = T.wire;
+
+    // Ramp (raised part): soft shadow, translucent bed, chrome side rails.
+    const lowT = RAMP_LOW_LEN / r.cum[1];
+    const lowPt = rail => [rail[0][0] + (rail[1][0] - rail[0][0]) * lowT, rail[0][1] + (rail[1][1] - rail[0][1]) * lowT];
+    const bed = [lowPt(r.left), ...r.left.slice(1), ...r.right.slice(1).reverse(), lowPt(r.right)];
+    c.save();
+    c.translate(10, 16);
+    tracePath(c, bed, true);
+    c.fillStyle = "rgba(0, 0, 0, 0.28)";
+    c.fill();
+    c.restore();
+    tracePath(c, bed, true);
+    c.fillStyle = "rgba(175, 230, 210, 0.16)";
+    c.fill();
+    c.strokeStyle = "rgba(220, 245, 235, 0.25)";
+    c.lineWidth = 1;
+    c.stroke();
+    [r.left, r.right].forEach(rail => strokeRail(c, [lowPt(rail), ...rail.slice(1)], 3));
+    // Low stretch at the mouth: a flat lip on the playfield.
+    c.strokeStyle = "rgba(240, 201, 106, 0.55)";
+    c.lineWidth = 2;
+    c.beginPath();
+    c.moveTo(r.left[0][0], r.left[0][1]);
+    c.lineTo(r.right[0][0], r.right[0][1]);
+    c.stroke();
+
+    // Calm Deck: raised platform with a cast shadow and a bevelled rim.
+    c.save();
+    c.translate(10, 16);
+    tracePath(c, dk.outline, true);
+    c.fillStyle = "rgba(0, 0, 0, 0.35)";
+    c.fill();
+    c.restore();
+    tracePath(c, dk.outline, true);
+    const g = c.createLinearGradient(0, 60, 0, DECK_FLAP_Y + 12);
+    g.addColorStop(0, "rgba(47, 107, 79, 0.95)");
+    g.addColorStop(1, "rgba(32, 79, 61, 0.95)");
+    c.fillStyle = g;
+    c.fill();
+    c.save();
+    tracePath(c, dk.outline, true);
+    c.clip();
+    radialWash(c, dk.cx, dk.cy, 150, "#bfe8cf", 0.14);
+    c.restore();
+    strokeRail(c, dk.outline.slice(0, dk.outline.length - 1), 3);
+    // One-way flap (gold) and the exit hole.
+    c.strokeStyle = "rgba(240, 201, 106, 0.9)";
+    c.lineWidth = 3;
+    c.beginPath();
+    c.moveTo(dk.flapA[0], dk.flapA[1]);
+    c.lineTo(dk.flapB[0], dk.flapB[1]);
+    c.stroke();
+    const hg = c.createRadialGradient(dk.hole[0], dk.hole[1], 2, dk.hole[0], dk.hole[1], 16);
+    hg.addColorStop(0, "#020806");
+    hg.addColorStop(0.75, "#06140f");
+    hg.addColorStop(1, "rgba(6, 20, 15, 0)");
+    c.fillStyle = hg;
+    c.beginPath();
+    c.arc(dk.hole[0], dk.hole[1], 16, 0, Math.PI * 2);
+    c.fill();
+    // C-A-L-M lamps (unlit) and the deck's name.
+    T.inserts.forEach(ins => {
+      if (!ins.elevated) return;
+      drawInsertBody(c, ins);
+      drawLampLetter(c, ins, "rgba(240, 220, 170, 0.75)");
+    });
+    c.font = "800 12px ui-rounded, 'SF Pro Rounded', system-ui, sans-serif";
+    c.textAlign = "center";
+    c.fillStyle = "rgba(226, 244, 232, 0.8)";
+    c.fillText("CALM DECK", 413, DECK_FLAP_Y - 86);
+
+    // Wireform: two thin chrome rails along the ball's path, with a shadow.
+    const wl = offsetPolyline(w.pts, -7), wr = offsetPolyline(w.pts, 7);
+    c.save();
+    c.translate(8, 12);
+    c.strokeStyle = "rgba(0, 0, 0, 0.3)";
+    c.lineWidth = 3;
+    c.lineJoin = "round";
+    [wl, wr].forEach(p => { tracePath(c, p, false); c.stroke(); });
+    c.restore();
+    [wl, wr].forEach(p => {
+      tracePath(c, p, false);
+      c.strokeStyle = "#5d6b64";
+      c.lineWidth = 2.6;
+      c.stroke();
+      c.strokeStyle = "#e3ece6";
+      c.lineWidth = 1.1;
+      c.stroke();
+    });
+
+    // Regions to copy each frame (canvas pixels), padded for shadows.
+    const k = view.k;
+    const box = pts => {
+      let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+      pts.forEach(p => { x0 = Math.min(x0, p[0]); y0 = Math.min(y0, p[1]); x1 = Math.max(x1, p[0]); y1 = Math.max(y1, p[1]); });
+      x0 = Math.max(0, Math.floor((x0 - 12) * k)); y0 = Math.max(0, Math.floor((y0 - 12) * k));
+      x1 = Math.min(cv.width, Math.ceil((x1 + 24) * k)); y1 = Math.min(cv.height, Math.ceil((y1 + 30) * k));
+      return [x0, y0, x1 - x0, y1 - y0];
+    };
+    T.overlayBoxes = [box(r.left.concat(r.right)), box(dk.outline), box(wl.concat(wr))];
+  }
+
+  function offsetPolyline(pts, d) {
+    return pts.map((p, i) => {
+      const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)];
+      const dx = b[0] - a[0], dy = b[1] - a[1], len = Math.hypot(dx, dy) || 1;
+      return [p[0] - (dy / len) * d, p[1] + (dx / len) * d];
+    });
+  }
+
+  function drawOverlay(c) {
+    const cv = sprites.overlay;
+    if (!cv || !T.overlayBoxes) return;
+    c.save();
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    for (const [x, y, w, h] of T.overlayBoxes) {
+      if (w > 0 && h > 0) c.drawImage(cv, x, y, w, h, x, y, w, h);
+    }
+    c.restore();
+  }
+
   function drawTargetFlash(c, t) {
     if (simTime >= t.litUntil) return;
     c.save();
@@ -2859,12 +3294,23 @@
   // Chrome steel ball: an environment reflection (bright cabinet lights
   // above a dark horizon, the violet playfield below) plus highlights that
   // track the lights as the ball moves around the table.
-  function drawBall(c, b) {
+  function drawBall(c, b, elevated = false) {
     const x = b.x, y = b.y, R = BALL_RADIUS;
     const sideways = clamp((PLAY_CENTER_X - x) / TABLE_WIDTH, -0.5, 0.5);
-    drawSoftShadow(c, x + 3 - sideways * 8, y + 8, R * 1.3, 0.75);
+    if (elevated) {
+      // Raised: the shadow falls further away and softer, the ball is a
+      // touch larger (closer to the eye).
+      drawSoftShadow(c, x + 10 - sideways * 10, y + 18, R * 1.6, 0.5);
+    } else {
+      drawSoftShadow(c, x + 3 - sideways * 8, y + 8, R * 1.3, 0.75);
+    }
 
     c.save();
+    if (elevated) {
+      c.translate(x, y);
+      c.scale(ELEVATED_SCALE, ELEVATED_SCALE);
+      c.translate(-x, -y);
+    }
     c.beginPath();
     c.arc(x, y, R, 0, Math.PI * 2);
     c.clip();
@@ -2905,6 +3351,14 @@
 
   function drawDebug(c) {
     c.lineWidth = 1;
+    c.strokeStyle = "rgba(255, 80, 80, 0.8)";
+    c.strokeStyle = "rgba(120, 200, 255, 0.85)";
+    T.rampSegs.concat(T.deckSegs).forEach(s => {
+      c.beginPath();
+      c.moveTo(s.ax, s.ay);
+      c.lineTo(s.bx, s.by);
+      c.stroke();
+    });
     c.strokeStyle = "rgba(255, 80, 80, 0.8)";
     T.segs.concat([T.plungerSeg]).forEach(s => {
       c.beginPath();
@@ -2950,15 +3404,15 @@
 
     // Lit lamps, then their halos and hit flashes as added light.
     const inserts = T.inserts;
-    for (let i = 0; i < inserts.length; i++) if (inserts[i].level > 0.02) drawInsertLit(ctx, inserts[i]);
+    for (let i = 0; i < inserts.length; i++) if (!inserts[i].elevated && inserts[i].level > 0.02) drawInsertLit(ctx, inserts[i]);
     ctx.globalCompositeOperation = "lighter";
     for (let i = 0; i < inserts.length; i++) {
       const ins = inserts[i];
-      if (ins.level > 0.02) drawGlow(ctx, ins.color, ins.x, ins.y, ins.r * 3.4, ins.level * 0.55);
+      if (!ins.elevated && ins.level > 0.02) drawGlow(ctx, ins.color, ins.x, ins.y, ins.r * 3.4, ins.level * 0.55);
     }
     for (let i = 0; i < flashes.length; i++) {
       const f = flashes[i];
-      drawGlow(ctx, f.color, f.x, f.y, f.r, f.intensity * (1 - (simTime - f.start) / f.dur));
+      if (!f.top) drawGlow(ctx, f.color, f.x, f.y, f.r, f.intensity * (1 - (simTime - f.start) / f.dur));
     }
     if (giPulse > 0.01) drawGlow(ctx, COLORS.gold, PLAY_CENTER_X, T.H * 0.55, T.H * 0.75, giPulse);
     ctx.globalCompositeOperation = "source-over";
@@ -2972,10 +3426,29 @@
     T.slings.forEach(s => drawSlingFlash(ctx, s));
     T.targets.forEach(t => drawTargetFlash(ctx, t));
     T.bumpers.forEach((b, i) => drawBumper(ctx, b, i));
-    drawThoughts(ctx);
     drawPlunger(ctx);
     T.flippers.forEach(f => drawFlipper(ctx, f));
-    for (const b of balls) if (b.active) drawBall(ctx, b);
+    for (const b of balls) if (b.active && b.layer === "main") drawBall(ctx, b);
+
+    // Second level, drawn over the main playfield and its balls.
+    drawOverlay(ctx);
+    for (let i = 0; i < inserts.length; i++) {
+      const ins = inserts[i];
+      if (ins.elevated && ins.level > 0.02) drawInsertLit(ctx, ins, true);
+    }
+    ctx.globalCompositeOperation = "lighter";
+    for (let i = 0; i < inserts.length; i++) {
+      const ins = inserts[i];
+      if (ins.elevated && ins.level > 0.02) drawGlow(ctx, ins.color, ins.x, ins.y, ins.r * 3.4, ins.level * 0.55);
+    }
+    for (let i = 0; i < flashes.length; i++) {
+      const f = flashes[i];
+      if (f.top) drawGlow(ctx, f.color, f.x, f.y, f.r, f.intensity * (1 - (simTime - f.start) / f.dur));
+    }
+    ctx.globalCompositeOperation = "source-over";
+    for (const b of balls) if (b.active && b.layer !== "main") drawBall(ctx, b, true);
+
+    drawThoughts(ctx);
     if (DEBUG) drawDebug(ctx);
     ctx.restore();
   }
