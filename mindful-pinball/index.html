@@ -305,16 +305,22 @@
     display: none !important;
   }
 
-  /* ---- End screen: score, reflection, one breath ---- */
+  /* ---- End screen: score, targets, takeaway, optional breath ---- */
   .finalScore {
-    font-size: 20px !important;
-    font-weight: 700;
-    color: #ffd27a !important;
-    margin: 4px 0 6px !important;
+    font-size: 22px !important;
+    font-weight: 800;
+    color: #f0c96a !important;
+    margin: 4px 0 2px !important;
   }
 
-  .reflection {
-    font-style: italic;
+  .targetsCount {
+    font-weight: 700;
+    color: #9cc9a4 !important;
+  }
+
+  .takeaway {
+    font-size: 15px !important;
+    color: #eef6f0 !important;
   }
 
   #breathCircle {
@@ -322,9 +328,9 @@
     height: 120px;
     margin: 16px auto 6px;
     border-radius: 50%;
-    background: radial-gradient(circle, rgba(255, 210, 122, 0.45) 0%, rgba(180, 156, 255, 0.25) 60%, rgba(180, 156, 255, 0.08) 100%);
-    border: 2px solid rgba(255, 210, 122, 0.6);
-    box-shadow: 0 0 24px rgba(180, 156, 255, 0.35);
+    background: radial-gradient(circle, rgba(240, 201, 106, 0.45) 0%, rgba(156, 201, 164, 0.25) 60%, rgba(156, 201, 164, 0.08) 100%);
+    border: 2px solid rgba(240, 201, 106, 0.6);
+    box-shadow: 0 0 24px rgba(156, 201, 164, 0.35);
     transform: scale(0.4);
     transition: transform 4s ease-in-out;
   }
@@ -473,14 +479,17 @@
 
   <div id="endScreen" class="hidden">
     <div class="card">
-      <h2>Session complete</h2>
+      <h2>Reset Complete</h2>
       <p id="finalScore" class="finalScore"></p>
-      <p id="reflection" class="reflection"></p>
-      <div id="breathCircle" aria-hidden="true"></div>
-      <p id="breathLabel" class="breathLabel">Ready when you are.</p>
-      <button id="breathButton" class="primary" onclick="takeBreath()">Take one breath</button>
-      <button id="playAgainButton" class="primary hidden" onclick="startGame()">Play again</button>
-      <button id="skipBreathButton" class="linkButton" onclick="skipBreath()">Skip</button>
+      <p id="targetsCount" class="targetsCount"></p>
+      <p class="takeaway">You don't have to stay focused perfectly. You can practice coming back.</p>
+      <button class="primary" onclick="startGame()">Play Again</button>
+      <button class="secondary" onclick="doExit()">Exit</button>
+      <button id="breathButton" class="linkButton" onclick="takeBreath()">Take one breath first</button>
+      <div id="breathBox" class="hidden">
+        <div id="breathCircle" aria-hidden="true"></div>
+        <p id="breathLabel" class="breathLabel"></p>
+      </div>
     </div>
   </div>
 
@@ -631,12 +640,11 @@
   const muteButton = document.getElementById("muteButton");
   const nudgeButton = document.getElementById("nudgeButton");
   const caption = document.getElementById("caption");
-  const reflectionEl = document.getElementById("reflection");
+  const targetsCountEl = document.getElementById("targetsCount");
+  const breathBox = document.getElementById("breathBox");
   const breathCircle = document.getElementById("breathCircle");
   const breathLabel = document.getElementById("breathLabel");
   const breathButton = document.getElementById("breathButton");
-  const skipBreathButton = document.getElementById("skipBreathButton");
-  const playAgainButton = document.getElementById("playAgainButton");
 
   const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -1432,13 +1440,6 @@
   const BREATH_STEPS = ["Inhale", "Hold", "Exhale", "Rest"];
   const BREATH_LABELS = ["IN", "HOLD", "OUT", "REST"];
   const BREATH_COLORS = ["#c3b4f7", "#b2a0f3", "#a28cee", "#9378e8"];   // special (purple)
-  const REFLECTIONS = [
-    "Noticing you drifted is the practice.",
-    "Each return to the ball was a return to now.",
-    "Attention wanders. Coming back is the skill.",
-    "Thoughts came and went. You stayed.",
-    "No need to grip. Just keep coming back."
-  ];
 
   function decorateTable(T) {
     T.bumpers.forEach((b, i) => { b.color = BUMPER_COLORS[i]; });
@@ -2548,7 +2549,21 @@
     }, delay * 1000);
   }
 
+  // Show captions one after another: [[text, seconds], ...].
+  let captionSeqTimer = null;
+  function showCaptionSequence(items) {
+    clearTimeout(captionSeqTimer);
+    let delay = 0;
+    items.forEach(([text, secs], i) => {
+      const show = () => showCaption(text, secs);
+      if (i === 0) show();
+      else captionSeqTimer = setTimeout(show, delay * 1000);
+      delay += secs + 0.15;
+    });
+  }
+
   function hideCaption() {
+    clearTimeout(captionSeqTimer);
     clearTimeout(captionTimer);
     clearTimeout(captionDelayTimer);
     caption.classList.remove("show");
@@ -3101,8 +3116,8 @@
     vibrate([40, 40, 40]);
     show = null;
     giDim = 1;   // lights dim, then recover
-    dmdSequence([["Mind wandered", "that's normal", 1.8], ["Come back", "gently", 1.6]]);
-    showCaption("Your mind wandered. That's normal. Gently come back.", 3.4);
+    dmdSequence([["Ball lost", "not the moment", 2.0], ["Notice. Reset.", "try again", 2.2]]);
+    showCaptionSequence([["You lost the ball. Not the moment.", 2.0], ["Notice. Reset. Try again.", 2.4]]);
     if (ballNumber >= BALLS_PER_GAME) {
       nextBallTimer = setTimeout(gameOver, NEXT_BALL_DELAY_MS);
     } else {
@@ -3117,53 +3132,40 @@
     releaseAllInput();
     hideCaption();
     sfx.gameOver();
-    dmdMessage("Thank you", Infinity, "score " + fmt(score));
+    dmdMessage("Reset complete", Infinity, "score " + fmt(score));
     updateDMD();
     setupEndScreen();
     endScreen.classList.remove("hidden");
     stopLoop();
   }
 
-  // ---- End screen: score, one reflection, and a "take one breath" moment ----
+  // ---- End screen: score, targets activated, takeaway, optional breath ----
 
   let breathTimer = null;
 
   function setupEndScreen() {
     clearTimeout(breathTimer);
-    finalScore.textContent = "Score: " + fmt(score);
-    reflectionEl.textContent = REFLECTIONS[Math.floor(Math.random() * REFLECTIONS.length)];
+    finalScore.textContent = "Final score: " + fmt(score);
+    targetsCountEl.textContent = "Mindfulness targets activated: " + targetsActivated;
+    breathBox.classList.add("hidden");
     breathCircle.classList.remove("expanding");
-    breathLabel.textContent = "Ready when you are.";
     breathButton.classList.remove("hidden");
-    skipBreathButton.classList.remove("hidden");
-    playAgainButton.classList.add("hidden");
   }
 
-  // A single 4-second in-breath with an expanding circle.
+  // Optional: a single 4-second in-breath with an expanding circle. Play
+  // Again and Exit stay available the whole time.
   function takeBreath() {
     ensureAudio();
     breathButton.classList.add("hidden");
-    skipBreathButton.classList.add("hidden");
+    breathBox.classList.remove("hidden");
     void breathCircle.offsetWidth;   // restart the transition
     breathCircle.classList.add("expanding");
-    breathLabel.textContent = "Breathe in slowly…";
+    breathLabel.textContent = "Breathe in slowly\u2026";
     bell(CHIME_NOTES[0], { peak: 0.05, decay: 3.5 });
     breathTimer = setTimeout(() => {
       breathLabel.textContent = "And gently let it go.";
       bell(CHIME_NOTES[3], { peak: 0.04, decay: 2.5 });
-      showPlayAgain();
     }, BREATH_MOMENT_MS);
-  }
-
-  function skipBreath() {
-    clearTimeout(breathTimer);
-    showPlayAgain();
-  }
-
-  function showPlayAgain() {
-    breathButton.classList.add("hidden");
-    skipBreathButton.classList.add("hidden");
-    playAgainButton.classList.remove("hidden");
   }
 
   function resetGameState() {
