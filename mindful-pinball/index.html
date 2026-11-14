@@ -14,6 +14,7 @@
   }
 
   :root {
+    --fs: 1;   /* FONT_SCALE (set from the script) */
     /* Rounded system font (no download needed inside the Web View). */
     --round-font: ui-rounded, "SF Pro Rounded", "Segoe UI Variable Display", "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
   }
@@ -89,7 +90,7 @@
   }
 
   .scoreLabel {
-    font-size: 10px;
+    font-size: calc(12px * var(--fs));
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -97,7 +98,7 @@
   }
 
   #scoreValue {
-    font-size: 20px;
+    font-size: calc(24px * var(--fs));
     font-weight: 800;
     line-height: 1.1;
     color: #f6f2e3;
@@ -106,17 +107,17 @@
 
   #ballChip {
     flex: 0 0 auto;
-    padding: 2px 8px;
+    padding: 2px 9px;
     border-radius: 999px;
     background: #9cc9a4;
     color: #0f2a20;
-    font-size: 11px;
+    font-size: calc(16px * var(--fs));
     font-weight: 800;
   }
 
   #scoreMessage {
-    min-height: 15px;
-    font-size: 12px;
+    min-height: 20px;
+    font-size: calc(16px * var(--fs));
     line-height: 1.25;
     color: rgba(214, 236, 222, 0.78);
     white-space: nowrap;
@@ -132,20 +133,25 @@
     font-weight: 800;
   }
 
-  @media (max-width: 360px) {
+  /* Narrow screens: drop the "Score" word and the Exit text (the x stays)
+     rather than shrinking anything below the readable minimums. */
+  @media (max-width: 400px) {
     .scoreLabel { display: none; }
-    #scoreValue { font-size: 17px; }
+  }
+  @media (max-width: 360px) {
+    .exitText { display: none; }
   }
 
   .barButton {
     flex: 0 0 auto;
-    height: 34px;
-    min-width: 34px;
+    height: 40px;
+    min-width: 38px;
     border: none;
     border-radius: 12px;
     background: rgba(255, 255, 255, 0.12);
     color: #ffffff;
-    font-size: 13px;
+    font-size: calc(16px * var(--fs));
+    font-weight: 700;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -191,6 +197,52 @@
     z-index: 1;
   }
 
+  /* Second level: ramp/deck/wire art, then raised balls and deck lamps. */
+  #tableOver {
+    z-index: 2;
+  }
+
+  #tableTop {
+    z-index: 3;
+  }
+
+  /* Bumper message: page text (always crisp), fades within ~1.5s. */
+  #thought {
+    position: absolute;
+    left: 0;
+    top: 0;
+    z-index: 14;
+    padding: 4px 12px;
+    border-radius: 999px;
+    background: rgba(6, 20, 15, 0.66);
+    color: #eaf6ee;
+    font-size: calc(18px * var(--fs));
+    font-weight: 700;
+    white-space: nowrap;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+    pointer-events: none;
+    opacity: 0;
+    transform: translate(-50%, -50%);
+  }
+
+  #thought.show {
+    animation: thoughtFloat 1.5s ease-out forwards;
+  }
+
+  @keyframes thoughtFloat {
+    0% { opacity: 0; transform: translate(-50%, -50%); }
+    12% { opacity: 1; }
+    70% { opacity: 1; }
+    100% { opacity: 0; transform: translate(-50%, calc(-50% - 14px)); }
+  }
+
+  @keyframes thoughtFade {
+    0% { opacity: 0; }
+    12% { opacity: 1; }
+    70% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+
   /* Caption banner under the display for sentences too long for the
      dot-matrix (prompts, drain message). Never blocks touches. */
   #caption {
@@ -206,7 +258,8 @@
     background: rgba(8, 24, 18, 0.84);
     border: 1px solid rgba(255, 210, 122, 0.28);
     color: #eef6f0;
-    font-size: 14px;
+    font-size: calc(18px * var(--fs));
+    font-weight: 600;
     line-height: 1.35;
     text-align: center;
     opacity: 0;
@@ -258,19 +311,19 @@
 
   .card h2 {
     margin: 0 0 14px;
-    font-size: 24px;
-    font-weight: 700;
+    font-size: calc(26px * var(--fs));
+    font-weight: 800;
   }
 
   .card p {
     margin: 10px 0;
-    font-size: 14px;
+    font-size: calc(17px * var(--fs));
     line-height: 1.5;
     color: rgba(255, 255, 255, 0.85);
   }
 
   .card .small {
-    font-size: 12px;
+    font-size: calc(15px * var(--fs));
     opacity: 0.7;
   }
 
@@ -280,8 +333,8 @@
     border: none;
     border-radius: 999px;
     padding: 14px 20px;
-    font-size: 16px;
-    font-weight: 700;
+    font-size: calc(18px * var(--fs));
+    font-weight: 800;
     color: #16233a;
     background: #ffd875;
     box-shadow: 0 4px 15px rgba(255, 216, 117, 0.3);
@@ -293,9 +346,9 @@
     width: 100%;
     border: none;
     border-radius: 999px;
-    padding: 12px 20px;
-    font-size: 15px;
-    font-weight: 600;
+    padding: 13px 20px;
+    font-size: calc(18px * var(--fs));
+    font-weight: 700;
     color: #fff;
     background: rgba(255, 255, 255, 0.12);
     cursor: pointer;
@@ -306,8 +359,16 @@
   }
 
   /* ---- End screen: score, targets, takeaway, optional breath ---- */
+  #endScreen h2 {
+    font-size: calc(30px * var(--fs));
+  }
+
+  #endScreen p {
+    font-size: calc(18px * var(--fs));
+  }
+
   .finalScore {
-    font-size: 22px !important;
+    font-size: calc(26px * var(--fs)) !important;
     font-weight: 800;
     color: #f0c96a !important;
     margin: 4px 0 2px !important;
@@ -319,7 +380,7 @@
   }
 
   .takeaway {
-    font-size: 15px !important;
+    font-size: calc(19px * var(--fs)) !important;
     color: #eef6f0 !important;
   }
 
@@ -341,7 +402,7 @@
 
   .breathLabel {
     min-height: 1.5em;
-    font-size: 15px !important;
+    font-size: calc(18px * var(--fs)) !important;
   }
 
   button.linkButton {
@@ -349,8 +410,8 @@
     padding: 6px 10px;
     border: none;
     background: none;
-    color: rgba(255, 255, 255, 0.6);
-    font-size: 13px;
+    color: rgba(255, 255, 255, 0.72);
+    font-size: calc(16px * var(--fs));
     text-decoration: underline;
     cursor: pointer;
   }
@@ -368,6 +429,9 @@
     }
     #caption {
       transition: none;
+    }
+    #thought.show {
+      animation-name: thoughtFade;
     }
   }
 
@@ -392,7 +456,6 @@
     }
     .card p {
       margin: 6px 0;
-      font-size: 13px;
     }
     button.primary {
       margin-top: 12px;
@@ -409,16 +472,9 @@
       padding: 14px 16px;
       border-radius: 18px;
     }
-    .card h2 {
-      font-size: 20px;
-    }
     .card p {
       margin: 4px 0;
-      font-size: 12.5px;
       line-height: 1.4;
-    }
-    .finalScore {
-      font-size: 17px !important;
     }
     button.primary {
       margin-top: 10px;
@@ -439,10 +495,14 @@
   <div id="tableWrap">
     <canvas id="tableStatic"></canvas>
     <canvas id="table"></canvas>
+    <canvas id="tableOver"></canvas>
+    <canvas id="tableTop"></canvas>
   </div>
 
+  <div id="thought" aria-hidden="true"></div>
+
   <div id="topBar">
-    <button class="exitButton barButton" onclick="confirmExit()" aria-label="Exit game">&times; Exit</button>
+    <button class="exitButton barButton" onclick="confirmExit()" aria-label="Exit game">&times;<span class="exitText">&nbsp;Exit</span></button>
     <div id="scoreCard">
       <div class="scoreRow">
         <div class="scoreBlock"><span class="scoreLabel">Score</span><span id="scoreValue">0</span></div>
@@ -579,7 +639,12 @@
   const TABLE_WIDTH = 600;
   const MIN_TABLE_HEIGHT = 1030;   // ~1.7 aspect (keeps the orbit mouth on the flipper's shot line); wider Web Views get side trim
   const MAX_TABLE_HEIGHT = 1400;   // ~2.3 aspect; taller Web Views get top/bottom trim
-  const DPR_CAP = 2;               // max canvas pixel density (performance)
+  const DPR_CAP = 2;               // max density for the per-frame canvas (performance)
+  // Text: everything is sized so it's at least the readable minimum on a
+  // ~390px phone. FONT_SCALE makes all of it bigger (>1) or smaller (<1).
+  const FONT_SCALE = 1;
+  const TEXT_DPR_CAP = 3;          // static / label layers draw at the phone's full density
+  const MAX_TEXT_CANVAS_PIXELS = 3500000;
   const MAX_CANVAS_PIXELS = 2500000; // per canvas; big desktop windows drop density instead of frames
 
   // ---- Game ----
@@ -656,6 +721,11 @@
   const ctx = canvas.getContext("2d");
   const staticCanvas = document.getElementById("tableStatic");
   const staticCtx = staticCanvas.getContext("2d", { alpha: false });
+  const overCanvas = document.getElementById("tableOver");
+  const overCtx = overCanvas.getContext("2d");
+  const topCanvas = document.getElementById("tableTop");
+  const topCtx = topCanvas.getContext("2d");
+  const thoughtEl = document.getElementById("thought");
   const startScreen = document.getElementById("startScreen");
   const endScreen = document.getElementById("endScreen");
   const finalScore = document.getElementById("finalScore");
@@ -1745,7 +1815,7 @@
     T.inlaneArrows = [70, M(70)].map(x => add({ role: "rollover", kind: "arrow", angle: -90, color: COLORS.teal, r: 12, x, y: yP - 118 }));
     T.outlaneLights = [28, M(28)].map(x => add({ role: "rollover", kind: "circle", color: COLORS.rose, r: 8, x, y: yP - 112 }));
     // Kickback lamp low in the left outlane (lit = kickback ready).
-    T.kickbackLight = add({ role: "kickback", kind: "circle", color: COLORS.gold, r: 9, x: 28, y: yP - 20 });
+    T.kickbackLight = add({ role: "kickback", kind: "circle", color: COLORS.gold, r: 9, x: 28, y: yP + 52 });
     // Ball-save lamp between the flippers.
     T.saveLight = add({ role: "save", kind: "circle", color: COLORS.gold, r: 10, x: PLAY_CENTER_X, y: yP + 34 });
     // Shooter lane arrows (chase upward while a ball waits).
@@ -1755,7 +1825,7 @@
     }));
     // C-A-L-M letter lamps on the Calm Deck (raised: drawn on the overlay).
     T.deckLights = DECK_WORD.split("").map((letter, i) => add({
-      role: "deck", index: i, label: letter, kind: "circle", color: COLORS.gold, r: 11, elevated: true,
+      role: "deck", index: i, label: letter, kind: "circle", color: COLORS.gold, r: 14, elevated: true,
       x: 356 + i * 38, y: DECK_FLAP_Y - 52
     }));
     T.inserts = inserts;
@@ -1925,13 +1995,14 @@
     c.lineWidth = 1.2;
     c.stroke();
 
-    // Mindfulness label across the cap.
-    c.font = "800 10.5px ui-rounded, 'SF Pro Rounded', system-ui, sans-serif";
-    c.textAlign = "center";
-    c.textBaseline = "middle";
-    c.fillStyle = lit ? "#123326" : "rgba(10, 34, 25, 0.88)";
-    c.fillText(label, 0, capY + 0.5);
-    c.textBaseline = "alphabetic";
+    // A calm ripple on the cap (the bumper's name is printed beside it).
+    c.strokeStyle = lit ? "rgba(18, 51, 38, 0.6)" : "rgba(10, 34, 25, 0.45)";
+    c.lineWidth = 1.4;
+    [capR * 0.28, capR * 0.58].forEach(rr => {
+      c.beginPath();
+      c.arc(0, capY, rr, 0, Math.PI * 2);
+      c.stroke();
+    });
 
     c.fillStyle = "rgba(255, 255, 255, 0.5)";
     c.beginPath();
@@ -1971,10 +2042,13 @@
     const scale = Math.min(cssW / TABLE_WIDTH, cssH / tableH);
     const tableCssW = TABLE_WIDTH * scale;
     const tableCssH = tableH * scale;
-    // Pixel density: device density up to DPR_CAP, lowered further if
-    // the canvas would exceed MAX_CANVAS_PIXELS.
+    // Pixel density: the per-frame canvas uses up to DPR_CAP (frame rate);
+    // the layers that carry text use the phone's full density (up to
+    // TEXT_DPR_CAP) so labels stay crisp. Both are capped by pixel count.
     let dpr = Math.min(devDpr, DPR_CAP);
     dpr = Math.min(dpr, Math.sqrt(MAX_CANVAS_PIXELS / (tableCssW * tableCssH)));
+    let dprHi = Math.min(devDpr, TEXT_DPR_CAP);
+    dprHi = Math.max(dpr, Math.min(dprHi, Math.sqrt(MAX_TEXT_CANVAS_PIXELS / (tableCssW * tableCssH))));
 
     view = {
       cssW, cssH, dpr, scale,
@@ -1983,15 +2057,20 @@
     };
     const pxW = Math.round(tableCssW * dpr);
     const pxH = Math.round(tableCssH * dpr);
-    view.k = pxW / TABLE_WIDTH;    // table units -> canvas pixels
+    view.k = pxW / TABLE_WIDTH;    // table units -> per-frame canvas pixels
+    const hiW = Math.round(tableCssW * dprHi), hiH = Math.round(tableCssH * dprHi);
+    view.kHi = hiW / TABLE_WIDTH;  // table units -> text-layer canvas pixels
     tableWrap.style.left = view.offX + "px";
     tableWrap.style.top = view.offY + "px";
     tableWrap.style.width = tableCssW + "px";
     tableWrap.style.height = tableCssH + "px";
-    [canvas, staticCanvas].forEach(cv => {
-      cv.width = pxW;
-      cv.height = pxH;
+    canvas.width = pxW;
+    canvas.height = pxH;
+    [staticCanvas, overCanvas, topCanvas].forEach(cv => {
+      cv.width = hiW;
+      cv.height = hiH;
     });
+    document.documentElement.style.setProperty("--fs", String(FONT_SCALE));
 
     if (!T || T.H !== tableH) {
       const oldH = T ? T.H : tableH;
@@ -2007,11 +2086,38 @@
     buildSprites();
     drawStatic();
     drawOverlaySprite();
+    topDirty = true;
     updateDMD(true);
   }
 
-  function tableTransform(c) {
-    c.setTransform(view.k, 0, 0, view.k, 0, 0);
+  function tableTransform(c, k = view.k) {
+    c.setTransform(k, 0, 0, k, 0, 0);
+  }
+
+  // ---- Readable labels ----
+  // Font size in table units so the text is at least `cssPx` CSS pixels on
+  // screen after the table is scaled (times FONT_SCALE). `maxUnits` caps it
+  // so labels still fit on unusually small tables.
+  function labelUnits(cssPx, maxUnits = Infinity) {
+    return Math.min(maxUnits, (cssPx * FONT_SCALE) / view.scale);
+  }
+
+  function labelFont(units, weight = 800) {
+    return weight + " " + units.toFixed(1) + "px ui-rounded, 'SF Pro Rounded', system-ui, sans-serif";
+  }
+
+  // Bold text with a soft dark outline so it reads on the green playfield.
+  function drawLabel(c, text, x, y, units, color, align = "center") {
+    c.font = labelFont(units);
+    c.textAlign = align;
+    c.textBaseline = "middle";
+    c.lineJoin = "round";
+    c.strokeStyle = "rgba(4, 14, 10, 0.8)";
+    c.lineWidth = Math.max(2, units * 0.24);
+    c.strokeText(text, x, y);
+    c.fillStyle = color;
+    c.fillText(text, x, y);
+    c.textBaseline = "alphabetic";
   }
 
   function toTable(e) {
@@ -2178,15 +2284,14 @@
   }
 
   function drawApronLabel(c, text, x, y) {
-    c.font = "600 11px system-ui, sans-serif";
-    c.textAlign = "center";
-    c.fillStyle = "rgba(255, 210, 122, 0.55)";
-    c.fillText(text.split("").join(" "), x, y);
-    c.strokeStyle = "rgba(255, 210, 122, 0.25)";
-    c.lineWidth = 1;
+    const u = labelUnits(14, 24);
+    drawLabel(c, text, x, y, u, "rgba(240, 201, 106, 0.95)");
+    const half = c.measureText(text).width / 2;
+    c.strokeStyle = "rgba(240, 201, 106, 0.35)";
+    c.lineWidth = 1.2;
     c.beginPath();
-    c.moveTo(x - 34, y + 9);
-    c.lineTo(x + 34, y + 9);
+    c.moveTo(x - half, y + u * 0.7);
+    c.lineTo(x + half, y + u * 0.7);
     c.stroke();
   }
 
@@ -2196,7 +2301,7 @@
     c.setTransform(1, 0, 0, 1, 0, 0);
     c.fillStyle = "#06120d";
     c.fillRect(0, 0, staticCanvas.width, staticCanvas.height);
-    tableTransform(c);
+    tableTransform(c, view.kHi);
 
     // Cabinet side rails around the playfield.
     let g = c.createLinearGradient(0, 0, TABLE_WIDTH, 0);
@@ -2307,35 +2412,35 @@
     T.targets.forEach((t, i) => drawTargetStatic(c, t, RESET_TARGETS[i]));
 
     // Breath step labels beside their lamps.
-    c.font = "800 13px ui-rounded, 'SF Pro Rounded', system-ui, sans-serif";
-    c.textAlign = "left";
-    c.textBaseline = "middle";
-    c.fillStyle = "rgba(214, 204, 255, 0.78)";
-    T.breathLights.forEach(l => c.fillText(l.label, l.x + 12, l.y + 1));
+    const lu = labelUnits(14, 22);
+    T.breathLights.forEach(l => drawLabel(c, l.label, l.x + 12, l.y + 1, lu, "rgba(222, 214, 255, 0.98)", "left"));
 
-    // "KICKBACK" printed up the left outlane above its lamp.
-    c.save();
-    c.translate(28, T.yP - 66);
-    c.rotate(-Math.PI / 2);
-    c.font = "800 10px ui-rounded, 'SF Pro Rounded', system-ui, sans-serif";
-    c.textAlign = "center";
-    c.textBaseline = "middle";
-    c.fillStyle = "rgba(240, 201, 106, 0.75)";
-    c.fillText("KICKBACK", 0, 0);
-    c.restore();
+    // Reset target names: one legend in two rows under the bank, in the
+    // targets' left-to-right order (too long to sit under each target).
+    const tu = labelUnits(14, 22);
+    const names = RESET_TARGETS.map(t => t.name);
+    drawLabel(c, names.slice(0, 3).join("  \u00b7  "), PLAY_CENTER_X, BANK_Y + 52, tu, "rgba(232, 244, 236, 0.98)");
+    drawLabel(c, names.slice(3).join("  \u00b7  "), PLAY_CENTER_X, BANK_Y + 52 + tu * 1.3, tu, "rgba(232, 244, 236, 0.98)");
+
+    // Bumper names, beside each bumper (too wide for the caps).
+    const bu = labelUnits(14, 22);
+    const [bL, bR, bC] = T.bumpers;
+    drawLabel(c, BUMPER_LABELS[0], bL.x - bL.r - 8, bL.y - 8, bu, "#eef6f0", "right");
+    drawLabel(c, BUMPER_LABELS[1], bR.x, bR.y + bR.r + bu * 0.85, bu, "#eef6f0");
+    drawLabel(c, BUMPER_LABELS[2], bC.x + bC.r + 8, bC.y, bu, "#eef6f0", "left");
+
+    // "KICKBACK" on the apron next to its lamp.
+    const kl = T.kickbackLight;
+    drawLabel(c, "KICKBACK", kl.x + kl.r + 8, kl.y, labelUnits(14, 22), "rgba(240, 201, 106, 0.98)", "left");
 
     // "BREATH LANE" printed on the lane floor along its entrance wall, the
     // way real tables label their shots.
     const ob = T.orbitBottom;
     c.save();
-    c.translate(56 + 0.5 * 70 - 10, ob + 0.866 * 70 + 6);
+    c.translate(56 + 0.5 * 70 - 12, ob + 0.866 * 70 + 8);
     c.rotate(Math.PI / 3);
-    c.font = "800 11px ui-rounded, 'SF Pro Rounded', system-ui, sans-serif";
-    c.textAlign = "center";
-    c.fillStyle = "rgba(214, 204, 255, 0.7)";
-    c.fillText("BREATH LANE", 0, 0);
+    drawLabel(c, "BREATH LANE", 0, 0, labelUnits(13, 20), "rgba(222, 214, 255, 0.95)");
     c.restore();
-    c.textBaseline = "alphabetic";
   }
 
   // Simple line icons, drawn centered on (0, 0) in a ~16-unit box with one
@@ -2429,14 +2534,6 @@
     c.stroke();
     c.restore();
 
-    // Labels alternate between two rows so neighbors never overlap.
-    c.font = "800 11px ui-rounded, 'SF Pro Rounded', system-ui, sans-serif";
-    c.textAlign = "center";
-    c.textBaseline = "middle";
-    c.fillStyle = "rgba(226, 240, 230, 0.8)";
-    const row = t.index % 2 === 0 ? 42 : 55;
-    c.fillText(info.name, t.x + t.fnx * row, t.y + t.fny * row);
-    c.textBaseline = "alphabetic";
   }
 
   // Lit target: plate glows gold and the icon turns dark on it.
@@ -2650,7 +2747,7 @@
     // The bumper's message appears up near the top of the table - well
     // away from the flippers - and fades within THOUGHT_SECONDS. A new hit
     // replaces it rather than stacking.
-    thoughts = [{ text: BUMPER_MESSAGES[T.bumpers.indexOf(b)], x: MESSAGE_X, y: BUMPER_MESSAGE_Y, dx: 0, start: simTime }];
+    showThought(BUMPER_MESSAGES[T.bumpers.indexOf(b)]);
   }
 
   function onSlingHit(sl) {
@@ -2921,6 +3018,10 @@
     });
   }
 
+  function hideThought() {
+    thoughtEl.classList.remove("show");
+  }
+
   function hideCaption() {
     clearTimeout(captionSeqTimer);
     clearTimeout(captionTimer);
@@ -2968,10 +3069,9 @@
     if (tilted) return ["Tilt", "let this ball go"];
     if (multiball) return ["Steady Breath", "2 balls"];
     const dots = "\u25cf".repeat(breathStep) + "\u25cb".repeat(BREATH_STEPS.length - breathStep);
-    const extras = [];
-    if (breathCycles) extras.push(breathCycles + "/" + BREATH_CYCLES_FOR_MULTIBALL);
-    if (kickbackLit) extras.push("kickback lit");
-    return ["Breath " + dots, extras.join(" \u00b7 ")];
+    // Kept short so it fits the score card at a readable size; breath
+    // cycles show on their lamps in the Breath lane.
+    return ["Breath " + dots, kickbackLit ? "\u00b7 kickback" : ""];
   }
 
   function updateDMD(force) {
@@ -3020,7 +3120,7 @@
   // offscreen canvas; each frame only their bounding boxes are copied over
   // the playfield, so main-level balls pass visibly *under* them.
   function drawLampLetter(c, ins, color) {
-    c.font = "800 13px ui-rounded, 'SF Pro Rounded', system-ui, sans-serif";
+    c.font = labelFont(labelUnits(14, ins.r * 1.5));
     c.textAlign = "center";
     c.textBaseline = "middle";
     c.fillStyle = color;
@@ -3029,12 +3129,10 @@
   }
 
   function drawOverlaySprite() {
-    const cv = sprites.overlay || (sprites.overlay = makeCanvas(1, 1));
-    cv.width = canvas.width;
-    cv.height = canvas.height;
-    const c = cv.getContext("2d");
+    const cv = overCanvas, c = overCtx;
+    c.setTransform(1, 0, 0, 1, 0, 0);
     c.clearRect(0, 0, cv.width, cv.height);
-    tableTransform(c);
+    tableTransform(c, view.kHi);
     const r = T.ramp, dk = T.deck, w = T.wire;
 
     // Ramp (raised part): soft shadow, translucent bed, chrome side rails.
@@ -3102,10 +3200,7 @@
       drawInsertBody(c, ins);
       drawLampLetter(c, ins, "rgba(240, 220, 170, 0.75)");
     });
-    c.font = "800 12px ui-rounded, 'SF Pro Rounded', system-ui, sans-serif";
-    c.textAlign = "center";
-    c.fillStyle = "rgba(226, 244, 232, 0.8)";
-    c.fillText("CALM DECK", 413, DECK_FLAP_Y - 86);
+    drawLabel(c, "CALM DECK", 413, DECK_FLAP_Y - 86, labelUnits(13, 20), "rgba(232, 246, 236, 0.98)");
 
     // Wireform: two thin chrome rails along the ball's path, with a shadow.
     const wl = offsetPolyline(w.pts, -7), wr = offsetPolyline(w.pts, 7);
@@ -3126,16 +3221,6 @@
       c.stroke();
     });
 
-    // Regions to copy each frame (canvas pixels), padded for shadows.
-    const k = view.k;
-    const box = pts => {
-      let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
-      pts.forEach(p => { x0 = Math.min(x0, p[0]); y0 = Math.min(y0, p[1]); x1 = Math.max(x1, p[0]); y1 = Math.max(y1, p[1]); });
-      x0 = Math.max(0, Math.floor((x0 - 12) * k)); y0 = Math.max(0, Math.floor((y0 - 12) * k));
-      x1 = Math.min(cv.width, Math.ceil((x1 + 24) * k)); y1 = Math.min(cv.height, Math.ceil((y1 + 30) * k));
-      return [x0, y0, x1 - x0, y1 - y0];
-    };
-    T.overlayBoxes = [box(r.left.concat(r.right)), box(dk.outline), box(wl.concat(wr))];
   }
 
   function offsetPolyline(pts, d) {
@@ -3144,17 +3229,6 @@
       const dx = b[0] - a[0], dy = b[1] - a[1], len = Math.hypot(dx, dy) || 1;
       return [p[0] - (dy / len) * d, p[1] + (dx / len) * d];
     });
-  }
-
-  function drawOverlay(c) {
-    const cv = sprites.overlay;
-    if (!cv || !T.overlayBoxes) return;
-    c.save();
-    c.setTransform(1, 0, 0, 1, 0, 0);
-    for (const [x, y, w, h] of T.overlayBoxes) {
-      if (w > 0 && h > 0) c.drawImage(cv, x, y, w, h, x, y, w, h);
-    }
-    c.restore();
   }
 
   function drawTargetFlash(c, t) {
@@ -3171,20 +3245,16 @@
     c.restore();
   }
 
-  // Bumper message: rises slightly and fades (fades in place under reduced motion).
-  function drawThoughts(c) {
-    if (!thoughts.length) return;
-    c.textAlign = "center";
-    c.textBaseline = "middle";
-    c.font = "600 21px ui-rounded, 'SF Pro Rounded', system-ui, sans-serif";
-    for (const t of thoughts) {
-      const p = (simTime - t.start) / THOUGHT_SECONDS;
-      const drift = prefersReducedMotion ? 0 : p;
-      const alpha = p < 0.15 ? p / 0.15 : 1 - (p - 0.15) / 0.85;
-      c.fillStyle = "rgba(226, 244, 232, " + (alpha * 0.9).toFixed(3) + ")";
-      c.fillText(t.text, t.x + t.dx * drift, t.y - 16 * drift);
-    }
-    c.textBaseline = "alphabetic";
+  // Bumper message: page text near the top-left of the table (away from
+  // the flippers) that rises slightly and fades within ~1.5s; under
+  // reduced motion it only fades.
+  function showThought(text) {
+    thoughtEl.textContent = text;
+    thoughtEl.style.left = view.offX + MESSAGE_X * view.scale + "px";
+    thoughtEl.style.top = view.offY + BUMPER_MESSAGE_Y * view.scale + "px";
+    thoughtEl.classList.remove("show");
+    void thoughtEl.offsetWidth;   // restart the animation
+    thoughtEl.classList.add("show");
   }
 
   function drawSlingFlash(c, s) {
@@ -3430,27 +3500,39 @@
     T.flippers.forEach(f => drawFlipper(ctx, f));
     for (const b of balls) if (b.active && b.layer === "main") drawBall(ctx, b);
 
-    // Second level, drawn over the main playfield and its balls.
-    drawOverlay(ctx);
+    if (DEBUG) drawDebug(ctx);
+    ctx.restore();
+  }
+
+  // Raised level (its own full-density canvas above the ramp/deck art):
+  // lit deck lamps, light on the deck, and balls on the ramp/deck/wire.
+  // Only cleared and redrawn while something is there.
+  let topDirty = true;
+  function renderTop() {
+    const inserts = T.inserts;
+    const needs = balls.some(b => b.active && b.layer !== "main") ||
+      inserts.some(ins => ins.elevated && ins.level > 0.02) || flashes.some(f => f.top);
+    if (!needs && !topDirty) return;
+    topCtx.setTransform(1, 0, 0, 1, 0, 0);
+    topCtx.clearRect(0, 0, topCanvas.width, topCanvas.height);
+    topDirty = needs;
+    if (!needs) return;
+    tableTransform(topCtx, view.kHi);
     for (let i = 0; i < inserts.length; i++) {
       const ins = inserts[i];
-      if (ins.elevated && ins.level > 0.02) drawInsertLit(ctx, ins, true);
+      if (ins.elevated && ins.level > 0.02) drawInsertLit(topCtx, ins, true);
     }
-    ctx.globalCompositeOperation = "lighter";
+    topCtx.globalCompositeOperation = "lighter";
     for (let i = 0; i < inserts.length; i++) {
       const ins = inserts[i];
-      if (ins.elevated && ins.level > 0.02) drawGlow(ctx, ins.color, ins.x, ins.y, ins.r * 3.4, ins.level * 0.55);
+      if (ins.elevated && ins.level > 0.02) drawGlow(topCtx, ins.color, ins.x, ins.y, ins.r * 3.4, ins.level * 0.55);
     }
     for (let i = 0; i < flashes.length; i++) {
       const f = flashes[i];
-      if (f.top) drawGlow(ctx, f.color, f.x, f.y, f.r, f.intensity * (1 - (simTime - f.start) / f.dur));
+      if (f.top) drawGlow(topCtx, f.color, f.x, f.y, f.r, f.intensity * (1 - (simTime - f.start) / f.dur));
     }
-    ctx.globalCompositeOperation = "source-over";
-    for (const b of balls) if (b.active && b.layer !== "main") drawBall(ctx, b, true);
-
-    drawThoughts(ctx);
-    if (DEBUG) drawDebug(ctx);
-    ctx.restore();
+    topCtx.globalCompositeOperation = "source-over";
+    for (const b of balls) if (b.active && b.layer !== "main") drawBall(topCtx, b, true);
   }
 
   function frame(now) {
@@ -3471,6 +3553,7 @@
     updateRollingHum();
     updateDMD();
     render();
+    renderTop();
   }
 
   function startLoop() {
@@ -3724,6 +3807,7 @@
     resetLights();
     dmdClearMessage();
     hideCaption();
+    hideThought();
   }
 
   function startGame() {
@@ -3772,7 +3856,7 @@
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(() => {
       layout();
-      if (!rafId) render();
+      if (!rafId) { render(); renderTop(); }
     }, 100);
   }
   window.addEventListener("resize", onResize);
