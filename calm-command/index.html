@@ -120,8 +120,9 @@
 
   /* Dedicated control zone below the play field. Kept outside #playField
      entirely so the controls can never overlap gameplay (ship, enemies,
-     bullets). Left side: the joystick's resting spot (#joystickRest is an
-     invisible placeholder sized from JS). Right side: the Fire button. */
+     bullets). Left side: the fixed joystick (#joystickRest is an
+     invisible placeholder sized from JS, reserves its room in the bar).
+     Right side: the Fire button. */
   #controlBar {
     position: relative;
     flex: 0 0 auto;
@@ -217,20 +218,22 @@
     flex-shrink: 0;
   }
 
-  /* Left-thumb touch zone: the whole left half of the game, above the
-     play field and control bar but below the top row / dialogs. */
+  /* Left-thumb touch target: an invisible circle slightly larger than
+     the joystick base, fixed in the lower-left corner (position and size
+     set from JS constants). Only touches that start here move the ship. */
   #joystickZone {
     position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 50%;
+    border-radius: 50%;
     z-index: 13;
     touch-action: none;
   }
 
+  /* Visible base, centered inside the touch target. */
   #joystick {
     position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
     border-radius: 50%;
     background: rgba(255, 255, 255, 0.07);
     border: 2px solid rgba(159, 214, 255, 0.3);
@@ -439,7 +442,7 @@
       <p>Stress is drifting in. Shoot it down before it reaches you, and let the calm pass safely by.</p>
       <p class="legend"><span class="stress">Shoot:</span> ⏰ ⚠️ 😠 🔥 💢</p>
       <p class="legend"><span class="calm">Let pass:</span> 🌳 ☁️ 🌊 🌻 🦋 🌙 ⭐ 🍃</p>
-      <p>Left thumb: touch anywhere on the left half and push the joystick to fly in any direction. Right thumb: tap or hold FIRE to shoot upward.</p>
+      <p>Left thumb: hold the joystick in the lower-left and push it to fly in any direction. Right thumb: tap or hold FIRE to shoot upward.</p>
       <p style="font-size: 12px; opacity: 0.7;">Keyboard: arrows / WASD to move, space to fire.</p>
       <button class="primary" onclick="startGame()">Start</button>
     </div>
@@ -468,8 +471,7 @@
     <button id="fireButton" class="fireButton" aria-label="Fire">FIRE</button>
   </div>
 
-  <div id="joystickZone"></div>
-  <div id="joystick"><div id="joystickKnob"></div></div>
+  <div id="joystickZone"><div id="joystick"><div id="joystickKnob"></div></div></div>
 
 </div>
 
@@ -480,6 +482,14 @@
   const JOYSTICK_RADIUS = 56;
   // Knob radius (px).
   const JOYSTICK_KNOB_RADIUS = 24;
+  // Fixed joystick position: distance (px) from the screen's left edge to
+  // the base's left edge, and from the bottom edge (above the phone's
+  // safe area) to the base's bottom edge.
+  const JOYSTICK_LEFT = 22;
+  const JOYSTICK_BOTTOM = 14;
+  // Extra invisible grab area (px) around the base, so it's easy to hit
+  // without looking. Touches must START inside base radius + this.
+  const JOYSTICK_TOUCH_PADDING = 24;
   // Fraction (0-1) of the base radius around center that's ignored, so
   // a resting thumb doesn't make the ship drift.
   const JOYSTICK_DEAD_ZONE = 0.15;
@@ -554,7 +564,7 @@
   // time, tracked by pointerId, so the joystick thumb and the fire thumb
   // never interfere.
   let joyPointerId = null;
-  let joyBaseX = 0;   // base center, #game-relative px
+  let joyBaseX = 0;   // base center in client px, measured on touch-down
   let joyBaseY = 0;
   let joyVecX = 0;    // knob offset / JOYSTICK_RADIUS, each in -1..1
   let joyVecY = 0;
@@ -671,44 +681,34 @@
   // Same joystick as Protect Your Peace: the knob moves freely inside the
   // base and the ship flies in whatever direction it's pushed.
 
-  function setJoystickBase(x, y) {
-    joyBaseX = x;
-    joyBaseY = y;
-    joystickEl.style.left = (x - JOYSTICK_RADIUS) + "px";
-    joystickEl.style.top = (y - JOYSTICK_RADIUS) + "px";
-  }
-
   function setKnobOffset(dx, dy) {
     joystickKnob.style.transform =
       "translate(-50%, -50%) translate(" + dx + "px, " + dy + "px)";
   }
 
-  // Resting spot: centered on the invisible placeholder in #controlBar.
-  function resetJoystickToRest() {
-    const g = game.getBoundingClientRect();
-    const r = joystickRest.getBoundingClientRect();
-    setJoystickBase(r.left - g.left + r.width / 2, r.top - g.top + r.height / 2);
-  }
-
-  function sizeJoystick() {
+  // Sizes and pins the joystick from the tuning constants. It never
+  // moves after this.
+  function layoutJoystick() {
     const d = JOYSTICK_RADIUS * 2;
+    const zoneD = (JOYSTICK_RADIUS + JOYSTICK_TOUCH_PADDING) * 2;
+    joystickZone.style.width = zoneD + "px";
+    joystickZone.style.height = zoneD + "px";
+    joystickZone.style.left = (JOYSTICK_LEFT - JOYSTICK_TOUCH_PADDING) + "px";
+    joystickZone.style.bottom =
+      "calc(env(safe-area-inset-bottom, 0px) + " + (JOYSTICK_BOTTOM - JOYSTICK_TOUCH_PADDING) + "px)";
     joystickEl.style.width = d + "px";
     joystickEl.style.height = d + "px";
+    // Placeholder keeps #controlBar tall enough that the joystick sits in
+    // the bar rather than over the play field.
     joystickRest.style.width = d + "px";
     joystickRest.style.height = d + "px";
     joystickKnob.style.width = (JOYSTICK_KNOB_RADIUS * 2) + "px";
     joystickKnob.style.height = (JOYSTICK_KNOB_RADIUS * 2) + "px";
   }
 
-  function gameRelative(e) {
-    const g = game.getBoundingClientRect();
-    return { x: e.clientX - g.left, y: e.clientY - g.top };
-  }
-
   function updateKnob(e) {
-    const p = gameRelative(e);
-    let dx = p.x - joyBaseX;
-    let dy = p.y - joyBaseY;
+    let dx = e.clientX - joyBaseX;
+    let dy = e.clientY - joyBaseY;
     const dist = Math.hypot(dx, dy);
     if (dist > JOYSTICK_RADIUS) {
       dx = (dx / dist) * JOYSTICK_RADIUS;
@@ -726,24 +726,26 @@
     joystickEl.classList.remove("active");
     joystickKnob.classList.add("springBack");
     setKnobOffset(0, 0);
-    resetJoystickToRest();
   }
 
   joystickZone.addEventListener("pointerdown", (e) => {
     e.preventDefault();
     if (!gameRunning) return;
     // One joystick finger at a time - a second finger landing on the
-    // left half can't hijack it.
+    // joystick can't hijack it.
     if (joyPointerId !== null) return;
+    // The touch target is a square element; only accept touches inside
+    // its circle (base radius + JOYSTICK_TOUCH_PADDING).
+    const r = joystickEl.getBoundingClientRect();
+    const cx = r.left + r.width / 2;
+    const cy = r.top + r.height / 2;
+    if (Math.hypot(e.clientX - cx, e.clientY - cy) > JOYSTICK_RADIUS + JOYSTICK_TOUCH_PADDING) return;
+
     joyPointerId = e.pointerId;
     joystickZone.setPointerCapture(e.pointerId);
-
-    // Float the base to where the thumb landed, kept fully on-screen.
-    const p = gameRelative(e);
-    setJoystickBase(
-      clamp(p.x, JOYSTICK_RADIUS, game.clientWidth - JOYSTICK_RADIUS),
-      clamp(p.y, JOYSTICK_RADIUS, game.clientHeight - JOYSTICK_RADIUS)
-    );
+    // The base is fixed; just measure its center for the knob math.
+    joyBaseX = cx;
+    joyBaseY = cy;
     joystickKnob.classList.remove("springBack");
     joystickEl.classList.add("active");
     updateKnob(e);
@@ -831,9 +833,7 @@
     return { x: kx / kmag, y: ky / kmag };
   }
 
-  sizeJoystick();
-  // Wait a frame so #controlBar has laid out with the new placeholder size.
-  requestAnimationFrame(resetJoystickToRest);
+  layoutJoystick();
 
   // Belt-and-suspenders against iOS Safari's rubber-band/bounce scroll:
   // touch-action:none and overscroll-behavior:none on html/body are not
@@ -1183,7 +1183,6 @@
   }
 
   window.addEventListener("resize", () => {
-    if (joyPointerId === null) resetJoystickToRest();
     if (!gameRunning) return;
     placeShip(shipX, shipY);
   });
