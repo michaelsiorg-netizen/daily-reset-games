@@ -430,6 +430,29 @@
 
   const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+  // ---- Movement tuning ----
+  // Calm "home zone": the area calm emojis wander in and get pulled back
+  // to. CENTER_X/Y place the zone's center as a fraction of the play
+  // field (0 = left/top, 1 = right/bottom); WIDTH/HEIGHT size it as a
+  // fraction of the play field. Defaults: centered, 60%-80% down.
+  const CALM_HOME_CENTER_X = 0.5;
+  const CALM_HOME_CENTER_Y = 0.7;
+  const CALM_HOME_WIDTH = 0.6;
+  const CALM_HOME_HEIGHT = 0.2;
+  // Speed (px/frame at 60fps) a calm emoji outside its home zone drifts
+  // back at, once it's no longer fleeing.
+  const CALM_HOME_RETURN_SPEED = 0.8;
+  // Calm emojis never get closer than this (px) to any wall of the play
+  // field. Within a further EDGE_MARGIN beyond that, fleeing gradually
+  // turns into a sideways slide back toward the home zone center.
+  const EDGE_MARGIN = 40;
+  // Stress seek speed (px/frame at 60fps). Ramps linearly from START at
+  // the beginning of the match to END at the final second; each spawn
+  // gets up to +/- JITTER of random variation on top.
+  const STRESS_SPEED_START = 0.7;
+  const STRESS_SPEED_END = 1.15;
+  const STRESS_SPEED_JITTER = 0.1;
+
   const calmItems = ["🌳", "☁️", "🌊", "🌻", "🦋", "🌙", "⭐", "🍃"];
   const stressItems = ["⏰", "⚠️", "😠", "🔥", "💢"];
 
@@ -451,13 +474,16 @@
   const CALM_IDLE_MIN_SPEED = 0.25;
   const CALM_IDLE_MAX_SPEED = 0.45;
   const CALM_FLEE_SPEED = 2.0;
-  const STRESS_SEEK_MIN_SPEED = 1.2;
-  const STRESS_SEEK_MAX_SPEED = 1.6;
+  // How quickly calm emojis turn toward their desired direction each
+  // frame (0-1) - snappier when fleeing, lazy when idling.
+  const CALM_FLEE_TURN = 0.2;
+  const CALM_IDLE_TURN = 0.05;
   const MAX_STRESS_ON_SCREEN = 8;
   const MATCH_DURATION = 45000;
 
-  // Three escalating phases by elapsed match time - only the stress spawn
-  // rate ramps up; seek speed stays constant across phases.
+  // Three escalating phases by elapsed match time - the phases ramp the
+  // stress spawn rate; seek speed ramps separately and smoothly (see
+  // STRESS_SPEED_START/END).
   const phases = [
     { start: 0, end: 15000, spawnInterval: 2200 },
     { start: 15000, end: 30000, spawnInterval: 1500 },
@@ -696,31 +722,138 @@
     };
   }
 
-  function randomEdgePosition() {
+  // Builds a center-coordinate range, collapsing to its midpoint if the
+  // screen is too small for min <= max.
+  function safeRange(min, max) {
+    if (min > max) {
+      const mid = (min + max) / 2;
+      return { min: mid, max: mid };
+    }
+    return { min, max };
+  }
+
+  // Where calm emoji *centers* may go: the field bounds inset by
+  // EDGE_MARGIN on every side, so calm can never touch a wall.
+  function calmSafeBounds(b) {
+    const half = ITEM_SIZE / 2;
+    const xr = safeRange(b.minX + half + EDGE_MARGIN, b.maxX + half - EDGE_MARGIN);
+    const yr = safeRange(b.minY + half + EDGE_MARGIN, b.maxY + half - EDGE_MARGIN);
+    return { minX: xr.min, maxX: xr.max, minY: yr.min, maxY: yr.max };
+  }
+
+  // The calm home zone (center coordinates), kept inside the safe bounds.
+  function calmHomeZone(safe) {
+    const fieldW = window.innerWidth;
+    const fieldH = getPlayFieldHeight();
+    const halfW = (fieldW * CALM_HOME_WIDTH) / 2;
+    const halfH = (fieldH * CALM_HOME_HEIGHT) / 2;
+    const cx = fieldW * CALM_HOME_CENTER_X;
+    const cy = fieldH * CALM_HOME_CENTER_Y;
+    const xr = safeRange(Math.max(safe.minX, cx - halfW), Math.min(safe.maxX, cx + halfW));
+    const yr = safeRange(Math.max(safe.minY, cy - halfH), Math.min(safe.maxY, cy + halfH));
+    return {
+      minX: xr.min, maxX: xr.max, minY: yr.min, maxY: yr.max,
+      cx: (xr.min + xr.max) / 2,
+      cy: (yr.min + yr.max) / 2
+    };
+  }
+
+  // 0 when a calm emoji is EDGE_MARGIN or more inside its safe bound,
+  // ramping up to 1 when it's right at the bound (i.e. EDGE_MARGIN from
+  // the actual wall).
+  function wallPressure(distToSafeBound) {
+    return clamp(1 - distToSafeBound / EDGE_MARGIN, 0, 1);
+  }
+
+  // Unit direction a calm emoji at (cx, cy) should flee in. Normally
+  // straight away from the threat, but as the emoji nears a wall the
+  // direction blends into a sideways slide (perpendicular to the threat,
+  // on whichever side faces the home zone center), and any motion into
+  // a nearby wall is damped out - so fleeing can never pin it.
+  function fleeDirection(cx, cy, threat, safe, home) {
+    const len = Math.max(1, Math.hypot(cx - threat.cx, cy - threat.cy));
+    const fx = (cx - threat.cx) / len;
+    const fy = (cy - threat.cy) / len;
+
+    const pLeft = wallPressure(cx - safe.minX);
+    const pRight = wallPressure(safe.maxX - cx);
+    const pTop = wallPressure(cy - safe.minY);
+    const pBottom = wallPressure(safe.maxY - cy);
+
+    // How hard the straight-away direction is pushing into a wall.
+    const pressure = Math.max(
+      fx < 0 ? pLeft : 0,
+      fx > 0 ? pRight : 0,
+      fy < 0 ? pTop : 0,
+      fy > 0 ? pBottom : 0
+    );
+
+    let dx = fx;
+    let dy = fy;
+    if (pressure > 0) {
+      let tx = -fy;
+      let ty = fx;
+      if (tx * (home.cx - cx) + ty * (home.cy - cy) < 0) {
+        tx = -tx;
+        ty = -ty;
+      }
+      dx = fx + (tx - fx) * pressure;
+      dy = fy + (ty - fy) * pressure;
+    }
+
+    if (dx < 0) dx *= 1 - pLeft;
+    if (dx > 0) dx *= 1 - pRight;
+    if (dy < 0) dy *= 1 - pTop;
+    if (dy > 0) dy *= 1 - pBottom;
+
+    // Boxed in on every useful axis - head for home center instead.
+    let mag = Math.hypot(dx, dy);
+    if (mag < 0.15) {
+      dx = home.cx - cx;
+      dy = home.cy - cy;
+      mag = Math.max(1, Math.hypot(dx, dy));
+    }
+    return { x: dx / mag, y: dy / mag };
+  }
+
+  function randomWander(state) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = CALM_IDLE_MIN_SPEED + Math.random() * (CALM_IDLE_MAX_SPEED - CALM_IDLE_MIN_SPEED);
+    state.wx = Math.cos(angle) * speed;
+    state.wy = Math.sin(angle) * speed;
+  }
+
+  // Stress always enters along the top of the play field.
+  function randomTopPosition() {
     const b = fieldBounds();
-    const side = Math.floor(Math.random() * 4);
-    if (side === 0) return { x: b.minX + Math.random() * (b.maxX - b.minX), y: b.minY };
-    if (side === 1) return { x: b.minX + Math.random() * (b.maxX - b.minX), y: b.maxY };
-    if (side === 2) return { x: b.minX, y: b.minY + Math.random() * (b.maxY - b.minY) };
-    return { x: b.maxX, y: b.minY + Math.random() * (b.maxY - b.minY) };
+    return { x: b.minX + Math.random() * (b.maxX - b.minX), y: b.minY };
+  }
+
+  // Seek speed for a newly spawned stress emoji, ramping with match time.
+  function currentStressSpeed() {
+    const t = clamp((performance.now() - matchStartTime) / MATCH_DURATION, 0, 1);
+    const base = STRESS_SPEED_START + (STRESS_SPEED_END - STRESS_SPEED_START) * t;
+    return Math.max(0.1, base + (Math.random() * 2 - 1) * STRESS_SPEED_JITTER);
   }
 
   function spawnCalmEmoji() {
-    const b = fieldBounds();
+    const home = calmHomeZone(calmSafeBounds(fieldBounds()));
     const el = document.createElement("div");
     el.className = "item";
     el.textContent = calmItems[Math.floor(Math.random() * calmItems.length)];
 
-    const angle = Math.random() * Math.PI * 2;
-    const speed = CALM_IDLE_MIN_SPEED + Math.random() * (CALM_IDLE_MAX_SPEED - CALM_IDLE_MIN_SPEED);
-
     const state = {
       el,
-      x: b.minX + Math.random() * (b.maxX - b.minX),
-      y: b.minY + Math.random() * (b.maxY - b.minY),
-      vx: Math.cos(angle) * speed,
-      vy: Math.sin(angle) * speed
+      x: home.minX + Math.random() * (home.maxX - home.minX) - ITEM_SIZE / 2,
+      y: home.minY + Math.random() * (home.maxY - home.minY) - ITEM_SIZE / 2,
+      vx: 0,
+      vy: 0,
+      wx: 0,
+      wy: 0
     };
+    randomWander(state);
+    state.vx = state.wx;
+    state.vy = state.wy;
 
     el.style.left = state.x + "px";
     el.style.top = state.y + "px";
@@ -742,14 +875,14 @@
     el.className = "item";
     el.textContent = stressItems[Math.floor(Math.random() * stressItems.length)];
 
-    const pos = randomEdgePosition();
+    const pos = randomTopPosition();
     const state = {
       el,
       x: pos.x,
       y: pos.y,
       vx: 0,
       vy: 0,
-      speed: STRESS_SEEK_MIN_SPEED + Math.random() * (STRESS_SEEK_MAX_SPEED - STRESS_SEEK_MIN_SPEED)
+      speed: currentStressSpeed()
     };
 
     el.style.left = state.x + "px";
@@ -827,35 +960,67 @@
     const bulletRemovals = [];
 
     // Calm emoji AI: flee the nearest stress emoji if it's within
-    // FLEE_RADIUS, otherwise idle-drift. The idle direction only gets
-    // re-picked occasionally (and never under reduced motion) - the
-    // constant drift itself keeps going either way, same convention as
-    // Calm Command's stress-item jitter gating.
+    // FLEE_RADIUS (sliding sideways instead of into walls), otherwise
+    // wander inside the home zone, drifting back to it if it ended up
+    // outside. The wander direction only gets re-picked occasionally (and
+    // never under reduced motion) - the constant drift itself keeps going
+    // either way, same convention as Calm Command's stress-item jitter
+    // gating.
+    const safe = calmSafeBounds(b);
+    const home = calmHomeZone(safe);
     calmEmojis.forEach(state => {
       const cx = state.x + ITEM_SIZE / 2;
       const cy = state.y + ITEM_SIZE / 2;
       const threat = findNearest(stressEmojis, cx, cy);
 
+      let desiredX;
+      let desiredY;
+      let turn;
+
       if (threat && threat.dist < FLEE_RADIUS) {
-        const dx = cx - threat.cx;
-        const dy = cy - threat.cy;
-        const dist = Math.max(1, Math.hypot(dx, dy));
-        state.vx = (dx / dist) * CALM_FLEE_SPEED;
-        state.vy = (dy / dist) * CALM_FLEE_SPEED;
-      } else if (!prefersReducedMotion && Math.random() < 0.02) {
-        const angle = Math.random() * Math.PI * 2;
-        const speed = CALM_IDLE_MIN_SPEED + Math.random() * (CALM_IDLE_MAX_SPEED - CALM_IDLE_MIN_SPEED);
-        state.vx = Math.cos(angle) * speed;
-        state.vy = Math.sin(angle) * speed;
+        const dir = fleeDirection(cx, cy, threat, safe, home);
+        desiredX = dir.x * CALM_FLEE_SPEED;
+        desiredY = dir.y * CALM_FLEE_SPEED;
+        turn = CALM_FLEE_TURN;
+      } else {
+        if (!prefersReducedMotion && Math.random() < 0.02) {
+          randomWander(state);
+        }
+
+        // Bounce the wander off the home zone's borders so it stays in.
+        if (cx <= home.minX && state.wx < 0) state.wx *= -1;
+        if (cx >= home.maxX && state.wx > 0) state.wx *= -1;
+        if (cy <= home.minY && state.wy < 0) state.wy *= -1;
+        if (cy >= home.maxY && state.wy > 0) state.wy *= -1;
+
+        desiredX = state.wx;
+        desiredY = state.wy;
+
+        // Outside the zone: add a pull toward its nearest point, easing
+        // off as it gets close so it settles back in gently.
+        const ox = clamp(cx, home.minX, home.maxX) - cx;
+        const oy = clamp(cy, home.minY, home.maxY) - cy;
+        const outDist = Math.hypot(ox, oy);
+        if (outDist > 0.5) {
+          const pull = CALM_HOME_RETURN_SPEED * Math.min(1, outDist / 40);
+          desiredX += (ox / outDist) * pull;
+          desiredY += (oy / outDist) * pull;
+        }
+        turn = CALM_IDLE_TURN;
       }
 
-      state.x += state.vx * step;
-      state.y += state.vy * step;
+      const blend = Math.min(1, turn * step);
+      state.vx += (desiredX - state.vx) * blend;
+      state.vy += (desiredY - state.vy) * blend;
 
-      if (state.x < b.minX) { state.x = b.minX; state.vx *= -1; }
-      else if (state.x > b.maxX) { state.x = b.maxX; state.vx *= -1; }
-      if (state.y < b.minY) { state.y = b.minY; state.vy *= -1; }
-      else if (state.y > b.maxY) { state.y = b.maxY; state.vy *= -1; }
+      // Hard limit: never closer than EDGE_MARGIN to any wall. Kill any
+      // velocity into the wall so nothing builds up against it.
+      const nx = clamp(cx + state.vx * step, safe.minX, safe.maxX);
+      const ny = clamp(cy + state.vy * step, safe.minY, safe.maxY);
+      if ((nx === safe.minX && state.vx < 0) || (nx === safe.maxX && state.vx > 0)) state.vx = 0;
+      if ((ny === safe.minY && state.vy < 0) || (ny === safe.maxY && state.vy > 0)) state.vy = 0;
+      state.x = nx - ITEM_SIZE / 2;
+      state.y = ny - ITEM_SIZE / 2;
 
       state.el.style.left = state.x + "px";
       state.el.style.top = state.y + "px";
