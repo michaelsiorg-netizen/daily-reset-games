@@ -23,7 +23,7 @@
     overscroll-behavior: none;
     font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     touch-action: none;
-    background: #0b1322;
+    background: #08081a;
     color: #ffffff;
   }
 
@@ -34,17 +34,85 @@
     inset: 0;
     overflow: hidden;
     touch-action: none;
-    background: #0b1322;
+    background: radial-gradient(120% 80% at 50% 0%, #1b1742 0%, #0c0b24 55%, #07071a 100%);
   }
 
-  /* Two stacked canvases sized to the table only (not the trim around
-     it): #tableStatic holds everything that never moves and is drawn
-     once; #table is cleared and redrawn each frame with just the moving
-     parts, so the background is never copied per frame. */
-  #game canvas {
+  /* ---- Backbox bar: Exit | dot-matrix display | mute ---- */
+  #topBar {
     position: absolute;
     left: 0;
+    right: 0;
     top: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    background: linear-gradient(#17143a, #0c0a25);
+    border-bottom: 1px solid rgba(255, 210, 122, 0.18);
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.55);
+  }
+
+  #dmdBezel {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 3px;
+    border-radius: 6px;
+    background: #050410;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06), inset 0 2px 8px rgba(0, 0, 0, 0.9);
+  }
+
+  #dmd {
+    display: block;
+    /* Soft phosphor bloom; only re-rasterized when the display changes. */
+    filter: drop-shadow(0 0 2px rgba(255, 196, 110, 0.55));
+  }
+
+  .barButton {
+    flex: 0 0 auto;
+    height: 34px;
+    min-width: 34px;
+    border: none;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.12);
+    color: #ffffff;
+    font-size: 13px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .barButton:hover, .barButton:focus-visible {
+    background: rgba(255, 255, 255, 0.22);
+  }
+
+  .exitButton {
+    padding: 0 10px;
+  }
+
+  #muteButton {
+    padding: 0 7px;
+  }
+
+  #muteButton .slash { display: none; }
+  #muteButton.muted .slash { display: inline; }
+  #muteButton.muted .waves { display: none; }
+
+  /* ---- Table: static art canvas + per-frame canvas, stacked ---- */
+  #tableWrap {
+    position: absolute;
+    z-index: 1;
+  }
+
+  #tableWrap canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
     display: block;
     touch-action: none;
   }
@@ -57,24 +125,7 @@
     z-index: 1;
   }
 
-  .exitButton {
-    position: absolute;
-    top: 8px;
-    left: 8px;
-    z-index: 20;
-    background: rgba(255, 255, 255, 0.12);
-    border: none;
-    color: #ffffff;
-    font-size: 13px;
-    cursor: pointer;
-    padding: 6px 10px;
-    border-radius: 12px;
-  }
-
-  .exitButton:hover, .exitButton:focus-visible {
-    background: rgba(255, 255, 255, 0.22);
-  }
-
+  /* ---- Overlays ---- */
   #startScreen, #endScreen {
     position: absolute;
     inset: 0;
@@ -88,11 +139,11 @@
 
   /* Solid, opaque start screen (convention). */
   #startScreen {
-    background: #0b1322;
+    background: #0b0a22;
   }
 
   #endScreen {
-    background: rgba(4, 9, 18, 0.88);
+    background: rgba(6, 5, 20, 0.86);
   }
 
   .card {
@@ -161,7 +212,7 @@
     align-items: center;
     justify-content: center;
     padding: 24px;
-    background: rgba(4, 9, 18, 0.85);
+    background: rgba(6, 5, 20, 0.85);
   }
 </style>
 </head>
@@ -169,10 +220,22 @@
 <body>
 <div id="game">
 
-  <canvas id="tableStatic"></canvas>
-  <canvas id="table"></canvas>
+  <div id="tableWrap">
+    <canvas id="tableStatic"></canvas>
+    <canvas id="table"></canvas>
+  </div>
 
-  <button class="exitButton" onclick="confirmExit()" aria-label="Exit game">&times; Exit</button>
+  <div id="topBar">
+    <button class="exitButton barButton" onclick="confirmExit()" aria-label="Exit game">&times; Exit</button>
+    <div id="dmdBezel"><canvas id="dmd" aria-hidden="true"></canvas></div>
+    <button id="muteButton" class="barButton" onclick="toggleMute()" aria-label="Mute sound" aria-pressed="false">
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+        <path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor" />
+        <path class="waves" d="M16 8.5a4.5 4.5 0 0 1 0 7M18.5 6a8 8 0 0 1 0 12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" />
+        <path class="slash" d="M16 9l6 6M22 9l-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+      </svg>
+    </button>
+  </div>
 
   <div id="startScreen">
     <div class="card">
@@ -276,6 +339,18 @@
   const STUCK_SPEED = 10;          // a ball slower than this for STUCK_TIME gets nudged
   const STUCK_TIME = 3;
 
+  // ---- Lights, display, sound ----
+  const DMD_COLS = 128;            // dot-matrix display resolution
+  const DMD_ROWS = 24;
+  const DMD_MAX_HEIGHT = 64;       // css px
+  const CALM_HITS_PER_LIGHT = 4;   // bumper hits to light each calm-meter lamp
+  const SCORE_ROLLOVER = 50;
+  const SCORE_CALM_BONUS = 1000;   // all five calm lamps lit
+  const SHAKE_BUMPER = 1.5;        // css px of table shake on bumper hits (0 = off)
+  const SHAKE_BIG = 3.5;           // css px on big events
+  const MASTER_VOLUME = 0.8;
+  const ROLL_VOLUME = 0.07;        // rolling-ball hum at full speed
+
   // =====================================================================
 
   const FLIPPER_MAT = { e: FLIPPER_BOUNCE, mu: FLIPPER_FRICTION };
@@ -292,6 +367,11 @@
   const endScreen = document.getElementById("endScreen");
   const finalScore = document.getElementById("finalScore");
   const exitConfirm = document.getElementById("exitConfirm");
+  const topBar = document.getElementById("topBar");
+  const tableWrap = document.getElementById("tableWrap");
+  const dmdCanvas = document.getElementById("dmd");
+  const dmdCtx = dmdCanvas.getContext("2d", { alpha: false });
+  const muteButton = document.getElementById("muteButton");
 
   const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -332,15 +412,31 @@
   let audioCtx = null;
 
   // =====================================================================
-  // Audio + haptics (same helpers as the other Daily Reset games)
+  // Audio - everything synthesized with the Web Audio API (no files).
+  // All sounds run through one master gain so the mute toggle is instant.
   // =====================================================================
+
+  let master = null;
+  let noiseBuf = null;
+  let roll = null;
+  let muted = false;
+  try { muted = localStorage.getItem("mindfulPinballMuted") === "1"; } catch (e) { /* storage blocked */ }
 
   function ensureAudio() {
     if (!audioCtx) {
       const AC = window.AudioContext || window.webkitAudioContext;
-      if (AC) audioCtx = new AC();
+      if (!AC) return;
+      try { audioCtx = new AC({ latencyHint: "interactive" }); } catch (e) { audioCtx = new AC(); }
+      master = audioCtx.createGain();
+      master.gain.value = muted ? 0 : MASTER_VOLUME;
+      master.connect(audioCtx.destination);
+      // One second of white noise, reused by every percussive sound.
+      noiseBuf = audioCtx.createBuffer(1, audioCtx.sampleRate, audioCtx.sampleRate);
+      const d = noiseBuf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      setupRollingHum();
     }
-    if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
+    if (audioCtx.state === "suspended") audioCtx.resume();
   }
 
   function tone(freq, duration, opts = {}) {
@@ -356,22 +452,135 @@
       gain.gain.setValueAtTime(0.0001, t0);
       gain.gain.exponentialRampToValueAtTime(peak, t0 + attack);
     } else {
-      gain.gain.setValueAtTime(peak, t0);   // instant onset (flipper clack)
+      gain.gain.setValueAtTime(peak, t0);   // instant onset (clacks, pops)
     }
     gain.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
-    osc.connect(gain).connect(audioCtx.destination);
+    osc.connect(gain).connect(master);
     osc.start(t0);
     osc.stop(t0 + duration + 0.02);
   }
 
+  // Filtered noise burst - the "mechanical" part of clacks and pops.
+  function noise(duration, opts = {}) {
+    if (!audioCtx) return;
+    const { filter = "bandpass", freq = 1000, q = 1, peak = 0.2, delay = 0, freqEnd = null } = opts;
+    const t0 = audioCtx.currentTime + delay;
+    const src = audioCtx.createBufferSource();
+    src.buffer = noiseBuf;
+    const f = audioCtx.createBiquadFilter();
+    f.type = filter;
+    f.frequency.setValueAtTime(freq, t0);
+    if (freqEnd) f.frequency.exponentialRampToValueAtTime(freqEnd, t0 + duration);
+    f.Q.value = q;
+    const g = audioCtx.createGain();
+    g.gain.setValueAtTime(peak, t0);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
+    src.connect(f).connect(g).connect(master);
+    src.start(t0, Math.random() * 0.5);
+    src.stop(t0 + duration + 0.02);
+  }
+
+  // Soft bell: a few inharmonic partials with a long, gentle decay.
+  function bell(freq, opts = {}) {
+    const { peak = 0.08, delay = 0, decay = 1.4 } = opts;
+    tone(freq, decay, { peak, delay, attack: 0.004 });
+    tone(freq * 2.76, decay * 0.5, { peak: peak * 0.35, delay, attack: 0.004 });
+    tone(freq * 5.4, decay * 0.25, { peak: peak * 0.15, delay, attack: 0.004 });
+  }
+
+  // D major pentatonic - every combination sounds calm.
+  const CHIME_NOTES = [587.33, 659.25, 739.99, 880.0, 987.77, 1174.66];
+
   const sfx = {
-    flipper: () => tone(150, 0.05, { type: "square", peak: 0.06, freqEnd: 80, attack: 0 }),
-    bumper: () => { tone(380, 0.08, { type: "triangle", peak: 0.2, freqEnd: 240 }); tone(760, 0.05, { peak: 0.08 }); },
-    sling: () => tone(300, 0.05, { type: "square", peak: 0.07, freqEnd: 200 }),
-    launch: () => tone(180, 0.22, { type: "sawtooth", peak: 0.06, freqEnd: 420 }),
-    drain: () => { tone(330, 0.18, { peak: 0.15, freqEnd: 220 }); tone(220, 0.3, { peak: 0.15, delay: 0.16, freqEnd: 140 }); },
-    gameOver: () => { tone(392, 0.2, { peak: 0.15 }); tone(330, 0.2, { peak: 0.15, delay: 0.2 }); tone(262, 0.4, { peak: 0.15, delay: 0.4 }); }
+    // Solenoid clack: sharp click + low body thump, instant onset.
+    flipper: () => {
+      noise(0.03, { freq: 2600, q: 0.8, peak: 0.22 });
+      tone(95, 0.07, { peak: 0.22, freqEnd: 55, attack: 0 });
+    },
+    // Flipper dropping back onto its stop: a softer thud.
+    flipperStop: () => {
+      noise(0.02, { freq: 900, q: 1, peak: 0.06 });
+      tone(70, 0.05, { peak: 0.07, attack: 0 });
+    },
+    bumper: () => {
+      noise(0.04, { filter: "highpass", freq: 2500, peak: 0.16 });
+      tone(210, 0.12, { type: "triangle", peak: 0.22, freqEnd: 110, attack: 0 });
+      tone(1180, 0.08, { peak: 0.04, attack: 0 });
+    },
+    sling: () => {
+      noise(0.035, { freq: 1500, q: 1.2, peak: 0.16 });
+      tone(260, 0.06, { type: "square", peak: 0.035, freqEnd: 160, attack: 0 });
+    },
+    // Soft chime for targets / rollovers; i picks the note.
+    chime: (i = 0) => bell(CHIME_NOTES[i % CHIME_NOTES.length], { peak: 0.07 }),
+    softBell: () => bell(293.66, { peak: 0.05, decay: 1.6 }),
+    launch: (frac = 1) => {
+      noise(0.35, { freq: 400, freqEnd: 2200, q: 0.7, peak: 0.06 + 0.08 * frac });
+      tone(120, 0.12, { type: "triangle", peak: 0.12, freqEnd: 70, attack: 0 });
+    },
+    drain: () => {
+      bell(440, { peak: 0.06, decay: 1.6 });
+      bell(329.63, { peak: 0.06, delay: 0.28, decay: 2 });
+    },
+    bigEvent: () => [0, 1, 2, 3, 5].forEach((n, i) => bell(CHIME_NOTES[n], { peak: 0.07, delay: i * 0.11, decay: 1.6 })),
+    gameOver: () => [4, 2, 1, 0].forEach((n, i) => bell(CHIME_NOTES[n] / 2, { peak: 0.08, delay: i * 0.3, decay: 2 }))
   };
+
+  // Rolling ball: looped noise through a low-pass filter. Loudness and
+  // brightness follow the ball's speed (updated once per frame).
+  function setupRollingHum() {
+    const src = audioCtx.createBufferSource();
+    src.buffer = noiseBuf;
+    src.loop = true;
+    const lp = audioCtx.createBiquadFilter();
+    lp.type = "lowpass";
+    lp.frequency.value = 250;
+    lp.Q.value = 0.7;
+    const body = audioCtx.createBiquadFilter();
+    body.type = "peaking";
+    body.frequency.value = 120;
+    body.gain.value = 8;
+    const g = audioCtx.createGain();
+    g.gain.value = 0;
+    src.connect(lp).connect(body).connect(g).connect(master);
+    src.start();
+    roll = { lp, g };
+  }
+
+  function updateRollingHum() {
+    if (!roll) return;
+    let level = 0;
+    let freq = 200;
+    if (state === "playing" && !paused && ball && ball.active) {
+      const k = clamp(Math.hypot(ball.vx, ball.vy) / 2500, 0, 1);
+      level = ROLL_VOLUME * Math.sqrt(k);
+      freq = 180 + 900 * k;
+    }
+    const t = audioCtx.currentTime;
+    roll.g.gain.setTargetAtTime(level, t, 0.05);
+    roll.lp.frequency.setTargetAtTime(freq, t, 0.05);
+  }
+
+  function silenceRollingHum() {
+    if (roll) roll.g.gain.setTargetAtTime(0, audioCtx.currentTime, 0.03);
+  }
+
+  function updateMuteButton() {
+    muteButton.classList.toggle("muted", muted);
+    muteButton.setAttribute("aria-pressed", String(muted));
+    muteButton.setAttribute("aria-label", muted ? "Unmute sound" : "Mute sound");
+  }
+
+  function toggleMute() {
+    muted = !muted;
+    try { localStorage.setItem("mindfulPinballMuted", muted ? "1" : "0"); } catch (e) { /* storage blocked */ }
+    ensureAudio();
+    if (master) master.gain.setTargetAtTime(muted ? 0 : MASTER_VOLUME, audioCtx.currentTime, 0.02);
+    updateMuteButton();
+    muteButton.blur();   // so Space doesn't re-toggle it mid-game
+    dmdMessage(muted ? "SOUND OFF" : "SOUND ON", 1);
+    updateDMD();
+  }
 
   function vibrate(pattern) {
     if (!navigator.vibrate) return;
@@ -600,7 +809,7 @@
       sl.lastHit = simTime;
       sl.litUntil = simTime + 0.12;
       score += SCORE_SLING;
-      sfx.sling();
+      onSlingHit(sl);
       vibrate(12);
     }
   }
@@ -624,7 +833,7 @@
       c.lastHit = simTime;
       c.litUntil = simTime + 0.14;
       score += SCORE_BUMPER;
-      sfx.bumper();
+      onBumperHit(c);
       vibrate(25);
     }
   }
@@ -667,6 +876,7 @@
     const speed = pressed ? FLIPPER_UP_SPEED : FLIPPER_DOWN_SPEED;
     const stepA = speed * dt;
     if (Math.abs(diff) <= stepA) {
+      if (!pressed && f.omega !== 0) sfx.flipperStop();   // sound only
       f.angle = target;
       f.omega = 0;
     } else {
@@ -715,7 +925,7 @@
     if (ball.y + BALL_RADIUS < T.plungerRestY - 40) return;
     ball.vy = -(PLUNGER_MIN_SPEED + (PLUNGER_MAX_SPEED - PLUNGER_MIN_SPEED) * frac);
     ball.vx = 0;
-    sfx.launch();
+    onLaunch(frac);
     vibrate(20);
   }
 
@@ -744,6 +954,8 @@
       ball.vy *= MAX_BALL_SPEED / sp;
     }
 
+    checkRollovers();   // lights/sound only - doesn't touch the ball
+
     // Stuck safety net: a ball sitting still somewhere other than the
     // plunger or a held flipper gets a small nudge.
     const held = flipperPressed("left") || flipperPressed("right");
@@ -762,47 +974,336 @@
   }
 
   // =====================================================================
-  // Layout + rendering
+  // Palette - calm twilight: deep blues and violets with soft gold.
+  // =====================================================================
+
+  const COLORS = {
+    lavender: "#b49cff",
+    teal: "#6fe0e0",
+    gold: "#ffd27a",
+    rose: "#ff9fb8",
+    sky: "#8fb8ff"
+  };
+  const CALM_COLORS = ["#8fb8ff", "#a99cff", "#c79cff", "#f2a8d8", "#ffd27a"];
+  const BUMPER_COLORS = [COLORS.lavender, COLORS.teal, COLORS.gold];
+  const RUBBER = "#ebe6f7";
+
+  function rgbOf(hex) {
+    const n = parseInt(hex.slice(1), 16);
+    return [n >> 16, (n >> 8) & 255, n & 255];
+  }
+
+  function hexA(hex, a) {
+    const [r, g, b] = rgbOf(hex);
+    return "rgba(" + r + "," + g + "," + b + "," + a + ")";
+  }
+
+  function mix(h1, h2, t) {
+    const a = rgbOf(h1), b = rgbOf(h2);
+    return "rgb(" + a.map((v, i) => Math.round(v + (b[i] - v) * t)).join(",") + ")";
+  }
+
+  // Small deterministic random generator so the star field never changes.
+  function rng(seed) {
+    return () => {
+      seed = (seed + 0x6D2B79F5) | 0;
+      let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // =====================================================================
+  // Lamps ("inserts") and decorations. Purely visual - added on top of the
+  // physics table without touching any collider.
+  // =====================================================================
+
+  function decorateTable(T) {
+    T.bumpers.forEach((b, i) => { b.color = BUMPER_COLORS[i]; });
+    const yP = T.yP;
+    const M = x => 2 * PLAY_CENTER_X - x;
+    const inserts = [];
+    const add = o => {
+      const ins = Object.assign({ level: 0, flashUntil: 0, index: 0, litGrad: null }, o);
+      inserts.push(ins);
+      return ins;
+    };
+
+    // Calm meter: five round lamps in a gentle arc above the flippers.
+    T.calmLights = CALM_COLORS.map((color, i) => add({
+      role: "calm", index: i, kind: "circle", color, r: 12,
+      x: PLAY_CENTER_X + (i - 2) * 44, y: yP - 252 + Math.abs(i - 2) * 11
+    }));
+    // Inlane arrows and outlane lamps (lit by rollovers).
+    T.inlaneArrows = [70, M(70)].map(x => add({ role: "rollover", kind: "arrow", angle: -90, color: COLORS.teal, r: 12, x, y: yP - 118 }));
+    T.outlaneLights = [28, M(28)].map(x => add({ role: "rollover", kind: "circle", color: COLORS.rose, r: 8, x, y: yP - 112 }));
+    // "Ready" lamp between the flippers, lit while a ball waits to launch.
+    T.readyLight = add({ role: "ready", kind: "circle", color: COLORS.gold, r: 10, x: PLAY_CENTER_X, y: yP + 34 });
+    // Shooter lane arrows (chase upward while a ball waits).
+    T.laneArrows = [0, 1, 2].map(i => add({
+      role: "lane", index: i, kind: "arrow", angle: -90, color: COLORS.gold, r: 9,
+      x: LANE_CENTER_X, y: T.plungerRestY - 92 - i * 32
+    }));
+    // Arrows toward the reserved ramp/orbit and target bank (future shots).
+    T.featureArrows = [
+      add({ role: "feature", index: 0, kind: "arrow", angle: -120, color: COLORS.lavender, r: 13, x: 140, y: 446 }),
+      add({ role: "feature", index: 1, kind: "arrow", angle: 30, color: COLORS.lavender, r: 13, x: 420, y: 476 })
+    ];
+    // Three small lamps up top, one per bumper (left, right, center).
+    T.topLights = [-1, 1, 0].map((d, i) => add({
+      role: "top", index: i, kind: "circle", color: BUMPER_COLORS[i], r: 8, x: PLAY_CENTER_X + d * 46, y: 112
+    }));
+    T.inserts = inserts;
+  }
+
+  function insertPath(c, ins) {
+    c.beginPath();
+    if (ins.kind === "circle") {
+      c.arc(ins.x, ins.y, ins.r, 0, Math.PI * 2);
+      return;
+    }
+    const a = ins.angle * DEG, r = ins.r, cos = Math.cos(a), sin = Math.sin(a);
+    const P = (u, v) => [ins.x + u * cos - v * sin, ins.y + u * sin + v * cos];
+    const pts = [P(r * 1.1, 0), P(-r * 0.1, r * 0.95), P(-r * 0.1, r * 0.4), P(-r, r * 0.4),
+                 P(-r, -r * 0.4), P(-r * 0.1, -r * 0.4), P(-r * 0.1, -r * 0.95)];
+    c.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i < pts.length; i++) c.lineTo(pts[i][0], pts[i][1]);
+    c.closePath();
+  }
+
+  // Unlit lamp: recessed colored glass (static layer).
+  function drawInsertBody(c, ins) {
+    insertPath(c, ins);
+    c.fillStyle = hexA(ins.color, 0.17);
+    c.fill();
+    c.strokeStyle = "rgba(5, 4, 18, 0.6)";
+    c.lineWidth = 2;
+    c.stroke();
+    c.strokeStyle = "rgba(255, 255, 255, 0.13)";
+    c.lineWidth = 1;
+    c.stroke();
+  }
+
+  // Lit lamp: bright glass with a hot center (per frame, only when lit).
+  function drawInsertLit(c, ins) {
+    if (!ins.litGrad) {
+      const g = c.createRadialGradient(ins.x, ins.y, 0, ins.x, ins.y, ins.r * 1.15);
+      g.addColorStop(0, "#ffffff");
+      g.addColorStop(0.35, mix(ins.color, "#ffffff", 0.45));
+      g.addColorStop(1, ins.color);
+      ins.litGrad = g;
+    }
+    c.globalAlpha = Math.min(1, ins.level);
+    insertPath(c, ins);
+    c.fillStyle = ins.litGrad;
+    c.fill();
+    c.globalAlpha = 1;
+  }
+
+  // =====================================================================
+  // Sprites: pre-rendered once per layout so each frame is mostly cheap
+  // drawImage calls.
+  // =====================================================================
+
+  const sprites = { glow: {}, shadow: null, bumper: [] };
+
+  function makeCanvas(w, h) {
+    const cv = document.createElement("canvas");
+    cv.width = Math.max(1, Math.ceil(w));
+    cv.height = Math.max(1, Math.ceil(h));
+    return cv;
+  }
+
+  function glowSprite(color) {
+    if (sprites.glow[color]) return sprites.glow[color];
+    const s = 128, cv = makeCanvas(s, s), c = cv.getContext("2d");
+    const g = c.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
+    g.addColorStop(0, "rgba(255, 255, 255, 0.85)");
+    g.addColorStop(0.15, hexA(color, 0.75));
+    g.addColorStop(0.5, hexA(color, 0.22));
+    g.addColorStop(1, hexA(color, 0));
+    c.fillStyle = g;
+    c.fillRect(0, 0, s, s);
+    sprites.glow[color] = cv;
+    return cv;
+  }
+
+  function drawGlow(c, color, x, y, r, alpha) {
+    if (alpha <= 0.01) return;
+    c.globalAlpha = Math.min(1, alpha);
+    c.drawImage(glowSprite(color), x - r, y - r, r * 2, r * 2);
+    c.globalAlpha = 1;
+  }
+
+  function shadowSprite() {
+    if (sprites.shadow) return sprites.shadow;
+    const s = 64, cv = makeCanvas(s, s), c = cv.getContext("2d");
+    const g = c.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
+    g.addColorStop(0, "rgba(2, 1, 12, 0.7)");
+    g.addColorStop(0.55, "rgba(2, 1, 12, 0.35)");
+    g.addColorStop(1, "rgba(2, 1, 12, 0)");
+    c.fillStyle = g;
+    c.fillRect(0, 0, s, s);
+    sprites.shadow = cv;
+    return cv;
+  }
+
+  function drawSoftShadow(c, x, y, r, alpha) {
+    c.globalAlpha = alpha;
+    c.drawImage(shadowSprite(), x - r, y - r, r * 2, r * 2);
+    c.globalAlpha = 1;
+  }
+
+  function star(c, x, y, rOut, rIn, points) {
+    c.beginPath();
+    for (let i = 0; i < points * 2; i++) {
+      const a = -Math.PI / 2 + (i * Math.PI) / points;
+      const r = i % 2 ? rIn : rOut;
+      c.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r);
+    }
+    c.closePath();
+  }
+
+  function drawChromeDot(c, x, y, r) {
+    const g = c.createRadialGradient(x - r * 0.35, y - r * 0.4, 0, x, y, r);
+    g.addColorStop(0, "#ffffff");
+    g.addColorStop(0.45, "#a9aeca");
+    g.addColorStop(1, "#3b3d5a");
+    c.fillStyle = g;
+    c.beginPath();
+    c.arc(x, y, r, 0, Math.PI * 2);
+    c.fill();
+  }
+
+  // Pop bumper drawn in table units around (0, 0): chrome skirt (the part
+  // the ball hits), plastic body, and a domed cap shifted slightly toward
+  // the back of the table for a 3D look.
+  function drawBumperBody(c, r, color, lit) {
+    let g = c.createRadialGradient(-r * 0.3, -r * 0.4, r * 0.2, 0, 0, r);
+    g.addColorStop(0, "#f2f4ff");
+    g.addColorStop(0.6, "#9aa2c4");
+    g.addColorStop(1, "#45496c");
+    c.fillStyle = g;
+    c.beginPath();
+    c.arc(0, 0, r, 0, Math.PI * 2);
+    c.fill();
+    c.fillStyle = "#15132e";
+    c.beginPath();
+    c.arc(0, 0, r - 4.5, 0, Math.PI * 2);
+    c.fill();
+
+    const capY = -5, capR = r - 8;
+    c.fillStyle = mix(color, "#0b0a20", lit ? 0.25 : 0.55);
+    c.beginPath();
+    c.arc(0, 0, capR + 0.5, 0, Math.PI);
+    c.lineTo(-capR - 0.5, capY);
+    c.arc(0, capY, capR + 0.5, Math.PI, 0);
+    c.closePath();
+    c.fill();
+
+    g = c.createRadialGradient(-capR * 0.3, capY - capR * 0.35, 1, 0, capY, capR);
+    if (lit) {
+      g.addColorStop(0, "#ffffff");
+      g.addColorStop(0.35, mix(color, "#ffffff", 0.7));
+      g.addColorStop(1, color);
+    } else {
+      g.addColorStop(0, mix(color, "#ffffff", 0.45));
+      g.addColorStop(0.55, mix(color, "#0b0a20", 0.2));
+      g.addColorStop(1, mix(color, "#0b0a20", 0.5));
+    }
+    c.fillStyle = g;
+    c.beginPath();
+    c.arc(0, capY, capR, 0, Math.PI * 2);
+    c.fill();
+    c.strokeStyle = "rgba(255, 255, 255, 0.5)";
+    c.lineWidth = 1.2;
+    c.stroke();
+
+    star(c, 0, capY, capR * 0.48, capR * 0.2, 5);
+    c.fillStyle = lit ? "rgba(255, 255, 255, 0.95)" : "rgba(255, 255, 255, 0.32)";
+    c.fill();
+
+    c.fillStyle = "rgba(255, 255, 255, 0.5)";
+    c.beginPath();
+    c.ellipse(-capR * 0.35, capY - capR * 0.45, capR * 0.35, capR * 0.17, -0.5, 0, Math.PI * 2);
+    c.fill();
+  }
+
+  function buildSprites() {
+    const k = view.k;
+    sprites.bumper = T.bumpers.map(b => [false, true].map(lit => {
+      const half = b.r + 4;
+      const cv = makeCanvas(half * 2 * k, half * 2 * k);
+      const c = cv.getContext("2d");
+      c.setTransform(k, 0, 0, k, half * k, half * k);
+      drawBumperBody(c, b.r, b.color, lit);
+      return { cv, half };
+    }));
+  }
+
+  // =====================================================================
+  // Layout
   // =====================================================================
 
   function layout() {
     const rect = game.getBoundingClientRect();
-    const cssW = Math.max(1, rect.width);
-    const cssH = Math.max(1, rect.height);
+    const gw = Math.max(1, rect.width);
+    const gh = Math.max(1, rect.height);
+    const devDpr = window.devicePixelRatio || 1;
+
+    // Backbox bar first: the display fills the space between the Exit and
+    // mute buttons. The table gets the remaining height.
+    const dmdDpr = Math.min(devDpr, 3);
+    const dmdCssW = clamp(gw - 150, 96, DMD_MAX_HEIGHT * DMD_COLS / DMD_ROWS);
+    const dmdCssH = dmdCssW * DMD_ROWS / DMD_COLS;
+    dmdCanvas.width = Math.round(dmdCssW * dmdDpr);
+    dmdCanvas.height = Math.round(dmdCssH * dmdDpr);
+    dmdCanvas.style.width = dmdCssW + "px";
+    dmdCanvas.style.height = dmdCssH + "px";
+    dmd.pitch = dmdCanvas.width / DMD_COLS;
+    const barH = topBar.getBoundingClientRect().height;
+
+    const cssW = gw;
+    const cssH = Math.max(1, gh - barH);
     const tableH = Math.round(clamp(TABLE_WIDTH * (cssH / cssW), MIN_TABLE_HEIGHT, MAX_TABLE_HEIGHT));
     const scale = Math.min(cssW / TABLE_WIDTH, cssH / tableH);
     const tableCssW = TABLE_WIDTH * scale;
     const tableCssH = tableH * scale;
     // Pixel density: device density up to DPR_CAP, lowered further if
     // the canvas would exceed MAX_CANVAS_PIXELS.
-    let dpr = Math.min(window.devicePixelRatio || 1, DPR_CAP);
+    let dpr = Math.min(devDpr, DPR_CAP);
     dpr = Math.min(dpr, Math.sqrt(MAX_CANVAS_PIXELS / (tableCssW * tableCssH)));
 
     view = {
       cssW, cssH, dpr, scale,
       offX: (cssW - tableCssW) / 2,
-      offY: (cssH - tableCssH) / 2
+      offY: barH + (cssH - tableCssH) / 2
     };
     const pxW = Math.round(tableCssW * dpr);
     const pxH = Math.round(tableCssH * dpr);
     view.k = pxW / TABLE_WIDTH;    // table units -> canvas pixels
+    tableWrap.style.left = view.offX + "px";
+    tableWrap.style.top = view.offY + "px";
+    tableWrap.style.width = tableCssW + "px";
+    tableWrap.style.height = tableCssH + "px";
     [canvas, staticCanvas].forEach(cv => {
       cv.width = pxW;
       cv.height = pxH;
-      cv.style.left = view.offX + "px";
-      cv.style.top = view.offY + "px";
-      cv.style.width = tableCssW + "px";
-      cv.style.height = tableCssH + "px";
     });
 
     if (!T || T.H !== tableH) {
       const oldH = T ? T.H : tableH;
       T = buildTable(tableH);
+      decorateTable(T);
       // Keep a ball in the bottom (anchored) half in the same spot
       // relative to the flippers.
       if (ball && ball.y > oldH / 2) ball.y += tableH - oldH;
     }
+    // Cached gradients belong to the old canvas size; rebuild lazily.
+    T.inserts.forEach(ins => { ins.litGrad = null; });
+    buildSprites();
     drawStatic();
+    updateDMD(true);
   }
 
   function tableTransform(c) {
@@ -824,201 +1325,639 @@
     if (close) c.closePath();
   }
 
+  // =====================================================================
+  // Static layer: playfield art, unlit lamps, rails, slingshots, posts.
+  // Drawn once per layout - costs nothing per frame.
+  // =====================================================================
+
+  function radialWash(c, x, y, r, color, a) {
+    const g = c.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, hexA(color, a));
+    g.addColorStop(1, hexA(color, 0));
+    c.fillStyle = g;
+    c.fillRect(x - r, y - r, r * 2, r * 2);
+  }
+
+  // Metal guide rail: cast shadow, dark edge, brushed steel, highlight.
   function strokeRail(c, pts, r) {
     c.lineCap = "round";
     c.lineJoin = "round";
+    c.save();
+    c.translate(2, 3.5);
     tracePath(c, pts, false);
-    c.strokeStyle = "#0a1220";
-    c.lineWidth = r * 2 + 4;
+    c.strokeStyle = "rgba(0, 0, 0, 0.35)";
+    c.lineWidth = r * 2 + 3;
     c.stroke();
-    c.strokeStyle = "#8a9db2";
-    c.lineWidth = r * 2 + 1;
+    c.restore();
+    tracePath(c, pts, false);
+    c.strokeStyle = "#191833";
+    c.lineWidth = r * 2 + 3;
+    c.stroke();
+    c.strokeStyle = "#9da5c4";
+    c.lineWidth = r * 2 + 0.5;
+    c.stroke();
+    c.strokeStyle = "#d4d8ee";
+    c.lineWidth = Math.max(1, r * 0.8);
     c.stroke();
     c.save();
-    c.translate(-0.8, -0.8);
+    c.translate(-0.7, -0.7);
     tracePath(c, pts, false);
-    c.strokeStyle = "rgba(255, 255, 255, 0.55)";
-    c.lineWidth = 1.2;
+    c.strokeStyle = "rgba(255, 255, 255, 0.75)";
+    c.lineWidth = 0.9;
     c.stroke();
     c.restore();
   }
 
-  // Everything that never moves is drawn once here.
+  function drawMoon(c, x, y, r) {
+    radialWash(c, x, y, r * 3.4, "#ffe6b0", 0.13);
+    c.save();
+    c.beginPath();
+    c.arc(x, y, r, 0, Math.PI * 2);
+    c.clip();
+    c.beginPath();
+    c.arc(x, y, r, 0, Math.PI * 2);
+    c.arc(x + r * 0.45, y - r * 0.22, r * 0.9, 0, Math.PI * 2, true);
+    c.fillStyle = "rgba(255, 234, 190, 0.8)";
+    c.fill("evenodd");
+    c.restore();
+  }
+
+  function drawMandala(c, x, y) {
+    c.save();
+    c.translate(x, y);
+    c.lineWidth = 1.5;
+    c.strokeStyle = "rgba(255, 210, 122, 0.1)";
+    [118, 168, 218].forEach(r => {
+      c.beginPath();
+      c.arc(0, 0, r, 0, Math.PI * 2);
+      c.stroke();
+    });
+    c.strokeStyle = "rgba(180, 156, 255, 0.12)";
+    for (let i = 0; i < 12; i++) {
+      c.save();
+      c.rotate((i * Math.PI) / 6);
+      c.beginPath();
+      c.ellipse(0, -140, 18, 46, 0, 0, Math.PI * 2);
+      c.stroke();
+      c.restore();
+    }
+    c.fillStyle = "rgba(255, 210, 122, 0.15)";
+    for (let i = 0; i < 48; i++) {
+      const a = (i * Math.PI) / 24;
+      c.beginPath();
+      c.arc(Math.cos(a) * 193, Math.sin(a) * 193, 1.6, 0, Math.PI * 2);
+      c.fill();
+    }
+    c.restore();
+  }
+
+  // Slingshot: rubber ring stretched around three chrome posts, with a
+  // translucent plastic cover on top.
+  function drawSlingStatic(c, s) {
+    c.lineJoin = "round";
+    c.save();
+    c.translate(3, 5);
+    tracePath(c, s.pts, true);
+    c.fillStyle = "rgba(0, 0, 0, 0.35)";
+    c.strokeStyle = "rgba(0, 0, 0, 0.35)";
+    c.lineWidth = 10;
+    c.fill();
+    c.stroke();
+    c.restore();
+
+    tracePath(c, s.pts, true);
+    c.strokeStyle = "#2b2550";
+    c.lineWidth = 11.5;
+    c.stroke();
+    c.strokeStyle = RUBBER;
+    c.lineWidth = 10;
+    c.stroke();
+    c.save();
+    c.translate(-1, -1);
+    tracePath(c, s.pts, true);
+    c.strokeStyle = "rgba(255, 255, 255, 0.6)";
+    c.lineWidth = 2;
+    c.stroke();
+    c.restore();
+
+    const cx = (s.pts[0][0] + s.pts[1][0] + s.pts[2][0]) / 3;
+    const cy = (s.pts[0][1] + s.pts[1][1] + s.pts[2][1]) / 3;
+    const inner = s.pts.map(p => [p[0] + (cx - p[0]) * 0.34, p[1] + (cy - p[1]) * 0.34]);
+    tracePath(c, inner, true);
+    const g = c.createLinearGradient(inner[0][0], inner[0][1], inner[2][0], inner[2][1]);
+    g.addColorStop(0, "rgba(140, 110, 230, 0.9)");
+    g.addColorStop(1, "rgba(70, 170, 190, 0.85)");
+    c.fillStyle = g;
+    c.fill();
+    c.strokeStyle = "rgba(255, 210, 122, 0.75)";
+    c.lineWidth = 1.5;
+    c.stroke();
+    star(c, cx, cy + 4, 6, 2.5, 4);
+    c.fillStyle = "rgba(255, 236, 190, 0.75)";
+    c.fill();
+
+    s.pts.forEach(p => drawChromeDot(c, p[0], p[1], 4.5));
+  }
+
+  // Rubber ring around a chrome post.
+  function drawPost(c, x, y, r) {
+    drawSoftShadow(c, x + 2, y + 4, r * 1.5, 0.6);
+    c.fillStyle = "#2b2550";
+    c.beginPath();
+    c.arc(x, y, r + 0.8, 0, Math.PI * 2);
+    c.fill();
+    c.fillStyle = RUBBER;
+    c.beginPath();
+    c.arc(x, y, r, 0, Math.PI * 2);
+    c.fill();
+    drawChromeDot(c, x, y, r * 0.5);
+  }
+
+  function drawApronLabel(c, text, x, y) {
+    c.font = "600 11px system-ui, sans-serif";
+    c.textAlign = "center";
+    c.fillStyle = "rgba(255, 210, 122, 0.55)";
+    c.fillText(text.split("").join(" "), x, y);
+    c.strokeStyle = "rgba(255, 210, 122, 0.25)";
+    c.lineWidth = 1;
+    c.beginPath();
+    c.moveTo(x - 34, y + 9);
+    c.lineTo(x + 34, y + 9);
+    c.stroke();
+  }
+
   function drawStatic() {
     const c = staticCtx;
-    const H = T.H;
+    const H = T.H, yP = T.yP;
     c.setTransform(1, 0, 0, 1, 0, 0);
-    c.fillStyle = "#0b1322";
+    c.fillStyle = "#0b0a1f";
     c.fillRect(0, 0, staticCanvas.width, staticCanvas.height);
     tableTransform(c);
 
-    c.save();
-    c.beginPath();
-    c.rect(0, 0, TABLE_WIDTH, H);
-    c.clip();
-
-    // Cabinet trim around the playfield.
-    const trim = c.createLinearGradient(0, 0, TABLE_WIDTH, 0);
-    trim.addColorStop(0, "#1a2a44");
-    trim.addColorStop(0.5, "#12203a");
-    trim.addColorStop(1, "#1a2a44");
-    c.fillStyle = trim;
+    // Cabinet side rails around the playfield.
+    let g = c.createLinearGradient(0, 0, TABLE_WIDTH, 0);
+    g.addColorStop(0, "#2b2252");
+    g.addColorStop(0.03, "#16122f");
+    g.addColorStop(0.97, "#16122f");
+    g.addColorStop(1, "#2b2252");
+    c.fillStyle = g;
     c.fillRect(0, 0, TABLE_WIDTH, H);
 
-    // Playfield. Darker toward the back and lit toward the flippers to
-    // suggest the table tilting away from the player.
     c.save();
     tracePath(c, T.outline, true);
     c.clip();
-    const pf = c.createLinearGradient(0, 0, 0, H);
-    pf.addColorStop(0, "#0e1b31");
-    pf.addColorStop(0.55, "#17304d");
-    pf.addColorStop(1, "#21405f");
-    c.fillStyle = pf;
+
+    // Twilight sky, deepest at the back of the table.
+    g = c.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, "#090b26");
+    g.addColorStop(0.35, "#161a46");
+    g.addColorStop(0.7, "#242661");
+    g.addColorStop(1, "#33306f");
+    c.fillStyle = g;
     c.fillRect(0, 0, TABLE_WIDTH, H);
 
-    const pool = c.createRadialGradient(PLAY_CENTER_X, T.yP - 40, 20, PLAY_CENTER_X, T.yP - 40, 420);
-    pool.addColorStop(0, "rgba(140, 200, 255, 0.12)");
-    pool.addColorStop(1, "rgba(140, 200, 255, 0)");
-    c.fillStyle = pool;
-    c.fillRect(0, 0, TABLE_WIDTH, H);
+    // Soft nebula washes for layered depth.
+    radialWash(c, 140, 230, 260, "#7b5cff", 0.22);
+    radialWash(c, 470, H * 0.52, 300, "#3fb7c8", 0.13);
+    radialWash(c, PLAY_CENTER_X, 390, 230, "#b49cff", 0.12);
+    radialWash(c, PLAY_CENTER_X, yP - 80, 330, "#ffcf7a", 0.12);
 
-    // Calm ripples around the bumper cluster (placeholder art).
-    c.strokeStyle = "rgba(159, 214, 255, 0.06)";
-    c.lineWidth = 2;
-    [110, 160, 215].forEach(r => {
+    // Stars, fading toward the front of the table.
+    const rand = rng(11);
+    for (let i = 0; i < 170; i++) {
+      const x = rand() * TABLE_WIDTH;
+      const y = rand() * H * 0.78;
+      const s = 0.5 + rand() * 1.3;
+      const a = (0.15 + rand() * 0.55) * (1 - y / H);
+      c.fillStyle = "rgba(235, 230, 255, " + a + ")";
       c.beginPath();
-      c.arc(PLAY_CENTER_X, 380, r, 0, Math.PI * 2);
+      c.arc(x, y, s, 0, Math.PI * 2);
+      c.fill();
+      if (s > 1.6) {
+        c.strokeStyle = "rgba(235, 230, 255, " + a * 0.6 + ")";
+        c.lineWidth = 0.6;
+        c.beginPath();
+        c.moveTo(x - s * 3, y);
+        c.lineTo(x + s * 3, y);
+        c.moveTo(x, y - s * 3);
+        c.lineTo(x, y + s * 3);
+        c.stroke();
+      }
+    }
+
+    drawMoon(c, 118, 196, 24);
+    drawMandala(c, PLAY_CENTER_X, 388);
+
+    // Calm waves above the flippers.
+    c.lineWidth = 2;
+    for (let i = 0; i < 3; i++) {
+      c.strokeStyle = "rgba(111, 224, 224, " + (0.08 - i * 0.02) + ")";
+      c.beginPath();
+      for (let x = 0; x <= TABLE_WIDTH; x += 10) {
+        const y = yP - 150 + i * 18 + Math.sin(x / 55 + i) * 7;
+        if (x === 0) c.moveTo(x, y); else c.lineTo(x, y);
+      }
       c.stroke();
-    });
+    }
 
-    // Back-of-table shadow (depth).
-    const back = c.createLinearGradient(0, 0, 0, 140);
-    back.addColorStop(0, "rgba(0, 0, 0, 0.45)");
-    back.addColorStop(1, "rgba(0, 0, 0, 0)");
-    c.fillStyle = back;
-    c.fillRect(0, 0, TABLE_WIDTH, 140);
+    // Unlit lamps.
+    T.inserts.forEach(ins => drawInsertBody(c, ins));
 
-    // Plunger lane floor.
-    c.fillStyle = "rgba(0, 0, 0, 0.25)";
+    // Plunger lane groove.
+    c.fillStyle = "rgba(0, 0, 0, 0.3)";
     c.fillRect(LANE_X, LANE_TOP, OUTER_RIGHT - LANE_X, H - LANE_TOP);
 
     // Aprons.
     [T.apronLeft, T.apronRight].forEach(pts => {
       tracePath(c, pts, true);
-      const ag = c.createLinearGradient(0, T.yP - 60, 0, H);
-      ag.addColorStop(0, "#1b2d48");
-      ag.addColorStop(1, "#0f1c30");
+      const ag = c.createLinearGradient(0, yP - 60, 0, H);
+      ag.addColorStop(0, "#2a2457");
+      ag.addColorStop(1, "#141130");
       c.fillStyle = ag;
       c.fill();
-    });
-    c.restore();
-
-    // Outer rails.
-    strokeRail(c, T.outline, 3);
-    T.rails.forEach(r => strokeRail(c, r.pts, r.r));
-    strokeRail(c, [[T.gate.ax, T.gate.ay], [T.gate.bx, T.gate.by]], 2);
-
-    // Slingshots: body, drop shadow, white rubber ring.
-    T.slings.forEach(s => {
-      c.save();
-      c.translate(3, 5);
-      tracePath(c, s.pts, true);
-      c.fillStyle = "rgba(0, 0, 0, 0.3)";
-      c.fill();
-      c.restore();
-      tracePath(c, s.pts, true);
-      const g = c.createLinearGradient(s.pts[0][0], s.pts[0][1], s.pts[2][0], s.pts[2][1]);
-      g.addColorStop(0, "#2d5379");
-      g.addColorStop(1, "#1d3a5a");
-      c.fillStyle = g;
-      c.fill();
-      c.lineJoin = "round";
-      c.strokeStyle = "#e8edf3";
-      c.lineWidth = 10;
+      c.strokeStyle = "rgba(255, 210, 122, 0.3)";
+      c.lineWidth = 1.5;
       c.stroke();
     });
+    drawApronLabel(c, "BREATHE", 112, H - 56);
+    drawApronLabel(c, "RELEASE", 2 * PLAY_CENTER_X - 112, H - 56);
 
-    // Rubber posts.
-    T.posts.forEach(p => {
-      c.fillStyle = "rgba(0, 0, 0, 0.3)";
-      c.beginPath();
-      c.arc(p.x + 2, p.y + 4, p.r + 1, 0, Math.PI * 2);
-      c.fill();
-      c.fillStyle = "#e8edf3";
-      c.beginPath();
-      c.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-      c.fill();
-      c.fillStyle = "#8a9db2";
-      c.beginPath();
-      c.arc(p.x, p.y, p.r * 0.45, 0, Math.PI * 2);
-      c.fill();
+    // Depth: soft shadow just inside the outer walls.
+    c.lineJoin = "round";
+    [[30, 0.16], [16, 0.2], [7, 0.26]].forEach(([w, a]) => {
+      tracePath(c, T.outline, false);
+      c.strokeStyle = "rgba(4, 3, 15, " + a + ")";
+      c.lineWidth = w;
+      c.stroke();
     });
-
     c.restore();
+
+    // Metal rails and lane guides.
+    T.rails.forEach(r => strokeRail(c, r.pts, r.r));
+    strokeRail(c, T.outline, 3);
+    strokeRail(c, [[T.gate.ax, T.gate.ay], [T.gate.bx, T.gate.by]], 2);
+    drawChromeDot(c, T.gate.ax - 3, T.gate.ay + 2, 3.5);
+
+    T.slings.forEach(s => drawSlingStatic(c, s));
+    T.posts.forEach(p => drawPost(c, p.x, p.y, p.r));
   }
 
-  function drawBumper(c, b) {
-    const lit = simTime < b.litUntil;
-    const k = lit ? (b.litUntil - simTime) / 0.14 : 0;
+  // =====================================================================
+  // Lights: lamp states, light shows, hit flashes, GI, screen shake.
+  // =====================================================================
 
-    c.fillStyle = "rgba(0, 0, 0, 0.35)";
-    c.beginPath();
-    c.ellipse(b.x + 4, b.y + 7, b.r + 4, b.r + 2, 0, 0, Math.PI * 2);
-    c.fill();
+  let calmLevel = 0;
+  let bumperHits = 0;
+  let calmResetAt = 0;
+  let flashes = [];
+  let show = null;       // { kind, start, dur }
+  let giPulse = 0;       // brief warm glow over the whole table
+  let giDim = 0;         // lights dimming after a drain
+  let shakeMag = 0, shakeDur = 1, shakeUntil = 0, shaking = false;
+  let lastRollover = null;
 
-    // Skirt (its edge is the collision radius).
-    c.fillStyle = lit ? "#5d86b5" : "#2b4566";
-    c.beginPath();
-    c.arc(b.x, b.y, b.r, 0, Math.PI * 2);
-    c.fill();
+  function addFlash(x, y, r, color, intensity) {
+    flashes.push({ x, y, r, color, start: simTime, dur: 0.22, intensity: intensity * (prefersReducedMotion ? 0.4 : 1) });
+    if (flashes.length > 12) flashes.shift();
+  }
 
-    // Cap.
-    const g = c.createRadialGradient(b.x - b.r * 0.35, b.y - b.r * 0.4, 2, b.x, b.y, b.r);
-    if (lit) {
-      g.addColorStop(0, "#fffbe8");
-      g.addColorStop(1, "#ffd875");
-    } else {
-      g.addColorStop(0, "#d9ecff");
-      g.addColorStop(1, "#6f9cc9");
+  function shake(mag, dur) {
+    if (prefersReducedMotion || mag <= 0) return;
+    const remaining = shakeUntil > simTime ? shakeMag * (shakeUntil - simTime) / shakeDur : 0;
+    if (mag < remaining) return;
+    shakeMag = mag;
+    shakeDur = dur;
+    shakeUntil = simTime + dur;
+  }
+
+  function updateShake() {
+    const rem = shakeUntil - simTime;
+    if (rem > 0 && state === "playing" && !paused) {
+      const m = shakeMag * rem / shakeDur;
+      tableWrap.style.transform = "translate(" + ((Math.random() * 2 - 1) * m).toFixed(2) + "px," + ((Math.random() * 2 - 1) * m).toFixed(2) + "px)";
+      shaking = true;
+    } else if (shaking) {
+      tableWrap.style.transform = "";
+      shaking = false;
     }
-    c.fillStyle = g;
-    c.beginPath();
-    c.arc(b.x, b.y, b.r - 7, 0, Math.PI * 2);
-    c.fill();
-    c.strokeStyle = "rgba(255, 255, 255, 0.6)";
-    c.lineWidth = 2;
-    c.stroke();
+  }
 
-    // Expanding glow ring on hit (skipped under reduced motion).
-    if (lit && !prefersReducedMotion) {
-      c.strokeStyle = "rgba(255, 216, 117, " + (0.6 * k) + ")";
-      c.lineWidth = 3;
-      c.beginPath();
-      c.arc(b.x, b.y, b.r + 2 + 14 * (1 - k), 0, Math.PI * 2);
-      c.stroke();
+  function startShow(kind, dur) {
+    show = { kind, start: simTime, dur };
+  }
+
+  // Extra brightness a light show adds to one lamp. Reduced motion gets
+  // a single gentle swell instead of chases and strobes.
+  function showLevel(ins, i) {
+    if (!show) return 0;
+    const t = simTime - show.start;
+    if (t > show.dur) return 0;
+    if (prefersReducedMotion) return 0.6 * Math.sin((Math.PI * t) / show.dur);
+    if (show.kind === "chase") {
+      // A band of light sweeping from the flippers to the top.
+      const pos = 1 - ins.y / T.H;
+      const p = (t / show.dur) * 1.3 - 0.15;
+      return Math.abs(pos - p) < 0.12 ? 1 : 0;
+    }
+    if (show.kind === "celebrate") {
+      return (Math.floor(t * 8) + i) % 2 === 0 ? 1 : 0.15;
+    }
+    return 0;
+  }
+
+  function updateLights(dt) {
+    const k = Math.min(1, dt * 28);   // ~35ms bulb warm-up/cool-down
+    const lane = ballInLane();
+    T.inserts.forEach((ins, i) => {
+      let target = 0;
+      if (simTime < ins.flashUntil) target = 1;
+      else if (ins.role === "calm") target = ins.index < calmLevel ? 1 : 0;
+      else if (ins.role === "ready") target = lane ? (prefersReducedMotion ? 0.8 : 0.55 + 0.45 * Math.sin(simTime * 6)) : 0;
+      else if (ins.role === "lane") target = lane ? (prefersReducedMotion ? 0.7 : (Math.floor(simTime * 6) % 3 === ins.index ? 1 : 0.12)) : 0;
+      else if (ins.role === "feature") target = prefersReducedMotion ? 0.3 : 0.2 + 0.2 * (0.5 + 0.5 * Math.sin(simTime * 1.6 + ins.index * Math.PI));
+      target = Math.max(target, showLevel(ins, i));
+      ins.level += (target - ins.level) * k;
+    });
+    if (show && simTime - show.start > show.dur) show = null;
+    if (calmResetAt && simTime >= calmResetAt) {
+      calmLevel = 0;
+      calmResetAt = 0;
+    }
+    if (flashes.length) flashes = flashes.filter(f => simTime - f.start < f.dur);
+    giPulse = Math.max(0, giPulse - dt * 1.4);
+    giDim = Math.max(0, giDim - dt * 1.1);
+  }
+
+  function resetLights() {
+    calmLevel = 0;
+    bumperHits = 0;
+    calmResetAt = 0;
+    flashes = [];
+    show = null;
+    giPulse = 0;
+    giDim = 0;
+    shakeUntil = 0;
+    lastRollover = null;
+    if (T) T.inserts.forEach(ins => { ins.level = 0; ins.flashUntil = 0; });
+    if (T) T.bumpers.forEach(b => { b.litUntil = -1; });
+    if (T) T.slings.forEach(s => { s.litUntil = -1; });
+  }
+
+  // ---- Hooks called from the physics (visual/audio feedback only) ----
+
+  function onBumperHit(b) {
+    sfx.bumper();
+    addFlash(b.x, b.y, 150, b.color, 0.55);
+    shake(SHAKE_BUMPER, 0.09);
+    T.topLights[T.bumpers.indexOf(b)].flashUntil = simTime + 0.25;
+    bumperHits += 1;
+    if (calmLevel < 5 && !calmResetAt && bumperHits % CALM_HITS_PER_LIGHT === 0) {
+      calmLevel += 1;
+      sfx.chime(calmLevel - 1);
+      if (calmLevel === 5) completeCalm();
+      else dmdMessage("CALM " + calmLevel + "/5", 0.9);
+    }
+  }
+
+  function completeCalm() {
+    score += SCORE_CALM_BONUS;
+    calmResetAt = simTime + 1.8;
+    sfx.bigEvent();
+    startShow("celebrate", 1.8);
+    giPulse = prefersReducedMotion ? 0.12 : 0.3;
+    shake(SHAKE_BIG, 0.25);
+    dmdMessage("INNER CALM", 2, "+" + SCORE_CALM_BONUS.toLocaleString("en-US") + " BONUS");
+  }
+
+  function onSlingHit(sl) {
+    sfx.sling();
+    const [a, b] = sl.kickFace;
+    addFlash((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, 110, COLORS.lavender, 0.4);
+  }
+
+  function onLaunch(frac) {
+    sfx.launch(frac);
+    startShow("chase", 0.7);
+  }
+
+  // Rollover switches in the inlanes/outlanes (lights + sound only).
+  function checkRollovers() {
+    let zone = null;
+    const side = ball.x < PLAY_CENTER_X ? 0 : 1;
+    if (ball.y > T.yP - 150 && ball.y < T.yP - 70) {
+      const lx = side === 0 ? ball.x : 2 * PLAY_CENTER_X - ball.x;
+      if (lx > 51 && lx < 89) zone = "in";
+      else if (lx > 8 && lx < 48) zone = "out";
+    }
+    if (zone !== lastRollover) {
+      if (zone === "in") {
+        const ins = T.inlaneArrows[side];
+        // A ball bouncing back over the switch while the arrow is still
+        // lit doesn't count twice.
+        if (simTime >= ins.flashUntil) {
+          score += SCORE_ROLLOVER;
+          sfx.chime(side ? 3 : 2);
+          addFlash(ins.x, ins.y, 60, COLORS.teal, 0.5);
+        }
+        ins.flashUntil = simTime + 0.7;
+      } else if (zone === "out") {
+        T.outlaneLights[side].flashUntil = simTime + 1.2;
+        sfx.softBell();
+      }
+      lastRollover = zone;
+    }
+  }
+
+  // =====================================================================
+  // Dot-matrix display. Text uses a 5x7 pixel font drawn into a
+  // DMD_COLS x DMD_ROWS grid; the canvas is only redrawn when the
+  // content changes.
+  // =====================================================================
+
+  const FONT_SRC = {
+    "A": ".###.|#...#|#...#|#####|#...#|#...#|#...#",
+    "B": "####.|#...#|#...#|####.|#...#|#...#|####.",
+    "C": ".###.|#...#|#....|#....|#....|#...#|.###.",
+    "D": "####.|#...#|#...#|#...#|#...#|#...#|####.",
+    "E": "#####|#....|#....|####.|#....|#....|#####",
+    "F": "#####|#....|#....|####.|#....|#....|#....",
+    "G": ".###.|#...#|#....|#.###|#...#|#...#|.####",
+    "H": "#...#|#...#|#...#|#####|#...#|#...#|#...#",
+    "I": ".###.|..#..|..#..|..#..|..#..|..#..|.###.",
+    "J": "..###|...#.|...#.|...#.|...#.|#..#.|.##..",
+    "K": "#...#|#..#.|#.#..|##...|#.#..|#..#.|#...#",
+    "L": "#....|#....|#....|#....|#....|#....|#####",
+    "M": "#...#|##.##|#.#.#|#.#.#|#...#|#...#|#...#",
+    "N": "#...#|#...#|##..#|#.#.#|#..##|#...#|#...#",
+    "O": ".###.|#...#|#...#|#...#|#...#|#...#|.###.",
+    "P": "####.|#...#|#...#|####.|#....|#....|#....",
+    "Q": ".###.|#...#|#...#|#...#|#.#.#|#..#.|.##.#",
+    "R": "####.|#...#|#...#|####.|#.#..|#..#.|#...#",
+    "S": ".####|#....|#....|.###.|....#|....#|####.",
+    "T": "#####|..#..|..#..|..#..|..#..|..#..|..#..",
+    "U": "#...#|#...#|#...#|#...#|#...#|#...#|.###.",
+    "V": "#...#|#...#|#...#|#...#|#...#|.#.#.|..#..",
+    "W": "#...#|#...#|#...#|#.#.#|#.#.#|#.#.#|.#.#.",
+    "X": "#...#|#...#|.#.#.|..#..|.#.#.|#...#|#...#",
+    "Y": "#...#|#...#|.#.#.|..#..|..#..|..#..|..#..",
+    "Z": "#####|....#|...#.|..#..|.#...|#....|#####",
+    "0": ".###.|#...#|#..##|#.#.#|##..#|#...#|.###.",
+    "1": "..#..|.##..|..#..|..#..|..#..|..#..|.###.",
+    "2": ".###.|#...#|....#|...#.|..#..|.#...|#####",
+    "3": "####.|....#|....#|.###.|....#|....#|####.",
+    "4": "...#.|..##.|.#.#.|#..#.|#####|...#.|...#.",
+    "5": "#####|#....|####.|....#|....#|#...#|.###.",
+    "6": "..##.|.#...|#....|####.|#...#|#...#|.###.",
+    "7": "#####|....#|...#.|..#..|.#...|.#...|.#...",
+    "8": ".###.|#...#|#...#|.###.|#...#|#...#|.###.",
+    "9": ".###.|#...#|#...#|.####|....#|...#.|.##..",
+    " ": ".....|.....|.....|.....|.....|.....|.....",
+    ".": ".....|.....|.....|.....|.....|.##..|.##..",
+    ",": ".....|.....|.....|.....|.##..|..#..|.#...",
+    "!": "..#..|..#..|..#..|..#..|..#..|.....|..#..",
+    "-": ".....|.....|.....|.###.|.....|.....|.....",
+    "+": ".....|..#..|..#..|#####|..#..|..#..|.....",
+    ":": ".....|.##..|.##..|.....|.##..|.##..|.....",
+    "/": "....#|...#.|...#.|..#..|.#...|.#...|#....",
+    "?": ".###.|#...#|....#|...#.|..#..|.....|..#.."
+  };
+  const FONT = {};
+  Object.keys(FONT_SRC).forEach(ch => { FONT[ch] = FONT_SRC[ch].split("|"); });
+
+  const dmdDots = new Uint8Array(DMD_COLS * DMD_ROWS);   // 0 off, 1 dim, 2 bright
+  const dmd = { msg: "", sub: "", until: 0, key: "", pitch: 2 };
+
+  function dmdWidth(str, scale) {
+    return str.length * 6 * scale - scale;
+  }
+
+  function dmdText(str, x0, y0, scale, level) {
+    let x = x0;
+    for (const ch of str) {
+      const g = FONT[ch] || FONT[" "];
+      for (let row = 0; row < 7; row++) {
+        for (let col = 0; col < 5; col++) {
+          if (g[row].charCodeAt(col) !== 35) continue;   // '#'
+          for (let sy = 0; sy < scale; sy++) {
+            for (let sx = 0; sx < scale; sx++) {
+              const px = x + col * scale + sx, py = y0 + row * scale + sy;
+              if (px >= 0 && px < DMD_COLS && py >= 0 && py < DMD_ROWS) {
+                const i = py * DMD_COLS + px;
+                if (dmdDots[i] < level) dmdDots[i] = level;
+              }
+            }
+          }
+        }
+      }
+      x += 6 * scale;
+    }
+  }
+
+  function dmdCentered(str, y, scale, level) {
+    dmdText(str, Math.floor((DMD_COLS - dmdWidth(str, scale)) / 2), y, scale, level);
+  }
+
+  function dmdMessage(msg, seconds, sub = "") {
+    dmd.msg = msg;
+    dmd.sub = sub;
+    dmd.until = seconds === Infinity ? Infinity : performance.now() + seconds * 1000;
+  }
+
+  function dmdClearMessage() {
+    dmd.msg = "";
+    dmd.until = 0;
+  }
+
+  function updateDMD(force) {
+    const showingMsg = dmd.msg && performance.now() < dmd.until;
+    const key = showingMsg
+      ? "m|" + dmd.msg + "|" + dmd.sub
+      : "s|" + score + "|" + ballNumber + "|" + calmLevel;
+    if (!force && key === dmd.key) return;
+    dmd.key = key;
+    dmdDots.fill(0);
+
+    if (showingMsg) {
+      if (dmdWidth(dmd.msg, 2) <= DMD_COLS) {
+        dmdCentered(dmd.msg, dmd.sub ? 0 : 5, 2, 2);
+        if (dmd.sub) dmdCentered(dmd.sub, 16, 1, 1);
+      } else {
+        dmdCentered(dmd.msg, dmd.sub ? 3 : 8, 1, 2);
+        if (dmd.sub) dmdCentered(dmd.sub, 13, 1, 1);
+      }
+    } else {
+      const s = score.toLocaleString("en-US");
+      const big = dmdWidth(s, 2) <= DMD_COLS;
+      dmdCentered(s, big ? 0 : 4, big ? 2 : 1, 2);
+      dmdText("BALL " + Math.min(ballNumber, BALLS_PER_GAME), 1, 17, 1, 1);
+      dmdText("CALM", DMD_COLS - 61, 17, 1, 1);
+      for (let i = 0; i < 5; i++) {
+        const x0 = DMD_COLS - 35 + i * 7;
+        for (let y = 0; y < 5; y++) {
+          for (let x = 0; x < 5; x++) {
+            const edge = x === 0 || y === 0 || x === 4 || y === 4;
+            if (i < calmLevel || edge) dmdDots[(18 + y) * DMD_COLS + x0 + x] = i < calmLevel ? 2 : 1;
+          }
+        }
+      }
+    }
+    dmdRender();
+  }
+
+  function dmdRender() {
+    const c = dmdCtx, p = dmd.pitch;
+    c.fillStyle = "#07060f";
+    c.fillRect(0, 0, dmdCanvas.width, dmdCanvas.height);
+    // Dots snap to whole pixels; the gap between them shrinks away on
+    // very small displays rather than blurring.
+    const size = p >= 2.5 ? Math.max(1, Math.round(p * 0.72)) : Math.max(1, Math.ceil(p));
+    const colors = ["rgba(255, 196, 110, 0.08)", "rgba(255, 200, 120, 0.5)", "#ffd27a"];
+    for (let level = 0; level < 3; level++) {
+      c.fillStyle = colors[level];
+      for (let y = 0; y < DMD_ROWS; y++) {
+        const py = Math.round(y * p);
+        for (let x = 0; x < DMD_COLS; x++) {
+          if (dmdDots[y * DMD_COLS + x] === level) c.fillRect(Math.round(x * p), py, size, size);
+        }
+      }
+    }
+  }
+
+  // =====================================================================
+  // Dynamic layer (every frame): lit lamps, light, bumpers, flippers,
+  // plunger, ball.
+  // =====================================================================
+
+  function drawBumper(c, b, i) {
+    const lit = simTime < b.litUntil;
+    const sp = sprites.bumper[i][lit ? 1 : 0];
+    drawSoftShadow(c, b.x + 4, b.y + 8, b.r * 1.2, 0.6);
+    c.drawImage(sp.cv, b.x - sp.half, b.y - sp.half, sp.half * 2, sp.half * 2);
+    if (lit) {
+      const k = (b.litUntil - simTime) / 0.14;
+      c.globalCompositeOperation = "lighter";
+      drawGlow(c, b.color, b.x, b.y - 5, b.r * 2.4, (prefersReducedMotion ? 0.35 : 0.8) * k);
+      c.globalCompositeOperation = "source-over";
     }
   }
 
   function drawSlingFlash(c, s) {
     if (simTime >= s.litUntil) return;
+    const k = (s.litUntil - simTime) / 0.12;
     const [a, b] = s.kickFace;
-    let ox = 0, oy = 0;
-    if (!prefersReducedMotion) {
-      // Rubber snaps outward a few units while kicking.
-      const dx = b[0] - a[0], dy = b[1] - a[1];
-      const len = Math.hypot(dx, dy);
-      let nx = dy / len, ny = -dx / len;
-      const midX = (a[0] + b[0]) / 2;
-      if ((midX < PLAY_CENTER_X && nx < 0) || (midX > PLAY_CENTER_X && nx > 0)) { nx = -nx; ny = -ny; }
-      ox = nx * 4; oy = ny * 4;
-    }
+    const dx = b[0] - a[0], dy = b[1] - a[1];
+    const len = Math.hypot(dx, dy);
+    let nx = dy / len, ny = -dx / len;
+    const midX = (a[0] + b[0]) / 2, midY = (a[1] + b[1]) / 2;
+    if ((midX < PLAY_CENTER_X && nx < 0) || (midX > PLAY_CENTER_X && nx > 0)) { nx = -nx; ny = -ny; }
+    // Rubber snaps outward while kicking (no bulge under reduced motion).
+    const bulge = prefersReducedMotion ? 0 : 10 * k;
     c.lineCap = "round";
-    c.strokeStyle = "#ffe9a8";
+    c.strokeStyle = "#fff4d6";
     c.lineWidth = 10;
     c.beginPath();
-    c.moveTo(a[0] + ox, a[1] + oy);
-    c.lineTo(b[0] + ox, b[1] + oy);
+    c.moveTo(a[0], a[1]);
+    c.quadraticCurveTo(midX + nx * bulge, midY + ny * bulge, b[0], b[1]);
     c.stroke();
   }
 
@@ -1038,105 +1977,119 @@
 
   function drawFlipper(c, f) {
     c.save();
-    c.translate(3, 6);
+    c.translate(3, 7);
     flipperPath(c, f);
-    c.fillStyle = "rgba(0, 0, 0, 0.35)";
+    c.fillStyle = "rgba(2, 1, 12, 0.35)";
     c.fill();
     c.restore();
 
     flipperPath(c, f);
-    c.fillStyle = "#f3f5f8";
+    c.fillStyle = "#f3efff";
     c.fill();
-    c.strokeStyle = "#5f86b3";   // rubber ring
-    c.lineWidth = 3.5;
+    // Rubber ring around the flipper body.
+    c.strokeStyle = "#4a3b93";
+    c.lineWidth = 4;
     c.stroke();
-
-    c.fillStyle = "#8a9db2";
+    c.strokeStyle = "rgba(255, 255, 255, 0.28)";
+    c.lineWidth = 1;
+    c.stroke();
+    // Gold accent stripe.
+    const cos = Math.cos(f.angle), sin = Math.sin(f.angle);
+    c.strokeStyle = "rgba(230, 180, 90, 0.75)";
+    c.lineWidth = 2;
+    c.lineCap = "round";
     c.beginPath();
-    c.arc(f.px, f.py, 4, 0, Math.PI * 2);
-    c.fill();
+    c.moveTo(f.px + cos * 14, f.py + sin * 14);
+    c.lineTo(f.px + cos * FLIPPER_LENGTH * 0.78, f.py + sin * FLIPPER_LENGTH * 0.78);
+    c.stroke();
+    // Chrome pivot cap with a screw slot.
+    drawChromeDot(c, f.px, f.py, 6.5);
+    c.strokeStyle = "rgba(40, 36, 70, 0.7)";
+    c.lineWidth = 1.2;
+    c.beginPath();
+    c.moveTo(f.px - cos * 3.5, f.py - sin * 3.5);
+    c.lineTo(f.px + cos * 3.5, f.py + sin * 3.5);
+    c.stroke();
   }
 
   function drawPlunger(c) {
     const tipY = T.plungerRestY + plunger.pull;
-    const x0 = LANE_X + 4, x1 = OUTER_RIGHT - 4;
-    const w = x1 - x0;
+    const x0 = LANE_X + 5, x1 = OUTER_RIGHT - 5, w = x1 - x0;
 
     // Spring (compresses as the plunger is pulled).
-    const springTop = tipY + 10, springBottom = T.H - 4;
-    const coils = 7;
-    c.strokeStyle = "#9fb3c8";
-    c.lineWidth = 2.5;
+    const top = tipY + 12, bottom = T.H - 2, coils = 8;
+    c.strokeStyle = "#b9bfd8";
+    c.lineWidth = 2.2;
     c.beginPath();
     for (let i = 0; i <= coils * 2; i++) {
-      const y = springTop + (springBottom - springTop) * (i / (coils * 2));
-      const x = i % 2 === 0 ? x0 + 6 : x1 - 6;
-      if (i === 0) c.moveTo(LANE_CENTER_X, y); else c.lineTo(x, y);
+      const y = top + (bottom - top) * (i / (coils * 2));
+      const x = i === 0 ? LANE_CENTER_X : (i % 2 === 0 ? x0 + 6 : x1 - 6);
+      if (i === 0) c.moveTo(x, y); else c.lineTo(x, y);
     }
     c.stroke();
 
-    // Rod + tip.
-    c.fillStyle = "#c9d4df";
-    c.fillRect(LANE_CENTER_X - 3, tipY, 6, T.H - tipY);
-    const g = c.createLinearGradient(0, tipY - 4, 0, tipY + 10);
-    g.addColorStop(0, "#f2f5f8");
-    g.addColorStop(1, "#7f93a8");
+    // Chrome rod.
+    const g = c.createLinearGradient(LANE_CENTER_X - 3.5, 0, LANE_CENTER_X + 3.5, 0);
+    g.addColorStop(0, "#6f7495");
+    g.addColorStop(0.5, "#f4f6ff");
+    g.addColorStop(1, "#7a7fa0");
     c.fillStyle = g;
-    c.beginPath();
-    c.roundRect ? c.roundRect(x0, tipY - 4, w, 12, 4) : c.rect(x0, tipY - 4, w, 12);
-    c.fill();
+    c.fillRect(LANE_CENTER_X - 3.5, tipY, 7, T.H - tipY);
 
-    // "Pull" hint while a ball is waiting.
-    if (ballInLane() && plunger.pointerId === null && !plunger.keyHeld && plunger.pull === 0) {
-      const pulse = prefersReducedMotion ? 0.7 : 0.45 + 0.35 * Math.sin(simTime * 5);
-      c.strokeStyle = "rgba(255, 216, 117, " + pulse + ")";
-      c.lineWidth = 3;
-      c.lineCap = "round";
-      c.lineJoin = "round";
-      for (let i = 0; i < 2; i++) {
-        const y = tipY + 22 + i * 12;
-        c.beginPath();
-        c.moveTo(LANE_CENTER_X - 9, y);
-        c.lineTo(LANE_CENTER_X, y + 7);
-        c.lineTo(LANE_CENTER_X + 9, y);
-        c.stroke();
-      }
-    }
+    // Rubber tip.
+    c.fillStyle = "#2c2550";
+    c.beginPath();
+    if (c.roundRect) c.roundRect(x0, tipY - 4, w, 10, 4); else c.rect(x0, tipY - 4, w, 10);
+    c.fill();
+    c.fillStyle = "rgba(255, 255, 255, 0.25)";
+    c.fillRect(x0 + 3, tipY - 3, w - 6, 1.5);
   }
 
+  // Chrome steel ball: an environment reflection (bright cabinet lights
+  // above a dark horizon, the violet playfield below) plus highlights that
+  // track the lights as the ball moves around the table.
   function drawBall(c) {
-    if (!ball || !ball.active) return;
-    // Shadow falls down-table (light from the back of the cabinet).
-    c.fillStyle = "rgba(0, 0, 0, 0.38)";
-    c.beginPath();
-    c.ellipse(ball.x + 4, ball.y + 7, BALL_RADIUS, BALL_RADIUS * 0.9, 0, 0, Math.PI * 2);
-    c.fill();
+    const x = ball.x, y = ball.y, R = BALL_RADIUS;
+    const sideways = clamp((PLAY_CENTER_X - x) / TABLE_WIDTH, -0.5, 0.5);
+    drawSoftShadow(c, x + 3 - sideways * 8, y + 8, R * 1.3, 0.75);
 
-    const g = c.createRadialGradient(
-      ball.x - BALL_RADIUS * 0.35, ball.y - BALL_RADIUS * 0.4, 1,
-      ball.x, ball.y, BALL_RADIUS
-    );
-    g.addColorStop(0, "#ffffff");
-    g.addColorStop(0.25, "#dfe6ee");
-    g.addColorStop(0.7, "#7d8b9a");
-    g.addColorStop(1, "#3a4552");
+    c.save();
+    c.beginPath();
+    c.arc(x, y, R, 0, Math.PI * 2);
+    c.clip();
+
+    let g = c.createLinearGradient(x, y - R, x, y + R);
+    g.addColorStop(0, "#fbfaff");
+    g.addColorStop(0.3, "#c4c3e4");
+    g.addColorStop(0.48, "#4a4878");
+    g.addColorStop(0.56, "#211d45");
+    g.addColorStop(0.8, "#4c428f");
+    g.addColorStop(1, "#9c8fe0");
     c.fillStyle = g;
-    c.beginPath();
-    c.arc(ball.x, ball.y, BALL_RADIUS, 0, Math.PI * 2);
-    c.fill();
-  }
+    c.fillRect(x - R, y - R, R * 2, R * 2);
 
-  function drawApronText(c) {
-    c.textAlign = "center";
-    c.fillStyle = "rgba(200, 222, 245, 0.55)";
-    c.font = "600 12px system-ui, sans-serif";
-    const y = T.H - 70;
-    c.fillText("SCORE", 118, y);
-    c.fillText("BALL", 2 * PLAY_CENTER_X - 118, y);
-    c.fillStyle = "rgba(255, 255, 255, 0.92)";
-    c.font = "700 22px system-ui, sans-serif";
-    c.fillText(String(score), 118, y + 26);
-    c.fillText(Math.min(ballNumber, BALLS_PER_GAME) + " / " + BALLS_PER_GAME, 2 * PLAY_CENTER_X - 118, y + 26);
+    g = c.createRadialGradient(x, y, R * 0.5, x, y, R);
+    g.addColorStop(0, "rgba(12, 10, 32, 0)");
+    g.addColorStop(1, "rgba(12, 10, 32, 0.6)");
+    c.fillStyle = g;
+    c.fillRect(x - R, y - R, R * 2, R * 2);
+
+    const hx = x - R * 0.22 + sideways * R * 0.6;
+    const hy = y - R * 0.42 + clamp((y - T.H * 0.5) / T.H, -0.5, 0.5) * R * 0.25;
+    g = c.createRadialGradient(hx, hy, 0, hx, hy, R * 0.45);
+    g.addColorStop(0, "rgba(255, 255, 255, 1)");
+    g.addColorStop(0.4, "rgba(255, 255, 255, 0.55)");
+    g.addColorStop(1, "rgba(255, 255, 255, 0)");
+    c.fillStyle = g;
+    c.fillRect(x - R, y - R, R * 2, R * 2);
+
+    const wx = x + R * 0.35 - sideways * R * 0.4, wy = y + R * 0.52;
+    g = c.createRadialGradient(wx, wy, 0, wx, wy, R * 0.42);
+    g.addColorStop(0, "rgba(255, 210, 140, 0.55)");
+    g.addColorStop(1, "rgba(255, 210, 140, 0)");
+    c.fillStyle = g;
+    c.fillRect(x - R, y - R, R * 2, R * 2);
+    c.restore();
   }
 
   function drawDebug(c) {
@@ -1177,12 +2130,33 @@
     ctx.beginPath();
     ctx.rect(0, 0, TABLE_WIDTH, T.H);
     ctx.clip();
+
+    // General illumination dips after a drain.
+    if (giDim > 0.01) {
+      ctx.fillStyle = "rgba(5, 4, 18, " + (giDim * 0.45) + ")";
+      ctx.fillRect(0, 0, TABLE_WIDTH, T.H);
+    }
+
+    // Lit lamps, then their halos and hit flashes as added light.
+    const inserts = T.inserts;
+    for (let i = 0; i < inserts.length; i++) if (inserts[i].level > 0.02) drawInsertLit(ctx, inserts[i]);
+    ctx.globalCompositeOperation = "lighter";
+    for (let i = 0; i < inserts.length; i++) {
+      const ins = inserts[i];
+      if (ins.level > 0.02) drawGlow(ctx, ins.color, ins.x, ins.y, ins.r * 3.4, ins.level * 0.55);
+    }
+    for (let i = 0; i < flashes.length; i++) {
+      const f = flashes[i];
+      drawGlow(ctx, f.color, f.x, f.y, f.r, f.intensity * (1 - (simTime - f.start) / f.dur));
+    }
+    if (giPulse > 0.01) drawGlow(ctx, COLORS.gold, PLAY_CENTER_X, T.H * 0.55, T.H * 0.75, giPulse);
+    ctx.globalCompositeOperation = "source-over";
+
     T.slings.forEach(s => drawSlingFlash(ctx, s));
-    T.bumpers.forEach(b => drawBumper(ctx, b));
+    T.bumpers.forEach((b, i) => drawBumper(ctx, b, i));
     drawPlunger(ctx);
     T.flippers.forEach(f => drawFlipper(ctx, f));
-    drawBall(ctx);
-    drawApronText(ctx);
+    if (ball && ball.active) drawBall(ctx);
     if (DEBUG) drawDebug(ctx);
     ctx.restore();
   }
@@ -1199,7 +2173,11 @@
         physicsStep(STEP);
         accumulator -= STEP;
       }
+      updateLights(dt);
     }
+    updateShake();
+    updateRollingHum();
+    updateDMD();
     render();
   }
 
@@ -1213,6 +2191,9 @@
   function stopLoop() {
     if (rafId) cancelAnimationFrame(rafId);
     rafId = null;
+    silenceRollingHum();
+    tableWrap.style.transform = "";
+    shaking = false;
   }
 
   // =====================================================================
@@ -1321,12 +2302,17 @@
       active: true
     };
     stillTime = 0;
+    lastRollover = null;
+    if (ballNumber > 1) dmdMessage("BALL " + ballNumber, 1.8, "PULL TO LAUNCH");
   }
 
   function onDrain() {
     ball.active = false;
     sfx.drain();
     vibrate([40, 40, 40]);
+    show = null;
+    giDim = 1;   // lights dim, then recover
+    dmdMessage("LET IT GO", 1.5);
     if (ballNumber >= BALLS_PER_GAME) {
       nextBallTimer = setTimeout(gameOver, NEXT_BALL_DELAY_MS);
     } else {
@@ -1340,7 +2326,9 @@
     state = "over";
     releaseAllInput();
     sfx.gameOver();
-    finalScore.textContent = "Final score: " + score;
+    finalScore.textContent = "Final score: " + score.toLocaleString("en-US");
+    dmdMessage("GAME OVER", Infinity, "SCORE " + score.toLocaleString("en-US"));
+    updateDMD();
     endScreen.classList.remove("hidden");
     stopLoop();
   }
@@ -1354,6 +2342,8 @@
     ball = null;
     plunger.pull = 0;
     paused = false;
+    resetLights();
+    dmdClearMessage();
   }
 
   function startGame() {
@@ -1367,6 +2357,8 @@
     exitConfirm.style.display = "none";
     state = "playing";
     serveBall();
+    dmdMessage("BE PRESENT", 1.8, "PULL TO LAUNCH");
+    startShow("chase", 1.2);
     startLoop();
   }
 
@@ -1390,6 +2382,7 @@
     exitConfirm.style.display = "none";
     endScreen.classList.add("hidden");
     startScreen.classList.remove("hidden");
+    updateDMD(true);
   }
 
   // Re-measure whenever the Web View's box changes size.
@@ -1409,6 +2402,7 @@
     if (document.hidden) releaseAllInput();
   });
 
+  updateMuteButton();
   layout();
 </script>
 </body>
